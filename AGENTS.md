@@ -4,6 +4,20 @@
 
 `main.py` exposes the FastAPI application. Recommendation agents live in `agents/`; `orchestrator/` coordinates them through the supervisor and LangGraph flow. Put request and response models in `models/`, configuration in `config/`, and supporting logic such as experiments, metrics, and feature storage in `services/`. Tests belong in `tests/` and should mirror the module they cover (for example, `tests/test_ab_test.py`). Architecture and project notes live in `docs/`; `plan.md` records the original plan.
 
+## E-commerce Reference Repositories
+
+Read [`ecommerce-agent-references/README.md`](ecommerce-agent-references/README.md) before designing a shopping, order, fulfillment, or after-sales feature. It maps each business scenario to specific source files and records the limits of each example. The local checkouts are separate Git repositories under `ecommerce-agent-references/`; they are ignored by this project's Git and may be absent in a fresh checkout. Use the upstream links below if a local checkout is missing.
+
+| Business area | Local reference | Upstream |
+| --- | --- | --- |
+| End-to-end shopping, intent routing, cart, orders, tracking, returns | `ecommerce-agent-references/e-commerce-agents/` | [nitin27may/e-commerce-agents](https://github.com/nitin27may/e-commerce-agents) |
+| Shopping data contracts, tool boundaries, grounding, session memory | `ecommerce-agent-references/commerce-agents/` | [anthropics/commerce-agents](https://github.com/anthropics/commerce-agents) |
+| LangGraph order lookup, shipment tracking, return tools | `ecommerce-agent-references/ecommerce-ai-agent/` | [m-peker/ecommerce-ai-agent](https://github.com/m-peker/ecommerce-ai-agent) |
+| Refund approval, policy RAG, resumable support workflow | `ecommerce-agent-references/HelpPilot/` | [poysa213/HelpPilot](https://github.com/poysa213/HelpPilot) |
+| Retail policies, tools, tasks, end-to-end agent evaluation | `ecommerce-agent-references/tau2-bench/` | [sierra-research/tau2-bench](https://github.com/sierra-research/tau2-bench) |
+
+Treat these repositories as read-only examples. Verify behavior in their code before adapting it, and implement changes in this project's own modules. Do not assume their demo checkout, payment, refund, or logistics flows are production integrations. Do not stage their nested Git repositories or install and run them unless the task requires it.
+
 ## Build, Test, and Development Commands
 
 - `python -m venv .venv && source .venv/bin/activate`: create and activate a local environment.

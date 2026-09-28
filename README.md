@@ -1,10 +1,8 @@
 # 🛒 多Agent电商推荐与营销系统
 
-> **面向小白的企业级 AI Agent 项目** — 从零理解 Multi-Agent 架构，配套三语言代码 + 八股文 + 简历模板 + STAR面试话术，找工作全流程覆盖。
+> **面向小白的企业级 AI Agent 项目** — 从零理解 Multi-Agent 架构，配套 Python 代码 + 八股文 + 简历模板 + STAR面试话术，找工作全流程覆盖。
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python)](./)
-[![Java](https://img.shields.io/badge/Java-17%2B-orange?logo=java)](java/)
-[![Go](https://img.shields.io/badge/Go-1.22%2B-00ADD8?logo=go)](go/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 ---
@@ -14,7 +12,7 @@
 1. [这个项目是什么？](#-这个项目是什么)
 2. [系统架构（看图秒懂）](#-系统架构看图秒懂)
 3. [四大核心 Agent 详解](#-四大核心-agent-详解)
-4. [三语言实现对比](#-三语言实现对比)
+4. [Python 实现](#-python-实现)
 5. [关键代码展示](#-关键代码展示)
 6. [快速上手运行](#-快速上手运行)
 7. [API 接口文档](#-api-接口文档)
@@ -436,7 +434,6 @@ docker-compose ps
 
 # 服务地址
 # Python API:  http://localhost:8000
-# Java API:    http://localhost:8080
 # Redis:       localhost:6379
 # MySQL:       localhost:3306
 ```
@@ -447,13 +444,13 @@ docker-compose ps
 
 ### 接口列表
 
-| 方法 | 路径 | 说明 | 语言 |
-|------|------|------|------|
-| `POST` | `/api/v1/recommend` | 核心推荐接口 | Python / Java / Go |
-| `POST` | `/api/v1/recommend/graph` | LangGraph 状态图推荐 | Python only |
-| `GET` | `/api/v1/experiments` | 查看 A/B 实验状态 | Python / Java |
-| `GET` | `/api/v1/metrics` | 系统监控指标 | Python only |
-| `GET` | `/health` | 健康检查 | 全部 |
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/v1/recommend` | 核心推荐接口 |
+| `POST` | `/api/v1/recommend/graph` | LangGraph 状态图推荐 |
+| `GET` | `/api/v1/experiments` | 查看 A/B 实验状态 |
+| `GET` | `/api/v1/metrics` | 系统监控指标 |
+| `GET` | `/health` | 健康检查 |
 
 ### 请求示例
 
@@ -696,9 +693,9 @@ multi-agent-ecommerce-system/
 • 设计流量分桶 + Thompson Sampling A/B 测试引擎，支持 Agent/模型/Prompt
   三层实验，推荐 CTR 提升 15%，文案点击率提升 23%
 
-• 提供 Python(LangGraph) / Java(Spring AI Alibaba) / Go(goroutine) 三语言实现
+• 提供 Python 实现，结合 FastAPI 与 LangGraph 构建推荐接口和状态图工作流
 
-技术栈：LangGraph · Spring AI Alibaba · Go · Redis · Milvus · FastAPI · Docker
+技术栈：Python · LangGraph · Redis · Milvus · FastAPI · Docker
 ```
 
 ---
@@ -710,7 +707,6 @@ multi-agent-ecommerce-system/
 | 项目 | 说明 | 链接 |
 |------|------|------|
 | NVIDIA Retail Agentic Commerce | NVIDIA 企业级电商 Agent 蓝图 | [GitHub](https://github.com/NVIDIA-AI-Blueprints/Retail-Agentic-Commerce) |
-| Spring AI Alibaba Multi-Agent Demo | 阿里巴巴 Java 多 Agent 示例 | [GitHub](https://github.com/spring-ai-alibaba/spring-ai-alibaba-multi-agent-demo) |
 | LangGraph 官方文档 | LangGraph 状态图框架 | [文档](https://langchain-ai.github.io/langgraph/) |
 | 京东商家智能助手技术博客 | 京东 Multi-Agent 生产实践 | [掘金](https://juejin.cn/post/7470344960563871784) |
 | DualAgent-Rec | 双 Agent 推荐系统 | [GitHub](https://github.com/GuilinDev/Dual-Agent-Recommendation) |
