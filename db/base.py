@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import MetaData, func
 from sqlalchemy.dialects.mysql import DATETIME
@@ -26,6 +26,14 @@ NAMING_CONVENTION = {
 def new_id() -> str:
     """应用生成的 UUID 主键。"""
     return str(uuid.uuid4())
+
+
+def utcnow() -> datetime:
+    """当前 UTC 时间（naive，与 DATETIME(6) 列一致）。
+
+    业务时间统一由应用写入 UTC，不依赖数据库会话时区。
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Base(DeclarativeBase):

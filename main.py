@@ -15,6 +15,8 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.catalog import router as catalog_router
+from api.commerce_read import router as commerce_read_router
 from api.experiments import router as experiments_router
 from api.health import router as health_router
 from api.metrics import router as metrics_router
@@ -50,7 +52,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for router in (health_router, recommendations_router, experiments_router, metrics_router):
+for router in (
+    health_router,
+    recommendations_router,
+    experiments_router,
+    metrics_router,
+    catalog_router,
+    commerce_read_router,
+):
     app.include_router(router)
 
 

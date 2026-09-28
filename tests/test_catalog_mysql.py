@@ -110,17 +110,18 @@ async def _product_with_options(service: CatalogService, category_id: str, code:
     storage = await service.add_option(
         product.id, OptionInput(code="storage", name="容量", sort_order=2)
     )
+    # 显式指定 sort_order：读取按 (sort_order, id) 排序，省略时会退化成随机 UUID 顺序
     black = await service.add_option_value(
-        color.id, OptionValueInput(code="black", display_value="黑色")
+        color.id, OptionValueInput(code="black", display_value="黑色", sort_order=1)
     )
     white = await service.add_option_value(
-        color.id, OptionValueInput(code="white", display_value="白色")
+        color.id, OptionValueInput(code="white", display_value="白色", sort_order=2)
     )
     g128 = await service.add_option_value(
-        storage.id, OptionValueInput(code="128", display_value="128G")
+        storage.id, OptionValueInput(code="128", display_value="128G", sort_order=1)
     )
     g256 = await service.add_option_value(
-        storage.id, OptionValueInput(code="256", display_value="256G")
+        storage.id, OptionValueInput(code="256", display_value="256G", sort_order=2)
     )
     return product, color, storage, black, white, g128, g256
 

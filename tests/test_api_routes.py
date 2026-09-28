@@ -37,13 +37,22 @@ class StubGraph:
 
 
 def build_test_app():
+    from api.catalog import router as catalog_router
+    from api.commerce_read import router as commerce_read_router
     from api.experiments import router as experiments_router
     from api.health import router as health_router
     from api.metrics import router as metrics_router
     from api.recommendations import router as recommendations_router
 
     app = FastAPI()
-    for router in (health_router, recommendations_router, experiments_router, metrics_router):
+    for router in (
+        health_router,
+        recommendations_router,
+        experiments_router,
+        metrics_router,
+        catalog_router,
+        commerce_read_router,
+    ):
         app.include_router(router)
     app.state.runtime = SimpleNamespace(
         ab_engine=ABTestEngine(),
@@ -123,4 +132,8 @@ def test_main_app_registers_all_existing_routes():
         ("/api/v1/experiments", "GET"),
         ("/api/v1/experiments/{experiment_id}/outcome", "POST"),
         ("/api/v1/metrics", "GET"),
+        ("/api/v1/catalog/products", "GET"),
+        ("/api/v1/catalog/products/{product_id}", "GET"),
+        ("/api/v1/catalog/skus/{sku_id}", "GET"),
+        ("/api/v1/commerce/skus/{sku_id}/quote", "GET"),
     } <= routes
