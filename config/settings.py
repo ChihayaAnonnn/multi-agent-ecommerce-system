@@ -23,7 +23,9 @@ class Settings(BaseSettings):
     milvus_collection: str = "product_embeddings"
 
     # Database
-    database_url: str = "sqlite:///./ecommerce.db"
+    # 默认留空：应用启动不依赖数据库；仅在创建数据库会话时校验必须为 MySQL URL。
+    # 测试库地址 ECOM_TEST_DATABASE_URL 只由 tests/conftest.py 读取，不进入应用配置。
+    database_url: str = ""
 
     # A/B Testing
     ab_test_enabled: bool = True

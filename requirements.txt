@@ -8,6 +8,9 @@ redis>=5.2.0
 pymilvus>=2.5.0
 sqlalchemy[asyncio]>=2.0.0
 asyncmy>=0.2.9
+# MySQL 8 默认 caching_sha2_password 认证需要 cryptography
+cryptography>=42.0.0
+alembic>=1.13.0
 pydantic>=2.10.0
 pydantic-settings>=2.7.0
 httpx>=0.28.0
