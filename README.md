@@ -2,7 +2,7 @@
 
 > **面向小白的企业级 AI Agent 项目** — 从零理解 Multi-Agent 架构，配套三语言代码 + 八股文 + 简历模板 + STAR面试话术，找工作全流程覆盖。
 
-[![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python)](python/)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python)](./)
 [![Java](https://img.shields.io/badge/Java-17%2B-orange?logo=java)](java/)
 [![Go](https://img.shields.io/badge/Go-1.22%2B-00ADD8?logo=go)](go/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
@@ -61,7 +61,7 @@
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Supervisor 协调Agent                           │
-│                  (python/orchestrator/supervisor.py)              │
+│                  (orchestrator/supervisor.py)              │
 │                                                                   │
 │  ════════════════ Phase 1: 并行执行 ═══════════════════           │
 │  ┌──────────────────────┐    ┌──────────────────────┐            │
@@ -136,7 +136,7 @@ Supervisor 模式                     Handoffs 模式
 
 ### Agent 1：用户画像 Agent
 
-**文件**：[`python/agents/user_profile_agent.py`](python/agents/user_profile_agent.py)
+**文件**：[`agents/user_profile_agent.py`](agents/user_profile_agent.py)
 
 **它做什么？**
 
@@ -167,7 +167,7 @@ return UserProfile(user_id=user_id, segments=["active"], rfm_score=...)
 
 ### Agent 2：商品推荐 Agent
 
-**文件**：[`python/agents/product_rec_agent.py`](python/agents/product_rec_agent.py)
+**文件**：[`agents/product_rec_agent.py`](agents/product_rec_agent.py)
 
 **它做什么？**
 
@@ -193,7 +193,7 @@ return UserProfile(user_id=user_id, segments=["active"], rfm_score=...)
 
 ### Agent 3：营销文案 Agent
 
-**文件**：[`python/agents/marketing_copy_agent.py`](python/agents/marketing_copy_agent.py)
+**文件**：[`agents/marketing_copy_agent.py`](agents/marketing_copy_agent.py)
 
 **它做什么？**
 
@@ -217,7 +217,7 @@ BANNED_WORDS = ["最好", "第一", "最便宜", "绝对", "100%"]
 
 ### Agent 4：库存决策 Agent
 
-**文件**：[`python/agents/inventory_agent.py`](python/agents/inventory_agent.py)
+**文件**：[`agents/inventory_agent.py`](agents/inventory_agent.py)
 
 **它做什么？**
 
@@ -240,15 +240,9 @@ BANNED_WORDS = ["最好", "第一", "最便宜", "绝对", "100%"]
 
 ---
 
-## 🌐 三语言实现对比
+## 🐍 Python 实现
 
-| 维度 | Python | Java | Go |
-|------|--------|------|----|
-| 框架 | [LangGraph](https://github.com/langchain-ai/langgraph) + FastAPI | [Spring AI Alibaba](https://github.com/alibaba/spring-ai-alibaba) + Spring Boot 3 | LangChainGo + Gin |
-| 并行方式 | `asyncio.gather()` | `CompletableFuture.allOf()` | `goroutine` + `sync.WaitGroup` |
-| 推荐语言 | ✅ 入门首选，代码量最少 | ✅ 企业级Java岗 | ✅ 高并发/云原生岗 |
-| 代码位置 | [`python/`](python/) | [`java/`](java/) | [`go/`](go/) |
-| 启动命令 | `python main.py` | `mvn spring-boot:run` | `go run cmd/main.go` |
+代码位于仓库根目录。FastAPI 提供 HTTP 接口；普通推荐接口使用 `asyncio.gather()` 编排，另有 LangGraph 状态图接口。
 
 ---
 
@@ -256,7 +250,7 @@ BANNED_WORDS = ["最好", "第一", "最便宜", "绝对", "100%"]
 
 ### Supervisor 并行编排（Python 核心代码）
 
-**文件**：[`python/orchestrator/supervisor.py`](python/orchestrator/supervisor.py)
+**文件**：[`orchestrator/supervisor.py`](orchestrator/supervisor.py)
 
 ```python
 class SupervisorOrchestrator:
@@ -307,7 +301,7 @@ class SupervisorOrchestrator:
 
 ### A/B 测试引擎（Thompson Sampling）
 
-**文件**：[`python/services/ab_test.py`](python/services/ab_test.py)
+**文件**：[`services/ab_test.py`](services/ab_test.py)
 
 ```python
 class ABTestEngine:
@@ -343,7 +337,7 @@ class ABTestEngine:
 
 ### Agent 基类：重试 + 降级（可靠性保障）
 
-**文件**：[`python/agents/base_agent.py`](python/agents/base_agent.py)
+**文件**：[`agents/base_agent.py`](agents/base_agent.py)
 
 ```python
 class BaseAgent(ABC):
@@ -384,49 +378,21 @@ class BaseAgent(ABC):
 
 ---
 
-### Go 版：goroutine 并行（高并发）
-
-**文件**：[`go/orchestrator/supervisor.go`](go/orchestrator/supervisor.go)
-
-```go
-func (s *Supervisor) Recommend(ctx context.Context, req *model.RecommendRequest) (*model.RecommendResponse, error) {
-    var wg sync.WaitGroup
-    
-    // goroutine 并行：用户画像 + 商品召回
-    wg.Add(2)
-    go func() {
-        defer wg.Done()
-        profile, _ = s.UserProfileAgent.Run(ctx, req.UserID)
-    }()
-    go func() {
-        defer wg.Done()
-        products, _ = s.ProductRecAgent.Run(ctx, req.NumItems*2)
-    }()
-    wg.Wait()  // 等两个 goroutine 都完成
-    
-    // 串行：文案生成
-    copies, _ = s.MarketingCopyAgent.Run(ctx, profile, products)
-    return &model.RecommendResponse{Products: products, Copies: copies}, nil
-}
-```
-
----
-
 ## 🚀 快速上手运行
 
 ### 前置条件
 
-- Python 3.11+ / Java 17+ / Go 1.22+（选一个语言即可）
+- Python 3.11+
 - 申请 LLM API Key（推荐 [MiniMax](https://www.minimax.chat/) 或 [阿里通义](https://dashscope.aliyun.com/)，有免费额度）
 
 ---
 
-### Python 版（推荐小白从这里开始）
+### 本地运行
 
 ```bash
 # 1. 克隆项目
 git clone https://github.com/bcefghj/multi-agent-ecommerce-system.git
-cd multi-agent-ecommerce-system/python
+cd multi-agent-ecommerce-system
 
 # 2. 创建虚拟环境（避免依赖冲突）
 python -m venv .venv
@@ -455,45 +421,6 @@ curl -X POST http://localhost:8000/api/v1/recommend \
       "avg_order_amount": 500
     }
   }'
-```
-
----
-
-### Java 版
-
-```bash
-cd multi-agent-ecommerce-system/java
-
-# 1. 配置 API Key（编辑 src/main/resources/application.yml）
-#    找到 ecommerce.llm.api-key，填入你的 key
-
-# 2. 构建并启动（需要 Maven，可以用 IDEA 直接导入运行）
-mvn spring-boot:run
-
-# 3. 测试
-curl -X POST http://localhost:8080/api/v1/recommend \
-  -H "Content-Type: application/json" \
-  -d '{"userId": "user_001", "numItems": 5}'
-```
-
----
-
-### Go 版
-
-```bash
-cd multi-agent-ecommerce-system/go
-
-# 1. 设置环境变量
-export ECOM_LLM_API_KEY=your_api_key_here
-export ECOM_LLM_BASE_URL=https://api.minimax.chat/v1
-
-# 2. 运行
-go run cmd/main.go
-
-# 3. 测试
-curl -X POST http://localhost:8080/api/v1/recommend \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "user_001", "num_items": 5}'
 ```
 
 ---
@@ -583,58 +510,19 @@ Content-Type: application/json
 
 ## 📁 项目文件结构
 
-```
+```text
 multi-agent-ecommerce-system/
-│
-├── README.md                          # 📄 本文件（项目总览）
-├── plan.md                            # 📋 完整项目计划（从调研到上线）
-├── docker-compose.yml                 # 🐳 一键启动所有服务
-│
-├── docs/                              # 📚 面试全套文档
-│   ├── interview-guide.md             # 🎯 面试指南（八股文30题 + STAR法话术）
-│   ├── resume-template.md             # 📝 简历模板（应届 + 社招两版）
-│   ├── architecture.md                # 🏗 架构设计详解（含数据流图）
-│   └── code-walkthrough.md            # 🔍 代码逐行讲解（面向小白）
-│
-├── python/                            # 🐍 Python 实现（推荐入门）
-│   ├── main.py                        # FastAPI 服务入口
-│   ├── requirements.txt               # 依赖列表
-│   ├── .env.example                   # 环境变量模板
-│   ├── agents/                        # 4 个 Agent 实现
-│   │   ├── base_agent.py              # 基类：重试/超时/降级
-│   │   ├── user_profile_agent.py      # 用户画像 Agent
-│   │   ├── product_rec_agent.py       # 商品推荐 Agent
-│   │   ├── marketing_copy_agent.py    # 营销文案 Agent
-│   │   └── inventory_agent.py         # 库存决策 Agent
-│   ├── orchestrator/
-│   │   ├── supervisor.py              # ⭐ Supervisor 并行编排（核心）
-│   │   └── graph.py                   # LangGraph 状态图
-│   ├── services/
-│   │   ├── ab_test.py                 # A/B 测试引擎（Thompson Sampling）
-│   │   ├── feature_store.py           # Redis 实时特征服务
-│   │   └── metrics.py                 # Prometheus 监控指标
-│   ├── models/schemas.py              # Pydantic 数据模型
-│   ├── config/settings.py             # 配置管理
-│   └── tests/                         # 单元测试
-│
-├── java/                              # ☕ Java 实现（企业级 Spring 生态）
-│   ├── pom.xml                        # Maven 依赖（Spring AI Alibaba）
-│   └── src/main/java/com/ecommerce/
-│       ├── MultiAgentApplication.java # Spring Boot 启动入口
-│       ├── agent/                     # 4 个 Agent（Spring Bean）
-│       ├── orchestrator/              # CompletableFuture 并行编排
-│       ├── service/                   # A/B 测试服务
-│       ├── config/                    # LLM 配置 + REST Controller
-│       └── model/                     # 数据模型（Request/Response）
-│
-└── go/                                # 🐹 Go 实现（高并发云原生）
-    ├── go.mod                         # 模块依赖
-    ├── cmd/main.go                    # 程序入口
-    ├── agent/                         # 4 个 Agent（interface + impl）
-    ├── orchestrator/supervisor.go     # goroutine + WaitGroup 并行编排
-    ├── handler/api.go                 # Gin HTTP 路由
-    ├── service/ab_test.go             # A/B 测试服务
-    └── model/types.go                 # 数据结构定义
+├── main.py                 # FastAPI 入口
+├── agents/                 # 用户画像、推荐、库存、文案 Agent
+├── orchestrator/           # Supervisor 与 LangGraph 状态图
+├── services/               # A/B 实验、特征服务和指标
+├── models/                 # 数据模型
+├── config/                 # 配置
+├── tests/                  # 测试
+├── docs/                   # 项目文档
+├── requirements.txt        # Python 依赖
+├── Dockerfile
+└── docker-compose.yml
 ```
 
 ---
