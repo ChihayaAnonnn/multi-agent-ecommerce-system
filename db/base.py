@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from typing import Annotated
 
+from pydantic import BeforeValidator
 from sqlalchemy import MetaData, func
 from sqlalchemy.dialects.mysql import DATETIME
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -34,6 +36,20 @@ def utcnow() -> datetime:
     业务时间统一由应用写入 UTC，不依赖数据库会话时区。
     """
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _mark_utc(value: datetime) -> datetime:
+    """把数据库读出的 naive UTC 时间标注为 UTC。"""
+    if isinstance(value, datetime) and value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+# 对外领域 DTO 的时间字段统一使用该类型：MySQL DATETIME 不存时区，
+# 值本身是 UTC，返回给调用方时补上时区标识，避免被当成服务器本地时间
+# （本地为 UTC+8 时会直接差 8 小时）。
+# 旧推荐接口的 models/schemas.py 不在此列，其响应形状保持兼容。
+UtcDateTime = Annotated[datetime, BeforeValidator(_mark_utc)]
 
 
 class Base(DeclarativeBase):

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -155,6 +156,47 @@ def test_read_endpoints_return_503_when_database_is_not_configured():
     assert response.status_code == 503
     assert "ECOM_DATABASE_URL" in response.json()["detail"]
     assert "password" not in response.json()["detail"]
+
+
+def _assert_utc_timestamp(value: str) -> None:
+    """解析出的时间必须带 UTC 标识，不能是无法判断时区的裸时间。"""
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    assert parsed.tzinfo is not None, f"{value} 缺少时区标识"
+    assert parsed.utcoffset() == timedelta(0), f"{value} 不是 UTC"
+
+
+def test_timestamps_carry_utc_designator(migrated_mysql_database: str):
+    """对外时间字段一律带 UTC 标识，避免调用方按本地时间误读。"""
+
+    async def scenario():
+        runtime = mysql_runtime(migrated_mysql_database)
+        catalog, product, sku = await _seed_catalog(migrated_mysql_database)
+        await runtime.pricing.set_price(sku.id, 1299, None, "首次定价")
+        await runtime.inventory.create_balance(sku.id)
+        await catalog.activate_product(product.id, expected_version=product.version)
+        app = build_app(runtime)
+
+        listing = (await arequest(app, "GET", "/api/v1/catalog/products")).json()
+        detail = (await arequest(app, "GET", f"/api/v1/catalog/products/{product.id}")).json()
+        quote = (await arequest(app, "GET", f"/api/v1/commerce/skus/{sku.id}/quote")).json()
+
+        timestamps = [
+            listing["items"][0]["created_at"],
+            listing["items"][0]["updated_at"],
+            detail["created_at"],
+            detail["updated_at"],
+            quote["read_at"],
+            quote["price"]["effective_at"],
+            quote["price"]["read_at"],
+            quote["availability"]["read_at"],
+        ]
+        for value in timestamps:
+            _assert_utc_timestamp(value)
+
+        # 报价的库位明细不该出现只属于调整结果的 replayed 标记
+        assert "replayed" not in quote["availability"]["locations"][0]
+
+    asyncio.run(scenario())
 
 
 # ---------- SKU 报价 ----------

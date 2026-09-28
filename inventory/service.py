@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from db.base import new_id, utcnow
 from inventory.models import DEFAULT_LOCATION_ID, InventoryBalance, InventoryMovement, StockLocation
-from inventory.schemas import AvailabilityView, BalanceView
+from inventory.schemas import AdjustmentView, AvailabilityView, BalanceView
 
 
 class InventoryError(Exception):
@@ -38,7 +38,7 @@ class InventoryDependencyError(InventoryError):
     """库存后端不可用；出现该错误时不得把 SKU 当作有货。"""
 
 
-def to_balance_view(balance: InventoryBalance, replayed: bool = False) -> BalanceView:
+def to_balance_view(balance: InventoryBalance) -> BalanceView:
     """把余额行转换为视图，并算出售卖量。"""
     return BalanceView(
         sku_id=balance.sku_id,
@@ -47,7 +47,15 @@ def to_balance_view(balance: InventoryBalance, replayed: bool = False) -> Balanc
         reserved=balance.reserved,
         available=balance.on_hand - balance.reserved,
         version=balance.version,
-        replayed=replayed,
+    )
+
+
+def to_adjustment_view(
+    balance: InventoryBalance, replayed: bool = False
+) -> AdjustmentView:
+    """把余额行转换为调整结果；`replayed` 只属于写路径。"""
+    return AdjustmentView(
+        **to_balance_view(balance).model_dump(), replayed=replayed
     )
 
 
@@ -131,10 +139,10 @@ class InventoryService:
         delta: int,
         idempotency_key: str,
         reason: str,
-    ) -> BalanceView:
+    ) -> AdjustmentView:
         """在指定库位原子调整库存，并记录流水。
 
-        重复请求（同一幂等键且载荷一致）不会再次加减，返回当前余额。
+        重复请求（同一幂等键且载荷一致）不会再次加减，返回当前余额并标记 `replayed`。
         """
         self._validate_delta(delta)
 
@@ -195,7 +203,7 @@ class InventoryService:
                 )
 
             await session.refresh(balance)
-            return to_balance_view(balance)
+            return to_adjustment_view(balance)
 
     # ---------- 内部工具 ----------
 
@@ -215,7 +223,7 @@ class InventoryService:
         sku_id: str,
         location_id: str,
         delta: int,
-    ) -> BalanceView:
+    ) -> AdjustmentView:
         """同一幂等键重复请求：载荷一致则返回当前余额并标记为重复，不一致则冲突。
 
         流水里没有记录「调整后的余额」，因此这里无法重建当初那次的结果；
@@ -237,11 +245,11 @@ class InventoryService:
         )
         if balance is None:
             raise InventoryNotFoundError(f"余额记录不存在: {sku_id} @ {location_id}")
-        return to_balance_view(balance, replayed=True)
+        return to_adjustment_view(balance, replayed=True)
 
     async def _handle_idempotency_race(
         self, sku_id: str, location_id: str, delta: int, idempotency_key: str
-    ) -> BalanceView:
+    ) -> AdjustmentView:
         async with self._session_factory() as session:
             movement = await session.scalar(
                 select(InventoryMovement).where(

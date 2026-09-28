@@ -6,10 +6,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from db.base import UtcDateTime
 
 AttributeValueType = Literal["text", "number", "boolean"]
 CategoryStatus = Literal["active", "inactive"]
@@ -40,8 +41,8 @@ class CategoryView(_View):
     name: str
     status: CategoryStatus
     sort_order: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
 
 
 class AttributeInput(BaseModel):
@@ -86,8 +87,8 @@ class ProductView(_View):
     attributes: dict[str, Any] | None
     status: ProductStatus
     version: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
 
 
 # ---------- 购买规格 ----------
@@ -217,8 +218,8 @@ class ProductSummaryView(_View):
     brand: str | None
     status: ProductStatus
     version: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
 
 
 class ProductPage(BaseModel):

@@ -273,6 +273,41 @@ def test_availability_distinguishes_unknown_zero_and_aggregates_locations(
     asyncio.run(scenario())
 
 
+def test_replay_marker_belongs_to_adjustment_not_to_availability(
+    migrated_mysql_database: str,
+):
+    """replayed 只标注调整结果；可售查询的库位明细不应带该字段。"""
+
+    async def scenario():
+        sku_id = await _create_sku(migrated_mysql_database)
+        service = InventoryService(create_session_factory(migrated_mysql_database))
+        await service.create_balance(sku_id)
+
+        adjusted = await service.adjust(sku_id, DEFAULT_LOCATION_ID, 3, "key-in", "入库")
+        assert set(adjusted.model_dump()) == {
+            "sku_id",
+            "location_id",
+            "on_hand",
+            "reserved",
+            "available",
+            "version",
+            "replayed",
+        }
+
+        availability = (await service.get_availability([sku_id]))[sku_id]
+        for balance in availability.locations:
+            assert set(balance.model_dump()) == {
+                "sku_id",
+                "location_id",
+                "on_hand",
+                "reserved",
+                "available",
+                "version",
+            }, "可售查询的库位明细不应包含 replayed"
+
+    asyncio.run(scenario())
+
+
 def test_availability_raises_dependency_error_on_backend_failure(
     migrated_mysql_database: str,
 ):

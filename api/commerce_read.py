@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -15,7 +13,7 @@ from api.catalog import catalog_http_error
 from api.runtime import require_catalog, require_inventory, require_pricing
 from catalog.schemas import SKUDetailView
 from catalog.service import CatalogError, CatalogService
-from db.base import utcnow
+from db.base import UtcDateTime, utcnow
 from inventory.schemas import AvailabilityView
 from inventory.service import InventoryDependencyError, InventoryService
 from pricing.schemas import PriceView
@@ -40,7 +38,7 @@ class QuoteView(BaseModel):
     availability: AvailabilityView | None = None
     purchasable: bool
     reason: str
-    read_at: datetime
+    read_at: UtcDateTime
 
 
 def _quote_reason(sku: SKUDetailView, price, availability) -> str:

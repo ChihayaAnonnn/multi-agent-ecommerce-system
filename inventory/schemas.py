@@ -2,21 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from db.base import UtcDateTime
 
 AvailabilityStatus = Literal["available", "out_of_stock", "unknown"]
 
 
 class BalanceView(BaseModel):
-    """某个 SKU 在某个库位的余额。
-
-    `replayed=True` 表示这次调用命中了已有幂等键、没有再次加减。此时返回的是
-    **当前**余额，而不是当初那次调整的结果；调用方若需要精确的原结果，
-    应结合库存流水判断，不要把它当成原结果的回执。
-    """
+    """某个 SKU 在某个库位的余额。"""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -26,6 +22,16 @@ class BalanceView(BaseModel):
     reserved: int
     available: int
     version: int
+
+
+class AdjustmentView(BalanceView):
+    """库存调整的结果。
+
+    `replayed=True` 表示这次调用命中了已有幂等键、没有再次加减。此时返回的是
+    **当前**余额，而不是当初那次调整的结果；调用方若需要精确的原结果，
+    应结合库存流水判断，不要把它当成原结果的回执。
+    """
+
     replayed: bool = False
 
 
@@ -41,5 +47,5 @@ class AvailabilityView(BaseModel):
     status: AvailabilityStatus
     available_quantity: int | None = None
     version: int | None = None
-    read_at: datetime
+    read_at: UtcDateTime
     locations: list[BalanceView] = Field(default_factory=list)

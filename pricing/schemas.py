@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
+
+from db.base import UtcDateTime
 
 
 class PriceView(BaseModel):
@@ -16,5 +16,5 @@ class PriceView(BaseModel):
     currency: str
     amount_minor: int
     version: int
-    effective_at: datetime
-    read_at: datetime
+    effective_at: UtcDateTime
+    read_at: UtcDateTime
