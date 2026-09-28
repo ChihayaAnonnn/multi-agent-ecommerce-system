@@ -15,6 +15,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 import catalog.models  # noqa: F401  注册目录表到 metadata
+import pricing.models  # noqa: F401  注册价格表到 metadata
 from db.base import Base
 
 config = context.config

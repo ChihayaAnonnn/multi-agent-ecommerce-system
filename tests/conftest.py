@@ -37,12 +37,20 @@ def alembic_config(database_url: str) -> Config:
     return cfg
 
 
+def upgrade_to(database_url: str, revision: str) -> None:
+    command.upgrade(alembic_config(database_url), revision)
+
+
 def upgrade_to_head(database_url: str) -> None:
-    command.upgrade(alembic_config(database_url), "head")
+    upgrade_to(database_url, "head")
+
+
+def downgrade_to(database_url: str, revision: str) -> None:
+    command.downgrade(alembic_config(database_url), revision)
 
 
 def downgrade_to_base(database_url: str) -> None:
-    command.downgrade(alembic_config(database_url), "base")
+    downgrade_to(database_url, "base")
 
 
 async def _read_schema(database_url: str) -> dict[str, Any]:

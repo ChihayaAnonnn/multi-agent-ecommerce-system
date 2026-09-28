@@ -25,7 +25,7 @@ from catalog.service import (
     compute_option_signature,
 )
 from db.session import create_session_factory
-from tests.conftest import downgrade_to_base, read_schema
+from tests.conftest import downgrade_to_base, read_schema, upgrade_to
 
 CATALOG_TABLES = {
     "categories",
@@ -52,7 +52,10 @@ class StubPriceReader:
 
 
 def test_catalog_migration_constraints(migrated_mysql_database: str):
-    """迁移后应存在 8 张目录表、关键唯一约束，且商品表不存价格与库存。"""
+    """0001 迁移建立 8 张目录表、关键唯一约束，且商品表不存价格与库存。"""
+    # 后续迁移会新增其他领域的表，这里固定在目录基线版本上断言。
+    downgrade_to_base(migrated_mysql_database)
+    upgrade_to(migrated_mysql_database, "0001_catalog")
     schema = read_schema(migrated_mysql_database)
 
     domain_tables = schema["tables"] - {"alembic_version"}
