@@ -16,7 +16,7 @@ from catalog.service import CatalogService
 from db.session import create_session_factory
 from inventory.models import DEFAULT_LOCATION_ID
 from inventory.service import InventoryDependencyError, InventoryService
-from pricing.service import PricingService
+from pricing.service import PricingDependencyError, PricingService
 from services.ab_test import ABTestEngine
 from services.metrics import MetricsCollector
 
@@ -42,9 +42,10 @@ def request(app, method, path, **kwargs):
     return asyncio.run(arequest(app, method, path, **kwargs))
 
 
-def mysql_runtime(database_url: str, inventory=None) -> ApiRuntime:
+def mysql_runtime(database_url: str, inventory=None, pricing=None) -> ApiRuntime:
     factory = create_session_factory(database_url)
-    pricing = PricingService(factory)
+    if pricing is None:
+        pricing = PricingService(factory)
     return SimpleNamespace(
         ab_engine=ABTestEngine(),
         metrics_collector=MetricsCollector(),
@@ -88,6 +89,16 @@ class BrokenInventory(InventoryService):
 
     async def get_availability(self, sku_ids):
         raise InventoryDependencyError("库存查询失败")
+
+
+class BrokenPricing(PricingService):
+    """模拟价格后端故障。"""
+
+    def __init__(self):
+        pass
+
+    async def get_prices(self, sku_ids):
+        raise PricingDependencyError("价格查询失败")
 
 
 # ---------- 目录读取 ----------
@@ -156,21 +167,16 @@ def test_quote_reports_exact_minor_amount_and_purchasable_state(
 
     async def scenario():
         runtime = mysql_runtime(migrated_mysql_database)
-        _, _, sku = await _seed_catalog(migrated_mysql_database)
+        catalog, product, sku = await _seed_catalog(migrated_mysql_database)
         pricing = runtime.pricing
         inventory = runtime.inventory
 
-        await inventory.create_balance(sku.id)
-        app = build_app(runtime)
-
-        # 尚无价格
-        unpriced = (await arequest(app, "GET", f"/api/v1/commerce/skus/{sku.id}/quote")).json()
-        assert unpriced["purchasable"] is False
-        assert unpriced["reason"] == "price_missing"
-        assert unpriced["price"] is None
-
         await pricing.set_price(sku.id, Decimal("12.99"), None, "首次定价")
+        await inventory.create_balance(sku.id)
         await inventory.adjust(sku.id, DEFAULT_LOCATION_ID, 4, "key-in", "入库")
+        # 可购买的前提是商品已上架，而不只是 SKU 有价有货
+        await catalog.activate_product(product.id, expected_version=product.version)
+        app = build_app(runtime)
 
         quote = await arequest(app, "GET", f"/api/v1/commerce/skus/{sku.id}/quote")
         assert quote.status_code == 200
@@ -188,6 +194,41 @@ def test_quote_reports_exact_minor_amount_and_purchasable_state(
     asyncio.run(scenario())
 
 
+def test_quote_requires_active_product(migrated_mysql_database: str):
+    """草稿或已归档商品不得报价为可购买，即使 SKU 有价有货。"""
+
+    async def scenario():
+        runtime = mysql_runtime(migrated_mysql_database)
+        catalog, product, sku = await _seed_catalog(migrated_mysql_database)
+        await runtime.pricing.set_price(sku.id, 1299, None, "首次定价")
+        await runtime.inventory.create_balance(sku.id)
+        await runtime.inventory.adjust(sku.id, DEFAULT_LOCATION_ID, 3, "key-in", "入库")
+        app = build_app(runtime)
+
+        # 草稿商品：有价有货也不可购买，且原因与「缺价」「缺货」不同
+        draft = (await arequest(app, "GET", f"/api/v1/commerce/skus/{sku.id}/quote")).json()
+        assert draft["purchasable"] is False
+        assert draft["reason"] == "product_not_active"
+        assert draft["sku"]["product_status"] == "draft"
+        assert draft["price"]["amount_minor"] == 1299
+        assert draft["availability"]["status"] == "available"
+
+        # 上架后可购买
+        active = await catalog.activate_product(product.id, expected_version=product.version)
+        published = (await arequest(app, "GET", f"/api/v1/commerce/skus/{sku.id}/quote")).json()
+        assert published["purchasable"] is True
+        assert published["sku"]["product_status"] == "active"
+
+        # 归档后再次不可购买
+        await catalog.archive_product(product.id, expected_version=active.version)
+        archived = (await arequest(app, "GET", f"/api/v1/commerce/skus/{sku.id}/quote")).json()
+        assert archived["purchasable"] is False
+        assert archived["reason"] == "product_not_active"
+        assert archived["sku"]["product_status"] == "archived"
+
+    asyncio.run(scenario())
+
+
 def test_quote_distinguishes_missing_price_zero_stock_unknown_stock_and_failure(
     migrated_mysql_database: str,
 ):
@@ -195,32 +236,74 @@ def test_quote_distinguishes_missing_price_zero_stock_unknown_stock_and_failure(
 
     async def scenario():
         runtime = mysql_runtime(migrated_mysql_database)
-        _, _, sku = await _seed_catalog(migrated_mysql_database)
+        catalog, product, sku = await _seed_catalog(migrated_mysql_database)
         pricing, inventory = runtime.pricing, runtime.inventory
+
+        # 先让商品带着一个「有价有货」的 SKU 上架
+        await pricing.set_price(sku.id, 1299, None, "首次定价")
+        await inventory.create_balance(sku.id)
+        await inventory.adjust(sku.id, DEFAULT_LOCATION_ID, 2, "key-in", "入库")
+        await catalog.activate_product(product.id, expected_version=product.version)
         app = build_app(runtime)
 
-        # 未知库存（没有余额行）+ 有价格
-        await pricing.set_price(sku.id, 1299, None, "首次定价")
-        unknown = (await arequest(app, "GET", f"/api/v1/commerce/skus/{sku.id}/quote")).json()
+        # 上架后新增一个尚未定价的 SKU：上架要求有价，所以缺价只能这样出现
+        detail = await catalog.get_product(product.id)
+        white = await catalog.add_option_value(
+            detail.options[0].id,
+            OptionValueInput(code="white", display_value="白色", sort_order=2),
+        )
+        second = await catalog.create_sku(
+            product.id, SKUInput(sku_code="P-1-W", option_value_ids=[white.id])
+        )
+
+        missing_price = (
+            await arequest(app, "GET", f"/api/v1/commerce/skus/{second.id}/quote")
+        ).json()
+        assert missing_price["reason"] == "price_missing"
+        assert missing_price["price"] is None
+        assert missing_price["purchasable"] is False
+
+        # 定价后仍没有余额行：库存未知
+        await pricing.set_price(second.id, 1500, None, "补定价")
+        unknown = (
+            await arequest(app, "GET", f"/api/v1/commerce/skus/{second.id}/quote")
+        ).json()
         assert unknown["reason"] == "stock_unknown"
         assert unknown["availability"]["available_quantity"] is None
         assert unknown["purchasable"] is False
 
-        # 零库存
-        await inventory.create_balance(sku.id)
-        zero = (await arequest(app, "GET", f"/api/v1/commerce/skus/{sku.id}/quote")).json()
+        # 建档但零库存
+        await inventory.create_balance(second.id)
+        zero = (await arequest(app, "GET", f"/api/v1/commerce/skus/{second.id}/quote")).json()
         assert zero["reason"] == "out_of_stock"
         assert zero["availability"]["available_quantity"] == 0
         assert zero["purchasable"] is False
 
-        # 四个原因码互不相同
-        assert len({unknown["reason"], zero["reason"], "price_missing", "purchasable"}) == 4
+        # 入库后可购买
+        await inventory.adjust(second.id, DEFAULT_LOCATION_ID, 3, "key-in-2", "入库")
+        ok = (await arequest(app, "GET", f"/api/v1/commerce/skus/{second.id}/quote")).json()
+        assert ok["reason"] == "purchasable"
 
-        # 后端故障：503，且不返回可购买
+        # 四个原因码互不相同
+        assert len(
+            {missing_price["reason"], unknown["reason"], zero["reason"], ok["reason"]}
+        ) == 4
+
+        # 库存后端故障：503，且不返回可购买
         broken_app = build_app(mysql_runtime(migrated_mysql_database, inventory=BrokenInventory()))
         failure = await arequest(broken_app, "GET", f"/api/v1/commerce/skus/{sku.id}/quote")
         assert failure.status_code == 503
         assert "purchasable" not in failure.json()
+
+        # 价格后端故障：同样是 503，不能落到未处理异常
+        broken_pricing_app = build_app(
+            mysql_runtime(migrated_mysql_database, pricing=BrokenPricing())
+        )
+        pricing_failure = await arequest(
+            broken_pricing_app, "GET", f"/api/v1/commerce/skus/{sku.id}/quote"
+        )
+        assert pricing_failure.status_code == 503
+        assert "purchasable" not in pricing_failure.json()
 
         # 不存在的 SKU 是 404，而不是 503
         assert (

@@ -38,7 +38,7 @@ class InventoryDependencyError(InventoryError):
     """库存后端不可用；出现该错误时不得把 SKU 当作有货。"""
 
 
-def to_balance_view(balance: InventoryBalance) -> BalanceView:
+def to_balance_view(balance: InventoryBalance, replayed: bool = False) -> BalanceView:
     """把余额行转换为视图，并算出售卖量。"""
     return BalanceView(
         sku_id=balance.sku_id,
@@ -47,6 +47,7 @@ def to_balance_view(balance: InventoryBalance) -> BalanceView:
         reserved=balance.reserved,
         available=balance.on_hand - balance.reserved,
         version=balance.version,
+        replayed=replayed,
     )
 
 
@@ -215,7 +216,11 @@ class InventoryService:
         location_id: str,
         delta: int,
     ) -> BalanceView:
-        """同一幂等键重复请求：载荷一致返回当前余额，不一致则冲突。"""
+        """同一幂等键重复请求：载荷一致则返回当前余额并标记为重复，不一致则冲突。
+
+        流水里没有记录「调整后的余额」，因此这里无法重建当初那次的结果；
+        与其把当前余额冒充成原结果，不如用 `replayed=True` 明确标成重复请求。
+        """
         if (
             movement.sku_id != sku_id
             or movement.location_id != location_id
@@ -232,7 +237,7 @@ class InventoryService:
         )
         if balance is None:
             raise InventoryNotFoundError(f"余额记录不存在: {sku_id} @ {location_id}")
-        return to_balance_view(balance)
+        return to_balance_view(balance, replayed=True)
 
     async def _handle_idempotency_race(
         self, sku_id: str, location_id: str, delta: int, idempotency_key: str

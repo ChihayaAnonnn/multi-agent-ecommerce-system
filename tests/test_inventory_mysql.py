@@ -206,6 +206,36 @@ def test_idempotency_key_replays_once_and_conflicts_on_other_payloads(
     asyncio.run(scenario())
 
 
+def test_idempotent_replay_is_marked_and_never_reapplies(migrated_mysql_database: str):
+    """重放同一幂等键不再加减，并明确标记为重复请求而不是原结果。"""
+
+    async def scenario():
+        sku_id = await _create_sku(migrated_mysql_database)
+        service = InventoryService(create_session_factory(migrated_mysql_database))
+        await service.create_balance(sku_id)
+
+        first = await service.adjust(sku_id, DEFAULT_LOCATION_ID, 5, "key-idem", "采购入库")
+        assert first.replayed is False
+        assert first.on_hand == 5
+
+        # 期间发生了别的调整，重放不能假装自己还是当初那次的结果
+        await service.adjust(sku_id, DEFAULT_LOCATION_ID, -2, "key-out", "订单出库")
+
+        replay = await service.adjust(sku_id, DEFAULT_LOCATION_ID, 5, "key-idem", "采购入库")
+        assert replay.replayed is True
+        assert replay.on_hand == 3  # 当前余额，而不是把入库再加一次得到 8
+        assert replay.available == 3
+        assert [item[0] for item in await _movements(migrated_mysql_database, sku_id)] == [5, -2]
+
+        # 紧接着再重放一次，结果稳定
+        again = await service.adjust(sku_id, DEFAULT_LOCATION_ID, 5, "key-idem", "采购入库")
+        assert again.replayed is True
+        assert again.on_hand == 3
+        assert [item[0] for item in await _movements(migrated_mysql_database, sku_id)] == [5, -2]
+
+    asyncio.run(scenario())
+
+
 # ---------- 可售查询 ----------
 
 

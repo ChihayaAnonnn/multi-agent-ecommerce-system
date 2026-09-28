@@ -13,7 +13,7 @@ import binascii
 import hashlib
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
@@ -45,6 +45,7 @@ from catalog.schemas import (
     ProductDetailView,
     ProductInput,
     ProductPage,
+    ProductStatus,
     ProductSummaryView,
     ProductView,
     SelectedOptionValueView,
@@ -221,7 +222,9 @@ class CatalogService:
 
     async def add_option(self, product_id: str, data: OptionInput) -> OptionView:
         async with self._session_factory() as session:
-            product = await self._require_product(session, product_id)
+            # 先锁定商品行再判断状态，与 activate_product 串行化：
+            # 否则「读到草稿 → 上架提交 → 再插入规格」会留下已上架但不完整的商品。
+            product = await self._require_product_locked(session, product_id)
             if product.status != "draft":
                 raise CatalogConflictError(
                     "只有草稿状态的商品可以调整购买规格；请先将商品转回草稿"
@@ -327,7 +330,8 @@ class CatalogService:
         self, product_id: str, expected_version: int
     ) -> ProductView:
         async with self._session_factory() as session:
-            product = await self._require_product(session, product_id)
+            # 先锁定商品行，与 add_option 串行化；组合完整性必须在锁内校验
+            product = await self._require_product_locked(session, product_id)
             if product.status == "archived":
                 raise CatalogConflictError("已归档商品不能重新上架")
 
@@ -347,6 +351,8 @@ class CatalogService:
                 raise CatalogConflictError(
                     "缺少价格读取器：无法确认 SKU 是否有现行价格，拒绝上架"
                 )
+            # 价格后端故障（依赖错误）会原样向上传播，不转换成业务冲突：
+            # 「价格服务挂了」与「商品缺价」必须能被调用方区分。
             if not await self._price_reader.has_current_prices(sku_ids):
                 raise CatalogConflictError("上架前每个可售 SKU 都必须具有现行 CNY 价格")
 
@@ -428,6 +434,7 @@ class CatalogService:
                 skus=[
                     SKUDetailView(
                         **SKUView.model_validate(sku).model_dump(),
+                        product_status=cast(ProductStatus, product.status),
                         selected_values=selected.get(sku.id, []),
                     )
                     for sku in skus
@@ -436,14 +443,18 @@ class CatalogService:
             )
 
     async def get_sku(self, sku_id: str) -> SKUDetailView:
-        """单个 SKU 及其确定的选项组合；停用状态显式返回。"""
+        """单个 SKU 及其确定的选项组合；SKU 停用与商品未上架都显式返回。"""
         async with self._session_factory() as session:
             sku = await session.get(SKU, sku_id)
             if sku is None:
                 raise CatalogNotFoundError(f"SKU 不存在: {sku_id}")
+            product = await session.get(Product, sku.product_id)
+            if product is None:
+                raise CatalogNotFoundError(f"商品不存在: {sku.product_id}")
             selected = await self._load_selected_values(session, [sku.id])
             return SKUDetailView(
                 **SKUView.model_validate(sku).model_dump(),
+                product_status=cast(ProductStatus, product.status),
                 selected_values=selected.get(sku.id, []),
             )
 
@@ -676,6 +687,21 @@ class CatalogService:
     @staticmethod
     async def _require_product(session: AsyncSession, product_id: str) -> Product:
         product = await session.get(Product, product_id)
+        if product is None:
+            raise CatalogNotFoundError(f"商品不存在: {product_id}")
+        return product
+
+    @staticmethod
+    async def _require_product_locked(session: AsyncSession, product_id: str) -> Product:
+        """先锁定商品行，再读取后续规格与 SKU。
+
+        结构性变更（新增购买规格）与上架都必须先拿到同一行锁，两者因此串行化。
+        锁定读放在事务最前面，保证之后的一致性读看到的是锁定之后的数据，
+        不会用旧快照去校验选项组合完整性。
+        """
+        product = await session.scalar(
+            select(Product).where(Product.id == product_id).with_for_update()
+        )
         if product is None:
             raise CatalogNotFoundError(f"商品不存在: {product_id}")
         return product

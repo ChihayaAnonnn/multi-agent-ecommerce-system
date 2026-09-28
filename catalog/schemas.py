@@ -181,8 +181,13 @@ class SelectedOptionValueView(BaseModel):
 
 
 class SKUDetailView(SKUView):
-    """SKU 及其确定的选项组合；`status` 显式返回，停用状态不会被隐藏。"""
+    """SKU 及其确定的选项组合。
 
+    `status` 与所属商品的 `product_status` 都显式返回：SKU 可售的前提是
+    商品已上架（`active`）且 SKU 未停用，缺任一项都不可购买。
+    """
+
+    product_status: ProductStatus
     selected_values: list[SelectedOptionValueView] = Field(default_factory=list)
 
 

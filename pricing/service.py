@@ -12,7 +12,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from db.base import new_id, utcnow
@@ -34,6 +34,10 @@ class PricingConflictError(PricingError):
 
 class PricingValidationError(PricingError):
     """金额或币种不合法。"""
+
+
+class PricingDependencyError(PricingError):
+    """价格后端不可用；出现该错误时不得把 SKU 当作有价。"""
 
 
 def to_minor_units(amount: int | Decimal) -> int:
@@ -65,40 +69,52 @@ class PricingService:
         self._session_factory = session_factory
 
     async def get_prices(self, sku_ids: list[str]) -> dict[str, PriceView]:
-        """返回有现行 CNY 价格的 SKU；无价 SKU 不会出现在结果里。"""
+        """返回有现行 CNY 价格的 SKU；无价 SKU 不会出现在结果里。
+
+        查询失败抛出依赖错误，调用方不得据此认为无价或可购买。
+        """
         if not sku_ids:
             return {}
         read_at = utcnow()
-        async with self._session_factory() as session:
-            rows = await session.scalars(
-                select(SKUPrice).where(
-                    SKUPrice.sku_id.in_(sku_ids), SKUPrice.currency == CURRENCY
-                )
-            )
-            return {
-                row.sku_id: PriceView(
-                    sku_id=row.sku_id,
-                    currency=row.currency,
-                    amount_minor=row.amount_minor,
-                    version=row.version,
-                    effective_at=row.effective_at,
-                    read_at=read_at,
-                )
-                for row in rows
-            }
-
-    async def has_current_prices(self, sku_ids: list[str]) -> bool:
-        """目录上架使用的只读边界：每个 SKU 都必须有现行 CNY 价格。"""
-        if not sku_ids:
-            return True
-        async with self._session_factory() as session:
-            found = set(
-                await session.scalars(
-                    select(SKUPrice.sku_id).where(
+        try:
+            async with self._session_factory() as session:
+                rows = await session.scalars(
+                    select(SKUPrice).where(
                         SKUPrice.sku_id.in_(sku_ids), SKUPrice.currency == CURRENCY
                     )
                 )
-            )
+                return {
+                    row.sku_id: PriceView(
+                        sku_id=row.sku_id,
+                        currency=row.currency,
+                        amount_minor=row.amount_minor,
+                        version=row.version,
+                        effective_at=row.effective_at,
+                        read_at=read_at,
+                    )
+                    for row in rows
+                }
+        except SQLAlchemyError as exc:
+            raise PricingDependencyError("价格查询失败") from exc
+
+    async def has_current_prices(self, sku_ids: list[str]) -> bool:
+        """目录上架使用的只读边界：每个 SKU 都必须有现行 CNY 价格。
+
+        查询失败抛出依赖错误，不会返回 False 让上架误以为「只是缺价」。
+        """
+        if not sku_ids:
+            return True
+        try:
+            async with self._session_factory() as session:
+                found = set(
+                    await session.scalars(
+                        select(SKUPrice.sku_id).where(
+                            SKUPrice.sku_id.in_(sku_ids), SKUPrice.currency == CURRENCY
+                        )
+                    )
+                )
+        except SQLAlchemyError as exc:
+            raise PricingDependencyError("价格查询失败") from exc
         return found == set(sku_ids)
 
     async def set_price(

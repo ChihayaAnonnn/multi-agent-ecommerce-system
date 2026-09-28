@@ -11,7 +11,12 @@ AvailabilityStatus = Literal["available", "out_of_stock", "unknown"]
 
 
 class BalanceView(BaseModel):
-    """某个 SKU 在某个库位的余额。"""
+    """某个 SKU 在某个库位的余额。
+
+    `replayed=True` 表示这次调用命中了已有幂等键、没有再次加减。此时返回的是
+    **当前**余额，而不是当初那次调整的结果；调用方若需要精确的原结果，
+    应结合库存流水判断，不要把它当成原结果的回执。
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -21,6 +26,7 @@ class BalanceView(BaseModel):
     reserved: int
     available: int
     version: int
+    replayed: bool = False
 
 
 class AvailabilityView(BaseModel):

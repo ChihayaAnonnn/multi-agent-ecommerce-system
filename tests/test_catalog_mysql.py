@@ -356,6 +356,58 @@ def test_activation_refuses_incomplete_combinations(migrated_mysql_database: str
 # ---------- 上架与归档 ----------
 
 
+def test_concurrent_option_add_and_activation_keep_combinations_complete(
+    migrated_mysql_database: str,
+):
+    """并发「新增规格」与「上架」不得留下已上架但 SKU 组合不完整的商品。
+
+    两种合法结果：先上架则新增规格被拒；先加规格则上架因组合不完整被拒。
+    不允许出现「商品已上架，但旧 SKU 缺少刚新增的规格」。
+    """
+
+    async def scenario():
+        for round_index in range(5):
+            service = CatalogService(
+                create_session_factory(migrated_mysql_database),
+                price_reader=StubPriceReader(),
+            )
+            category = await _create_category(
+                service, code=f"c-race-{round_index}", name="手机"
+            )
+            product = await _create_product(
+                service, category.id, code=f"P-RACE-{round_index}"
+            )
+            color = await service.add_option(
+                product.id, OptionInput(code="color", name="颜色", sort_order=1)
+            )
+            black = await service.add_option_value(
+                color.id, OptionValueInput(code="black", display_value="黑色", sort_order=1)
+            )
+            await service.create_sku(
+                product.id,
+                SKUInput(sku_code=f"P-RACE-{round_index}-B", option_value_ids=[black.id]),
+            )
+
+            # 两个操作同时发起：一个新增规格，一个尝试上架
+            await asyncio.gather(
+                service.add_option(
+                    product.id, OptionInput(code="storage", name="容量", sort_order=2)
+                ),
+                service.activate_product(product.id, expected_version=product.version),
+                return_exceptions=True,
+            )
+
+            detail = await service.get_product(product.id)
+            if detail.status == "active":
+                option_count = len(detail.options)
+                for sku in detail.skus:
+                    assert len(sku.selected_values) == option_count, (
+                        f"第 {round_index} 轮：商品已上架，但 SKU {sku.sku_code} 缺少规格"
+                    )
+
+    asyncio.run(scenario())
+
+
 def test_activation_requires_sku_and_price(migrated_mysql_database: str):
     """上架需要至少一个 SKU、可用的价格读取器，以及每个 SKU 的现行价格。"""
 

@@ -19,13 +19,14 @@ from db.base import utcnow
 from inventory.schemas import AvailabilityView
 from inventory.service import InventoryDependencyError, InventoryService
 from pricing.schemas import PriceView
-from pricing.service import PricingService
+from pricing.service import PricingDependencyError, PricingService
 
 router = APIRouter(prefix="/api/v1/commerce", tags=["commerce"])
 
 # 报价不可购买的原因码；与 HTTP 状态分开，便于调用方判断。
 REASON_PURCHASABLE = "purchasable"
 REASON_SKU_INACTIVE = "sku_inactive"
+REASON_PRODUCT_NOT_ACTIVE = "product_not_active"
 REASON_PRICE_MISSING = "price_missing"
 REASON_STOCK_UNKNOWN = "stock_unknown"
 REASON_OUT_OF_STOCK = "out_of_stock"
@@ -45,6 +46,9 @@ class QuoteView(BaseModel):
 def _quote_reason(sku: SKUDetailView, price, availability) -> str:
     if sku.status != "active":
         return REASON_SKU_INACTIVE
+    # 商品未上架（草稿或已归档）时，SKU 有价有货也不构成可购买
+    if sku.product_status != "active":
+        return REASON_PRODUCT_NOT_ACTIVE
     if price is None:
         return REASON_PRICE_MISSING
     if availability is None or availability.status == "unknown":
@@ -63,7 +67,7 @@ async def quote_sku(
 ) -> QuoteView:
     """返回 SKU 的现行价格与可售状态。
 
-    不存在的 SKU 返回 404；库存后端故障返回 503，绝不返回可购买。
+    不存在的 SKU 返回 404；库存或价格后端故障返回 503，绝不返回可购买。
     """
     try:
         sku = await catalog.get_sku(sku_id)
@@ -75,7 +79,11 @@ async def quote_sku(
     except InventoryDependencyError as exc:
         raise HTTPException(status_code=503, detail="库存服务不可用，无法报价") from exc
 
-    price = (await pricing.get_prices([sku_id])).get(sku_id)
+    try:
+        price = (await pricing.get_prices([sku_id])).get(sku_id)
+    except PricingDependencyError as exc:
+        raise HTTPException(status_code=503, detail="价格服务不可用，无法报价") from exc
+
     reason = _quote_reason(sku, price, availability)
 
     return QuoteView(
