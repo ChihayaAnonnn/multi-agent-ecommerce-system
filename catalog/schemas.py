@@ -158,3 +158,66 @@ class MediaView(_View):
     media_type: str
     alt_text: str | None
     sort_order: int
+
+
+# ---------- 读取视图 ----------
+
+
+class OptionDetailView(OptionView):
+    """购买规格及其可选值。"""
+
+    values: list[OptionValueView] = Field(default_factory=list)
+
+
+class SelectedOptionValueView(BaseModel):
+    """SKU 选中的规格值，带规格与值的展示信息。"""
+
+    option_id: str
+    option_code: str
+    option_name: str
+    value_id: str
+    value_code: str
+    display_value: str
+
+
+class SKUDetailView(SKUView):
+    """SKU 及其确定的选项组合；`status` 显式返回，停用状态不会被隐藏。"""
+
+    selected_values: list[SelectedOptionValueView] = Field(default_factory=list)
+
+
+class CategoryRefView(_View):
+    id: str
+    code: str
+    name: str
+
+
+class ProductDetailView(ProductView):
+    """商品详情：真实 SKU 组合、购买规格、媒体与类目属性定义。"""
+
+    category: CategoryRefView
+    category_attributes: list[AttributeView] = Field(default_factory=list)
+    options: list[OptionDetailView] = Field(default_factory=list)
+    skus: list[SKUDetailView] = Field(default_factory=list)
+    media: list[MediaView] = Field(default_factory=list)
+
+
+class ProductSummaryView(_View):
+    """列表页使用的商品摘要。"""
+
+    id: str
+    category_id: str
+    product_code: str
+    name: str
+    brand: str | None
+    status: ProductStatus
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ProductPage(BaseModel):
+    """按稳定游标翻页的商品列表。"""
+
+    items: list[ProductSummaryView] = Field(default_factory=list)
+    next_cursor: str | None = None

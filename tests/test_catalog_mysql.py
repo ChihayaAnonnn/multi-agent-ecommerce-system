@@ -541,3 +541,174 @@ def test_media_rejects_sku_from_another_product(migrated_mysql_database: str):
             )
 
     asyncio.run(scenario())
+
+
+# ---------- 读取与搜索 ----------
+
+
+async def _activate(service: CatalogService, product, sku_code: str, option_value_ids=None):
+    """建一个 SKU 并上架，返回上架后的商品。"""
+    await service.create_sku(
+        product.id, SKUInput(sku_code=sku_code, option_value_ids=option_value_ids or [])
+    )
+    return await service.activate_product(product.id, expected_version=product.version)
+
+
+def test_product_detail_returns_real_sku_combinations(migrated_mysql_database: str):
+    """详情返回真实 SKU 组合、媒体与类目属性定义，不伪造笛卡尔积。"""
+
+    async def scenario():
+        service = CatalogService(
+            create_session_factory(migrated_mysql_database), price_reader=StubPriceReader()
+        )
+        category = await _create_category(service)
+        await service.add_category_attribute(
+            category.id, AttributeInput(code="color_family", name="色系", value_type="text")
+        )
+        product, color, storage, black, white, g128, g256 = await _product_with_options(
+            service, category.id
+        )
+        await service.add_media(
+            product.id, MediaInput(url="https://example.com/a.png", media_type="image")
+        )
+        product = await _activate(
+            service, product, "P-2-B-128", [black.id, g128.id]
+        )
+
+        detail = await service.get_product(product.id)
+
+        assert detail.status == "active"
+        assert detail.category.code == "c-apple"
+        assert [item.code for item in detail.category_attributes] == ["color_family"]
+        assert len(detail.options) == 2
+        assert [value.code for value in detail.options[0].values] == ["black", "white"]
+        assert len(detail.media) == 1
+        # 只存在实际创建的那一个组合
+        assert len(detail.skus) == 1
+        assert {(v.option_code, v.value_code) for v in detail.skus[0].selected_values} == {
+            ("color", "black"),
+            ("storage", "128"),
+        }
+
+    asyncio.run(scenario())
+
+
+def test_single_reads_distinguish_inactive_sku_and_archived_product(
+    migrated_mysql_database: str,
+):
+    """停用 SKU 与归档商品在单项读取中可辨别，不被静默隐藏。"""
+
+    async def scenario():
+        service = CatalogService(
+            create_session_factory(migrated_mysql_database), price_reader=StubPriceReader()
+        )
+        category = await _create_category(service)
+        product = await _create_product(service, category.id)
+        sku = await service.create_sku(product.id, SKUInput(sku_code="P-1-000"))
+
+        # 让 SKU 停用后，单项读取仍能看到它的状态
+        async with create_session_factory(migrated_mysql_database)() as session:
+            stored = await session.get(SKU, sku.id)
+            stored.status = "inactive"
+            await session.commit()
+
+        detail = await service.get_sku(sku.id)
+        assert detail.status == "inactive"
+
+        archived = await service.archive_product(product.id, expected_version=product.version)
+        assert archived.status == "archived"
+
+        # 归档商品在详情中仍可读取，并由 status 区分
+        product_detail = await service.get_product(product.id)
+        assert product_detail.status == "archived"
+        assert [item.id for item in product_detail.skus] == [sku.id]
+
+        with pytest.raises(CatalogNotFoundError):
+            await service.get_product("no-such-product")
+        with pytest.raises(CatalogNotFoundError):
+            await service.get_sku("no-such-sku")
+
+    asyncio.run(scenario())
+
+
+def test_search_returns_only_active_products_with_stable_cursor(
+    migrated_mysql_database: str,
+):
+    """搜索只返回在售商品，按游标翻页不重不漏。"""
+
+    async def scenario():
+        service = CatalogService(
+            create_session_factory(migrated_mysql_database), price_reader=StubPriceReader()
+        )
+        category = await _create_category(service)
+        other_category = await _create_category(service, code="c-other", name="配件")
+
+        expected = []
+        for index in range(5):
+            product = await _create_product(
+                service, category.id, code=f"P-{index}",
+            )
+            expected.append((await _activate(service, product, f"P-{index}-000")).id)
+
+        # 草稿商品不进搜索
+        await _create_product(service, category.id, code="P-draft")
+        # 其他类目的在售商品
+        other = await _create_product(service, other_category.id, code="P-other")
+        await _activate(service, other, "P-other-000")
+
+        first = await service.search(category_id=category.id, limit=2)
+        assert len(first.items) == 2
+        assert first.next_cursor is not None
+
+        second = await service.search(category_id=category.id, limit=2, cursor=first.next_cursor)
+        third = await service.search(category_id=category.id, limit=2, cursor=second.next_cursor)
+
+        seen = [item.id for page in (first, second, third) for item in page.items]
+        # 按 (created_at, id) 倒序翻页：不重、不漏、顺序稳定
+        assert seen == list(reversed(expected))
+        assert len(seen) == len(set(seen)) == 5
+        assert third.next_cursor is None
+
+        # 相同游标重复请求得到相同一页（稳定，不重不漏）
+        again = await service.search(category_id=category.id, limit=2, cursor=first.next_cursor)
+        assert [item.id for item in again.items] == [item.id for item in second.items]
+
+        # 不带类目过滤时，其他类目的在售商品同样出现在结果里
+        everything = await service.search(limit=100)
+        assert other.id in {item.id for item in everything.items}
+        assert len(everything.items) == 6
+
+        # 类目过滤与文本过滤
+        by_category = await service.search(category_id=other_category.id)
+        assert [item.id for item in by_category.items] == [other.id]
+        by_text = await service.search(text="P-3")
+        assert [item.product_code for item in by_text.items] == ["P-3"]
+        # LIKE 通配符按字面处理
+        assert (await service.search(text="%")).items == []
+        assert (await service.search(text="P_3")).items == []
+
+    asyncio.run(scenario())
+
+
+def test_search_rejects_oversized_limit_invalid_cursor_and_unknown_category(
+    migrated_mysql_database: str,
+):
+    """limit 越界、游标非法、类目不存在都要给出确定错误。"""
+
+    async def scenario():
+        service = CatalogService(create_session_factory(migrated_mysql_database))
+        category = await _create_category(service)
+
+        with pytest.raises(CatalogValidationError):
+            await service.search(limit=0)
+        with pytest.raises(CatalogValidationError):
+            await service.search(limit=101)
+        with pytest.raises(CatalogValidationError):
+            await service.search(cursor="not-a-cursor")
+        with pytest.raises(CatalogNotFoundError):
+            await service.search(category_id="no-such-category")
+
+        assert (await service.search(limit=100)).items == []
+        assert category.id  # 已存在的类目可正常搜索
+
+    asyncio.run(scenario())

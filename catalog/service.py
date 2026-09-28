@@ -8,11 +8,14 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any, Protocol
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -30,19 +33,29 @@ from catalog.schemas import (
     AttributeInput,
     AttributeView,
     CategoryInput,
+    CategoryRefView,
     CategoryView,
     MediaInput,
     MediaView,
+    OptionDetailView,
     OptionInput,
     OptionValueInput,
     OptionValueView,
     OptionView,
+    ProductDetailView,
     ProductInput,
+    ProductPage,
+    ProductSummaryView,
     ProductView,
+    SelectedOptionValueView,
+    SKUDetailView,
     SKUInput,
     SKUView,
 )
 from db.base import new_id
+
+# 单页上限，防止一次拉取过多商品。
+MAX_PAGE_SIZE = 100
 
 
 class CatalogError(Exception):
@@ -82,6 +95,28 @@ def compute_option_signature(pairs: Sequence[tuple[str, str]]) -> str:
         f"{option_id}={value_id}" for option_id, value_id in sorted(pairs)
     )
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _like_pattern(text: str) -> str:
+    """转义 LIKE 通配符，避免用户输入被当成模式。"""
+    escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def _encode_cursor(created_at: datetime, product_id: str) -> str:
+    """把稳定的 (created_at, id) 编码为不透明游标。"""
+    raw = f"{created_at.isoformat()}|{product_id}"
+    return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("ascii")
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, str]:
+    """解析游标；格式非法时给出确定的领域错误。"""
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8")
+        timestamp, product_id = raw.split("|", 1)
+        return datetime.fromisoformat(timestamp), product_id
+    except (ValueError, UnicodeDecodeError, binascii.Error) as exc:
+        raise CatalogValidationError("无效的分页游标") from exc
 
 
 def _validate_attribute_value(code: str, value: Any, value_type: str) -> None:
@@ -329,7 +364,201 @@ class CatalogService:
                 session, product, expected_version, "archived"
             )
 
+    # ---------- 读取 ----------
+
+    async def get_product(self, product_id: str) -> ProductDetailView:
+        """商品详情，含真实 SKU 组合、购买规格、媒体与类目属性定义。
+
+        已归档商品同样返回，由 `status` 显式区分；停用 SKU 也会出现在 `skus` 中，
+        调用方按 `status == "active"` 判断可售候选。
+        """
+        async with self._session_factory() as session:
+            product = await session.get(Product, product_id)
+            if product is None:
+                raise CatalogNotFoundError(f"商品不存在: {product_id}")
+
+            category = await self._require_category(session, product.category_id)
+            attributes = list(
+                await session.scalars(
+                    select(CategoryAttribute)
+                    .where(CategoryAttribute.category_id == product.category_id)
+                    .order_by(CategoryAttribute.code)
+                )
+            )
+            options = list(
+                await session.scalars(
+                    select(ProductOption)
+                    .where(ProductOption.product_id == product_id)
+                    .order_by(ProductOption.sort_order, ProductOption.id)
+                )
+            )
+            option_values = await self._load_option_values(session, [o.id for o in options])
+            skus = list(
+                await session.scalars(
+                    select(SKU)
+                    .where(SKU.product_id == product_id)
+                    .order_by(SKU.sku_code)
+                )
+            )
+            selected = await self._load_selected_values(session, [s.id for s in skus])
+            media = list(
+                await session.scalars(
+                    select(ProductMedia)
+                    .where(ProductMedia.product_id == product_id)
+                    .order_by(ProductMedia.sort_order, ProductMedia.id)
+                )
+            )
+
+            return ProductDetailView(
+                **ProductView.model_validate(product).model_dump(),
+                category=CategoryRefView.model_validate(category),
+                category_attributes=[
+                    AttributeView.model_validate(item) for item in attributes
+                ],
+                options=[
+                    OptionDetailView(
+                        **OptionView.model_validate(option).model_dump(),
+                        values=[
+                            OptionValueView.model_validate(value)
+                            for value in option_values.get(option.id, [])
+                        ],
+                    )
+                    for option in options
+                ],
+                skus=[
+                    SKUDetailView(
+                        **SKUView.model_validate(sku).model_dump(),
+                        selected_values=selected.get(sku.id, []),
+                    )
+                    for sku in skus
+                ],
+                media=[MediaView.model_validate(item) for item in media],
+            )
+
+    async def get_sku(self, sku_id: str) -> SKUDetailView:
+        """单个 SKU 及其确定的选项组合；停用状态显式返回。"""
+        async with self._session_factory() as session:
+            sku = await session.get(SKU, sku_id)
+            if sku is None:
+                raise CatalogNotFoundError(f"SKU 不存在: {sku_id}")
+            selected = await self._load_selected_values(session, [sku.id])
+            return SKUDetailView(
+                **SKUView.model_validate(sku).model_dump(),
+                selected_values=selected.get(sku.id, []),
+            )
+
+    async def search(
+        self,
+        category_id: str | None = None,
+        text: str | None = None,
+        limit: int = 20,
+        cursor: str | None = None,
+    ) -> ProductPage:
+        """按类目与文本搜索在售商品。
+
+        文本只匹配商品名称与商品编码；排序固定为 `(created_at, id)` 倒序，
+        游标是不透明编码，不接受调用方指定排序字段。
+        """
+        if limit < 1 or limit > MAX_PAGE_SIZE:
+            raise CatalogValidationError(f"limit 必须在 1 到 {MAX_PAGE_SIZE} 之间")
+
+        async with self._session_factory() as session:
+            if category_id is not None:
+                await self._require_category(session, category_id)
+
+            statement = (
+                select(Product)
+                .where(Product.status == "active")
+                .order_by(Product.created_at.desc(), Product.id.desc())
+                .limit(limit + 1)
+            )
+            if category_id is not None:
+                statement = statement.where(Product.category_id == category_id)
+            if text:
+                pattern = _like_pattern(text)
+                statement = statement.where(
+                    Product.name.like(pattern, escape="\\")
+                    | Product.product_code.like(pattern, escape="\\")
+                )
+            if cursor is not None:
+                created_at, product_id = _decode_cursor(cursor)
+                statement = statement.where(
+                    tuple_(Product.created_at, Product.id) < (created_at, product_id)
+                )
+
+            rows = list(await session.scalars(statement))
+
+        has_more = len(rows) > limit
+        items = rows[:limit]
+        next_cursor = (
+            _encode_cursor(items[-1].created_at, items[-1].id) if has_more and items else None
+        )
+        return ProductPage(
+            items=[ProductSummaryView.model_validate(item) for item in items],
+            next_cursor=next_cursor,
+        )
+
     # ---------- 内部工具 ----------
+
+    @staticmethod
+    async def _load_option_values(
+        session: AsyncSession, option_ids: list[str]
+    ) -> dict[str, list[OptionValue]]:
+        if not option_ids:
+            return {}
+        rows = await session.scalars(
+            select(OptionValue)
+            .where(OptionValue.option_id.in_(option_ids))
+            .order_by(OptionValue.sort_order, OptionValue.id)
+        )
+        grouped: dict[str, list[OptionValue]] = {}
+        for row in rows:
+            grouped.setdefault(row.option_id, []).append(row)
+        return grouped
+
+    @staticmethod
+    async def _load_selected_values(
+        session: AsyncSession, sku_ids: list[str]
+    ) -> dict[str, list[SelectedOptionValueView]]:
+        """一次查询取回所有 SKU 的选项组合，避免按 SKU 逐条加载。"""
+        if not sku_ids:
+            return {}
+        rows = await session.execute(
+            select(
+                SKUOptionValue.sku_id,
+                ProductOption.id,
+                ProductOption.code,
+                ProductOption.name,
+                OptionValue.id,
+                OptionValue.code,
+                OptionValue.display_value,
+            )
+            .join(ProductOption, ProductOption.id == SKUOptionValue.option_id)
+            .join(OptionValue, OptionValue.id == SKUOptionValue.value_id)
+            .where(SKUOptionValue.sku_id.in_(sku_ids))
+            .order_by(ProductOption.sort_order, ProductOption.id)
+        )
+        grouped: dict[str, list[SelectedOptionValueView]] = {}
+        for (
+            sku_id,
+            option_id,
+            option_code,
+            option_name,
+            value_id,
+            value_code,
+            display_value,
+        ) in rows:
+            grouped.setdefault(sku_id, []).append(
+                SelectedOptionValueView(
+                    option_id=option_id,
+                    option_code=option_code,
+                    option_name=option_name,
+                    value_id=value_id,
+                    value_code=value_code,
+                    display_value=display_value,
+                )
+            )
+        return grouped
 
     async def _transition(
         self,
