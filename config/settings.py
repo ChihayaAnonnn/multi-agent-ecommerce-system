@@ -2,6 +2,11 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
+def _split_csv(value: str) -> tuple[str, ...]:
+    """把逗号分隔的配置项切成去空白、去空项、保持顺序的元组。"""
+    return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
 class Settings(BaseSettings):
     app_name: str = "Multi-Agent E-Commerce System"
     debug: bool = False
@@ -30,6 +35,40 @@ class Settings(BaseSettings):
     # A/B Testing
     ab_test_enabled: bool = True
     ab_test_default_bucket_count: int = 100
+
+    # Identity
+    # 默认按最严格环境与关闭演示开关取值：未显式配置时不开放演示注册/登录。
+    identity_environment: str = "production"
+    identity_demo_mode: bool = False
+    identity_issuer: str = ""
+    identity_audience: str = ""
+    identity_private_key_path: str = ""
+    identity_public_keys_path: str = ""
+    identity_active_kid: str = ""
+    identity_csrf_secret: str = ""
+    identity_access_token_ttl_seconds: int = 900
+    identity_session_ttl_seconds: int = 2592000  # 30 天绝对到期
+    identity_clock_skew_seconds: int = 30
+    # 逗号分隔的可信前端来源；留空表示不允许任何跨站来源，且绝不使用 "*"。
+    identity_allowed_origins: str = ""
+    # 逗号分隔的可信反向代理 CIDR；只有直接来源命中时才解析 X-Forwarded-For。
+    identity_trusted_proxy_networks: str = ""
+    # 登录每邮箱 5 次失败 / 每 IP 30 次失败（15 分钟），注册每 IP 3 次（1 小时）。
+    identity_login_email_limit: int = 5
+    identity_login_ip_limit: int = 30
+    identity_register_ip_limit: int = 3
+    identity_refresh_session_limit: int = 30
+    identity_login_window_seconds: int = 900
+    identity_register_window_seconds: int = 3600
+    identity_refresh_window_seconds: int = 60
+
+    @property
+    def allowed_origins(self) -> tuple[str, ...]:
+        return _split_csv(self.identity_allowed_origins)
+
+    @property
+    def trusted_proxy_networks(self) -> tuple[str, ...]:
+        return _split_csv(self.identity_trusted_proxy_networks)
 
     # Agent timeouts (seconds)
     agent_timeout_user_profile: float = 5.0
