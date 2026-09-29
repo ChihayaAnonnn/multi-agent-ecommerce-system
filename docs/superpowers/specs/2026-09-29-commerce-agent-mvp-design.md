@@ -105,7 +105,7 @@ flowchart LR
 | 购物车执行组件（新增，确定性服务） | 生成动作摘要，确认后在事务中写车 | 已见 SKU、主体、版本、幂等、价格和库存校验全部由服务执行 |
 | Supervisor/编排器（改造） | 连接意图、发现、比较、购物车、交接状态，返回统一 `status` | 不直接改业务表；无效依赖结果不能回填为可购买候选 |
 
-响应状态采用 `clarify/shortlist/compare/confirm_action/cart_updated/handoff/unsupported/unavailable`；`handoff` 只来自已完成的宿主交接，不代表订单或付款。`POST /turns` 对所有开放意图返回统一 envelope：`request_id`、`session_id`、`turn_id`、`intent`、`status`、`constraints`、`items[]`、`question`、`proposed_action`、`errors[]`。路由到未开放意图时保持同一形状。已有两条推荐入口可作为兼容接口保留，但 MVP 的购物交易入口须共用一条可信业务流水线。
+响应状态采用 `clarify/shortlist/compare/confirm_action/cart_updated/handoff/unsupported/unavailable`；`handoff` 只来自已完成的宿主交接，不代表订单或付款。`POST /turns` 对所有开放意图返回统一 envelope：`request_id`、`session_id`、`turn_id`、`intent`、`status`、`constraints`、`items[]`、`question`、`proposed_action`、`errors[]`。路由到未开放意图时保持同一形状。已有两条推荐入口可作为兼容接口保留，但 MVP 的购物交易入口须共用一条可信业务流水线。Agent 可调用只读查询和 `propose_action`，不暴露直接写车或创建交接的工具；所有写入通过下面的确认命令。
 
 ### 5.5 页面与反馈（F10）
 
@@ -123,11 +123,13 @@ flowchart LR
 
 ### 7.1 生成提案
 
-用户说“加入购物车”或“改为两件”时，对话层只调用 `CartService.propose_action(...)`。新增 SKU 必须是本会话已展示且仍归属有效 Product 的具体 SKU；改量/移除必须定位到本人车的行。服务读取现行报价与库存，生成可见摘要和 `action_id`，包括 Product 名称、规格、数量、单价、币种、当前小计、报价时间及潜在变化。无价、停用、库存未知或不足时不给可确认的加购提案。数量必须是正整数；移除用独立操作，不以负数或 0 偷换语义。限购政策尚无权威来源，MVP 不声称已有跨订单限购；建议先配置每行数量上限，正式值待产品确认。
+用户说“加入购物车”或“改为两件”时，对话层只调用 `CartService.propose_action(...)`。新增 SKU 必须是本会话已展示且仍归属有效 Product 的具体 SKU；改量/移除必须定位到本人车的行。服务读取现行报价与库存，生成可见摘要和 `action_id`，包括 Product 名称、规格、数量、单价、币种、当前小计、报价时间及潜在变化。返回 `status=confirm_action` 和结构化 `proposed_action`；前端必须展示该摘要及确认/取消控件。无价、停用、库存未知或不足时不给可确认的加购提案。数量必须是正整数；移除用独立操作，不以负数或 0 偷换语义。限购政策尚无权威来源，MVP 不声称已有跨订单限购；建议先配置每行数量上限，正式值待产品确认。同一会话产生新提案时将旧的未决提案置为 `invalidated`，避免“确认”指向多个动作。
 
 ### 7.2 确认与事务
 
-用户通过明确的确认控件或等效、可审计的确认动作提交 `action_id`、`approved` 和 `idempotency_key`。`approved=false` 将提案置为 `declined`，不写车。确认成功返回整个购物车和新版本。加购增加已有行数量；改量采用目标数量；移除删除指定行。写车事务按固定顺序锁定本人车、待确认动作、对应 Product/SKU、现行价格、该 SKU 的库存余额行；通过各领域接口检查活动状态、价格、可售量与车中最终数量，最后写行、递增车版本、保存确认结果并提交。数据库唯一约束与行锁处理并发，不能用进程内锁代替。
+**执行入口是确定性确认命令，不是 Agent 自主调用写工具。** 用户点操作卡的“确认/取消”时，前端调用 `POST /sessions/{id}/actions/{action_id}/confirm`，提交 `approved` 与稳定的 `idempotency_key`。用户在聊天里输入确认时，`POST /turns` 须附当前可见的 `respond_to_action_id` 和稳定的 `idempotency_key`；MVP 只把去除首尾空白后的“确认”“确认加购”“确认修改”“确认移除”“确认结账”及“取消”识别为明确决定，且动词必须匹配动作类型。编排层验证该动作仍是本会话唯一待确认动作，再调用同一个 `CartService.confirm` 或 `CheckoutService.confirm_handoff` 命令。文本包含改数量、换 SKU 等新要求，或动作目标不明确时，只返回澄清/新提案，不写车。Agent 的意图判断不能代替上述代码门禁。两种入口共用主体校验、动作状态、版本、幂等与审计规则。
+
+`approved=false` 将提案置为 `declined`，不写车。确认成功返回整个购物车和新版本。加购增加已有行数量；改量采用目标数量；移除删除指定行。写车事务按固定顺序锁定本人车、待确认动作、对应 Product/SKU、现行价格、该 SKU 的库存余额行；通过各领域接口检查活动状态、价格、可售量与车中最终数量，最后写行、递增车版本、保存确认结果并提交。数据库唯一约束与行锁处理并发，不能用进程内锁代替。
 
 确认时必须重查事实。价格金额/版本、规格、可售状态或可售数量相对用户所见摘要变化时，把旧动作置为 `invalidated`，返回 `reconfirmation_required` 和新摘要，不写车；用户只能确认基于新摘要生成的新动作。若仅库存余额内部版本变化，而可售数量和状态不变，可继续；库存不足则拒绝。依赖故障不写车。购物车写入**不预留库存**；提交后库存仍可能变化，读车和交接会再次核验。
 
@@ -140,7 +142,7 @@ flowchart LR
 ## 8. 结账预览与交接
 
 1. 用户要求结账时，`CheckoutService.preview(cart_id, principal)` 批量重新检查所有行的 Product/SKU 状态、价格、库存和数量；空车或任一行不可买则返回逐行原因，不生成可确认交接动作。通过后生成带 `cart_version` 和逐行报价快照的 `checkout_handoff` 提案。页面明确显示“商品小计”，并说明运费、税费、优惠与最终应付以宿主结账为准。
-2. 用户确认时，检查主体、动作状态/有效期、车版本和再次取得的事实。金额、币种、规格、可售状态或可售数量与预览不同，旧动作置为 `invalidated`，返回新的预览并要求重新确认。确认成功先在本地事务持久化不可变 `checkout_handoffs` 记录，状态为 `preparing`，同时将动作置为 `consumed`；再以稳定的 `action_id`/`handoff_id` 调用 `HostCheckoutGateway.create_handoff`。不在持有 MySQL 行锁期间调用宿主网络接口。相同确认键重试时，读取对应交接记录继续或返回结果，不再重新消费动作。
+2. 用户确认交接时，按钮调用 `POST /checkout-handoff`；聊天确认沿用第 7.2 节的 `respond_to_action_id` 规则，由编排层调用同一个 `CheckoutService.confirm_handoff`，Agent 不直接调用宿主网关。服务检查主体、动作状态/有效期、车版本和再次取得的事实。金额、币种、规格、可售状态或可售数量与预览不同，旧动作置为 `invalidated`，返回新的预览并要求重新确认。确认成功先在本地事务持久化不可变 `checkout_handoffs` 记录，状态为 `preparing`，同时将动作置为 `consumed`；再以稳定的 `action_id`/`handoff_id` 调用 `HostCheckoutGateway.create_handoff`。不在持有 MySQL 行锁期间调用宿主网络接口。相同确认键重试时，读取对应交接记录继续或返回结果，不再重新消费动作。
 3. 宿主接口接收 `handoff_id`、可信主体、车版本、商品行与金额快照、过期时间及幂等键，返回受控的宿主路由标识或 URL。URL 只能来自配置的宿主与允许的 scheme/host/path，不能由 LLM、用户输入或商品文本生成。宿主必须按 `handoff_id` 幂等，并在实际建单前独立核价、校验库存、确认地址与最终金额；本仓的库存读取不构成预留。
 4. 宿主返回后，本仓把交接记录置 `ready` 并返回 `status=handoff`、`handoff_id`、目的地和失效时间。交接失败或超时返回可重试状态，不宣称交接成功；重试使用相同幂等键，先回查既有交接记录，再与宿主协调恢复，避免生成多个有效目的地。宿主结账开始后若车再变，宿主应使用不可变交接快照并重新确认差异；不得静默读取新车代替用户确认过的车。
 5. 若未配置真实宿主结账接口，生产端点返回 `checkout_unavailable`（503），不生成看似可付款的假 URL。仅内部演示环境可注入明确标为 `demo` 的网关，响应与界面都显示模拟交接。
@@ -154,10 +156,10 @@ flowchart LR
 | 操作 | 请求核心字段 | 响应核心字段 |
 | --- | --- | --- |
 | `POST /sessions` | 授权头；无可填写的 `user_id` | `session_id`, `expires_at` |
-| `POST /sessions/{id}/turns` | `turn_id`, `message`, 显式筛选 | `intent`, `status`, `items`, `proposed_action`；LLM 只提出动作，具体商品由目录验证 |
+| `POST /sessions/{id}/turns` | `turn_id`, `message`, 显式筛选；聊天确认时增加 `respond_to_action_id`, `idempotency_key` | `intent`, `status`, `items`, `proposed_action`；新增/修改意图只生成提案，明确聊天确认经代码校验后复用确定性确认命令 |
 | `POST /sessions/{id}/compare` | 2–3 个已展示的同类目 `product_id` | `dimensions[]`, `products[]`, `differences[]`；不接受模型猜测的商品 |
 | `GET /sessions/{id}/cart` | 授权头 | `cart_id`, `version`, `items[]`, `current_subtotal`, `checkout_eligible`, `checked_at` |
-| `POST /sessions/{id}/actions/{action_id}/confirm` | `approved`, `idempotency_key` | `status`, `cart`, `replayed`, `error_code`；仅处理加购、改量、移除 |
+| `POST /sessions/{id}/actions/{action_id}/confirm` | `approved`, `idempotency_key` | `status`, `cart`, `replayed`, `error_code`；按钮确认加购、改量、移除，复用聊天确认所调用的命令 |
 | `POST /sessions/{id}/checkout-preview` | `cart_version` | `action_id`, `items[]`, `current_subtotal`, `checked_at`, `expires_at` |
 | `POST /sessions/{id}/checkout-handoff` | `action_id`, `approved`, `idempotency_key` | `status=handoff`, `handoff_id`, `destination`, `expires_at`；失败时没有目的地 |
 | `POST /events` | `event_id`, `session_id`, `request_id`, `kind` | `accepted`, `duplicate`；采集故障不回滚业务操作 |
