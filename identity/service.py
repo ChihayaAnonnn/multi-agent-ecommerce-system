@@ -13,7 +13,7 @@ import unicodedata
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from db.base import new_id, utcnow
@@ -29,7 +29,9 @@ from identity.types import (
     EmailAlreadyRegistered,
     IdentityConfigurationError,
     IdentityDependencyError,
+    InvalidAccessToken,
     InvalidCredentials,
+    InvalidCsrf,
     Principal,
     UserView,
     make_principal,
@@ -219,7 +221,229 @@ class IdentityService:
             session_id=session_id,
         )
 
-    # ---------- 供后续任务使用的主体构造 ----------
+    # ---------- 逐请求验证 ----------
+
+    async def verify(self, token: str) -> Principal:
+        """验签后再查 MySQL：账号与登录会话都必须有效。
+
+        JWT 未过期不代表仍然可用——退出、禁用或重置密码后立即失效。
+        数据库故障抛 `IdentityDependencyError`，调用方返回 503，绝不降级为匿名。
+        """
+        now = utcnow()
+        claims = self._tokens.decode(token, now)
+
+        async with _database_errors("验证登录状态"):
+            async with self._sessions() as db:
+                user = await db.get(IdentityUser, claims.user_id)
+                session = await db.get(AuthSession, claims.session_id)
+
+        if user is None or session is None or session.user_id != user.id:
+            raise InvalidAccessToken("访问令牌对应的账号或登录会话不存在")
+        self._ensure_user_usable(user)
+        if session.revoked_at is not None:
+            raise InvalidAccessToken("登录会话已撤销")
+        if session.expires_at <= now:
+            raise InvalidAccessToken("登录会话已过期")
+
+        return self.principal_for(user.id)
+
+    async def get_me(self, principal: Principal) -> UserView:
+        """返回当前主体的账号视图；演示账号一律 `email_verified=False`。"""
+        async with _database_errors("读取账号"):
+            async with self._sessions() as db:
+                user = await db.get(IdentityUser, principal.subject)
+        if user is None:
+            raise InvalidAccessToken("主体对应的账号不存在")
+        return UserView(
+            id=user.id,
+            email=user.email_normalized,
+            email_verified=False,
+            source=user.source,
+        )
+
+    # ---------- 刷新轮换与撤销 ----------
+
+    async def csrf_for_refresh(self, raw_refresh: str) -> str:
+        """凭刷新 Cookie 定位有效会话并签发会话绑定的 CSRF 值。
+
+        只读：不消费也不轮换刷新令牌，页面重载时可以重复调用。
+        """
+        now = utcnow()
+        async with _database_errors("读取登录会话"):
+            async with self._sessions() as db:
+                session, user = await self._load_active_session(db, raw_refresh, now)
+        return self._csrf.issue(session.id)
+
+    async def refresh(self, raw_refresh: str, csrf_value: str, client_ip: str) -> AuthIssue:
+        """消费旧刷新令牌并签发新的一对令牌。
+
+        并发刷新只有一个成功者：会话行与令牌行按固定顺序加锁，
+        失败的一方看到的是「已消费」，按重放处理并撤销整个会话。
+        """
+        now = utcnow()
+        token_digest = hash_refresh_token(raw_refresh)
+
+        # 先只读定位会话，仅用于把限流记到会话维度
+        async with _database_errors("读取登录会话"):
+            async with self._sessions() as db:
+                probe = (
+                    await db.execute(
+                        select(RefreshToken).where(RefreshToken.token_hash == token_digest)
+                    )
+                ).scalar_one_or_none()
+        await self._limiter.check_refresh(
+            probe.auth_session_id if probe is not None else None, client_ip
+        )
+
+        async with _database_errors("刷新令牌"):
+            async with self._sessions() as db:
+                row = (
+                    await db.execute(
+                        select(RefreshToken).where(RefreshToken.token_hash == token_digest)
+                    )
+                ).scalar_one_or_none()
+                if row is None:
+                    raise InvalidCredentials("刷新令牌无效")
+
+                # 固定锁顺序：先会话行，再令牌行。
+                # populate_existing：加锁读取必须覆盖身份映射里的旧值，否则并发下
+                # 会拿上面那次无锁读的快照，看不到别人刚写入的消费标记。
+                session = (
+                    await db.execute(
+                        select(AuthSession)
+                        .where(AuthSession.id == row.auth_session_id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                ).scalar_one_or_none()
+                if session is None:
+                    raise InvalidCredentials("刷新令牌无效")
+                locked = (
+                    await db.execute(
+                        select(RefreshToken)
+                        .where(RefreshToken.id == row.id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                ).scalar_one()
+
+                if not self._csrf.verify(session.id, csrf_value):
+                    raise InvalidCsrf("CSRF 校验失败")
+
+                user = await db.get(IdentityUser, session.user_id)
+                if user is None:
+                    raise InvalidCredentials("刷新令牌无效")
+
+                if locked.consumed_at is not None:
+                    # 已消费令牌被重放：只撤销它自己的会话，不影响其他会话
+                    await self._revoke_session(db, session, now, "refresh_replay")
+                    await db.commit()
+                    raise InvalidCredentials("刷新令牌已失效，请重新登录")
+
+                if (
+                    locked.revoked_at is not None
+                    or locked.expires_at <= now
+                    or session.revoked_at is not None
+                    or session.expires_at <= now
+                ):
+                    raise InvalidCredentials("刷新令牌已失效，请重新登录")
+
+                self._ensure_user_usable(user)
+
+                raw_refresh_next = new_refresh_token()
+                locked.consumed_at = now
+                session.last_used_at = now
+                # 先落消费标记再插入新行：同会话的活动令牌唯一索引要求旧行让位
+                await db.flush()
+                db.add(
+                    RefreshToken(
+                        id=new_id(),
+                        auth_session_id=session.id,
+                        token_hash=hash_refresh_token(raw_refresh_next),
+                        expires_at=session.expires_at,
+                        created_at=now,
+                    )
+                )
+                await db.commit()
+
+        return self._issue_tokens(user.id, session.id, raw_refresh_next, now)
+
+    async def logout(self, raw_refresh: str, csrf_value: str) -> None:
+        """撤销当前登录会话及其全部刷新令牌；之后的 JWT 立即失效。"""
+        now = utcnow()
+        async with _database_errors("退出登录"):
+            async with self._sessions() as db:
+                row = (
+                    await db.execute(
+                        select(RefreshToken)
+                        .where(RefreshToken.token_hash == hash_refresh_token(raw_refresh))
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                ).scalar_one_or_none()
+                if row is None:
+                    raise InvalidCredentials("刷新令牌无效")
+                session = (
+                    await db.execute(
+                        select(AuthSession)
+                        .where(AuthSession.id == row.auth_session_id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                ).scalar_one_or_none()
+                if session is None:
+                    raise InvalidCredentials("刷新令牌无效")
+                if not self._csrf.verify(session.id, csrf_value):
+                    raise InvalidCsrf("CSRF 校验失败")
+
+                await self._revoke_session(db, session, now, "logout")
+                session.last_used_at = now
+                await db.commit()
+
+    # ---------- 内部工具 ----------
+
+    def _ensure_user_usable(self, user: IdentityUser) -> None:
+        """账号状态与来源必须允许在当前环境使用。"""
+        if user.status != "active":
+            raise InvalidAccessToken("账号已停用")
+        if user.source == DEMO_SOURCE and not self.demo_registration_enabled:
+            raise InvalidAccessToken("当前部署环境不接受演示账号")
+
+    async def _load_active_session(self, db, raw_refresh: str, now):
+        """按刷新令牌哈希定位仍然可用的会话与账号。"""
+        row = (
+            await db.execute(
+                select(RefreshToken).where(
+                    RefreshToken.token_hash == hash_refresh_token(raw_refresh)
+                )
+            )
+        ).scalar_one_or_none()
+        if row is None or row.consumed_at is not None or row.revoked_at is not None:
+            raise InvalidCredentials("刷新令牌无效")
+        if row.expires_at <= now:
+            raise InvalidCredentials("刷新令牌已过期")
+        session = await db.get(AuthSession, row.auth_session_id)
+        if session is None or session.revoked_at is not None or session.expires_at <= now:
+            raise InvalidCredentials("登录会话已失效")
+        user = await db.get(IdentityUser, session.user_id)
+        if user is None:
+            raise InvalidCredentials("登录会话已失效")
+        self._ensure_user_usable(user)
+        return session, user
+
+    async def _revoke_session(self, db, session: AuthSession, now, reason: str) -> None:
+        """撤销会话与它名下所有未撤销的刷新令牌。"""
+        if session.revoked_at is None:
+            session.revoked_at = now
+            session.revoke_reason = reason
+        await db.execute(
+            update(RefreshToken)
+            .where(
+                RefreshToken.auth_session_id == session.id,
+                RefreshToken.revoked_at.is_(None),
+            )
+            .values(revoked_at=now)
+        )
 
     def principal_for(self, user_id: str) -> Principal:
         return make_principal(self._tokens.issuer, user_id)

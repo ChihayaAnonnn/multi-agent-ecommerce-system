@@ -30,10 +30,14 @@ from identity.service import (
 )
 from identity.tokens import TokenCodec
 from identity.types import (
+    AuthIssue,
     DemoModeDisabled,
     EmailAlreadyRegistered,
     IdentityConfigurationError,
+    IdentityDependencyError,
+    InvalidAccessToken,
     InvalidCredentials,
+    InvalidCsrf,
     UserView,
 )
 from tests.conftest import downgrade_to, read_schema, upgrade_to
@@ -570,3 +574,293 @@ def test_demo_mode_gate(migrated_mysql_database: str, clean_redis: str, identity
             )
 
     asyncio.run(scenario())
+
+
+# ---------- 逐请求验证、刷新轮换与撤销 ----------
+
+DEMO_PASSWORD = "a-long-enough-demo-password"
+
+
+async def _register_and_login(service, email: str, ip: str, password: str = DEMO_PASSWORD):
+    view = await service.register_demo(email, password, ip)
+    return view, await service.login(email, password, ip)
+
+
+def test_verify_rechecks_user_and_session(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """JWT 有效不等于可用：账号、会话与主体配对每次请求都要重查。"""
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        view, issue = await _register_and_login(service, "verify@example.com", "203.0.113.61")
+        assert (await service.verify(issue.access_token)).subject == view.id
+        me = await service.get_me(await service.verify(issue.access_token))
+        assert me.email == "verify@example.com"
+        assert me.email_verified is False
+        assert me.source == "demo"
+
+        # 会话被撤销
+        await service.logout(issue.refresh_token, issue.csrf_token)
+        with pytest.raises(InvalidAccessToken):
+            await service.verify(issue.access_token)
+
+        # 会话已过期
+        _, expired_issue = await _register_and_login(
+            service, "expired@example.com", "203.0.113.62"
+        )
+        await _set_session_expiry(migrated_mysql_database, expired_issue.session_id, utcnow())
+        with pytest.raises(InvalidAccessToken):
+            await service.verify(expired_issue.access_token)
+
+        # 账号被禁用
+        _, disabled_issue = await _register_and_login(
+            service, "disabled@example.com", "203.0.113.63"
+        )
+        await _disable_user(migrated_mysql_database, disabled_issue.user_id)
+        with pytest.raises(InvalidAccessToken):
+            await service.verify(disabled_issue.access_token)
+
+        # sub 与 sid 不属于同一主体
+        _, other_issue = await _register_and_login(
+            service, "other-verify@example.com", "203.0.113.64"
+        )
+        mismatched = identity_codec.issue(view.id, other_issue.session_id, utcnow())
+        with pytest.raises(InvalidAccessToken):
+            await service.verify(mismatched)
+
+        # 账号被删除
+        await _delete_user(migrated_mysql_database, other_issue.user_id)
+        with pytest.raises(InvalidAccessToken):
+            await service.verify(other_issue.access_token)
+
+        # 签名无效
+        with pytest.raises(InvalidAccessToken):
+            await service.verify(expired_issue.access_token + "x")
+
+        # 数据库不可用：依赖故障，不是匿名
+        offline = await _build_service(
+            "mysql+asyncmy://ecom:secret@127.0.0.1:1/ecommerce",
+            clean_redis,
+            identity_codec,
+        )
+        with pytest.raises(IdentityDependencyError):
+            await offline.verify(issue.access_token)
+        with pytest.raises(IdentityDependencyError):
+            await offline.login("verify@example.com", DEMO_PASSWORD, "203.0.113.65")
+
+    asyncio.run(scenario())
+
+
+def test_refresh_rotation_and_replay(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """旧令牌被消费、新哈希落库；重放只撤销它自己的会话，未知令牌不牵连别人。"""
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        view, issue = await _register_and_login(service, "rotate@example.com", "203.0.113.71")
+        bystander_view, bystander = await _register_and_login(
+            service, "bystander@example.com", "203.0.113.72"
+        )
+
+        rotated = await service.refresh(issue.refresh_token, issue.csrf_token, "203.0.113.71")
+        assert rotated.session_id == issue.session_id
+        assert rotated.user_id == view.id
+        assert rotated.refresh_token != issue.refresh_token
+        assert (await service.verify(rotated.access_token)).subject == view.id
+
+        rows = await _token_rows(migrated_mysql_database, issue.session_id)
+        assert len(rows) == 2
+        consumed = {token_hash: consumed_at for token_hash, consumed_at in rows}
+        assert consumed[hash_refresh_token(issue.refresh_token)] is not None
+        assert consumed[hash_refresh_token(rotated.refresh_token)] is None
+
+        # 未知随机令牌：既不通过，也不撤销任何别人的会话
+        with pytest.raises(InvalidCredentials):
+            await service.refresh(secrets.token_urlsafe(32), "forged", "203.0.113.71")
+        assert (await service.verify(bystander.access_token)).subject == bystander_view.id
+        assert (
+            await _session_state(migrated_mysql_database, bystander.session_id)
+        )["revoked_at"] is None
+
+        # 已消费令牌重放：撤销它自己的会话
+        with pytest.raises(InvalidCredentials):
+            await service.refresh(issue.refresh_token, issue.csrf_token, "203.0.113.71")
+        revoked = await _session_state(migrated_mysql_database, issue.session_id)
+        assert revoked["revoked_at"] is not None
+        assert revoked["revoke_reason"] == "refresh_replay"
+
+        # 会话撤销后新签发的 access token 与刷新令牌同时失效
+        with pytest.raises(InvalidAccessToken):
+            await service.verify(rotated.access_token)
+        with pytest.raises(InvalidCredentials):
+            await service.refresh(rotated.refresh_token, rotated.csrf_token, "203.0.113.71")
+
+        # 旁观者会话不受影响
+        still_valid = await service.refresh(
+            bystander.refresh_token, bystander.csrf_token, "203.0.113.72"
+        )
+        assert still_valid.session_id == bystander.session_id
+
+    asyncio.run(scenario())
+
+
+def test_concurrent_refresh_has_one_winner(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """两个事务竞争同一令牌只轮换一次，重放方触发会话撤销。"""
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        _, issue = await _register_and_login(service, "race@example.com", "203.0.113.81")
+
+        results = await asyncio.gather(
+            service.refresh(issue.refresh_token, issue.csrf_token, "203.0.113.81"),
+            service.refresh(issue.refresh_token, issue.csrf_token, "203.0.113.81"),
+            return_exceptions=True,
+        )
+        winners = [item for item in results if isinstance(item, AuthIssue)]
+        losers = [item for item in results if isinstance(item, InvalidCredentials)]
+        assert len(winners) == 1, results
+        assert len(losers) == 1, results
+
+        # 竞争失败方按重放处理：会话最终必须已撤销
+        state = await _session_state(migrated_mysql_database, issue.session_id)
+        assert state["revoked_at"] is not None
+        assert state["revoke_reason"] == "refresh_replay"
+
+        # 胜者拿到的令牌也随之失效，且会话名下没有残留的活动令牌
+        with pytest.raises(InvalidAccessToken):
+            await service.verify(winners[0].access_token)
+        rows = await _token_rows(migrated_mysql_database, issue.session_id)
+        assert len(rows) == 2
+        active = (
+            await _query(
+                migrated_mysql_database,
+                "SELECT COUNT(*) FROM identity_refresh_tokens "
+                "WHERE active_auth_session_id = :sid",
+                sid=issue.session_id,
+            )
+        )[0][0]
+        assert active == 0
+
+    asyncio.run(scenario())
+
+
+def test_csrf_bound_to_session(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """别人的或伪造的 CSRF 值被拒；读取 CSRF 不轮换令牌。"""
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        _, issue = await _register_and_login(service, "csrf@example.com", "203.0.113.91")
+        _, other = await _register_and_login(service, "csrf-other@example.com", "203.0.113.92")
+
+        with pytest.raises(InvalidCsrf):
+            await service.refresh(issue.refresh_token, other.csrf_token, "203.0.113.91")
+        with pytest.raises(InvalidCsrf):
+            await service.refresh(issue.refresh_token, "forged-value", "203.0.113.91")
+        with pytest.raises(InvalidCsrf):
+            await service.refresh(issue.refresh_token, "", "203.0.113.91")
+
+        # 被拒的刷新没有消费令牌
+        rows = await _token_rows(migrated_mysql_database, issue.session_id)
+        assert [consumed for _, consumed in rows] == [None]
+
+        # 读取 CSRF 不轮换：两次调用同值，且原令牌仍可正常轮换
+        first = await service.csrf_for_refresh(issue.refresh_token)
+        second = await service.csrf_for_refresh(issue.refresh_token)
+        assert first == second == issue.csrf_token
+        assert len(await _token_rows(migrated_mysql_database, issue.session_id)) == 1
+
+        rotated = await service.refresh(issue.refresh_token, first, "203.0.113.91")
+        assert rotated.session_id == issue.session_id
+
+        # 未知 Cookie 取不到 CSRF；退出同样要匹配的 CSRF
+        with pytest.raises(InvalidCredentials):
+            await service.csrf_for_refresh(secrets.token_urlsafe(32))
+        with pytest.raises(InvalidCsrf):
+            await service.logout(rotated.refresh_token, other.csrf_token)
+        state = await _session_state(migrated_mysql_database, issue.session_id)
+        assert state["revoked_at"] is None
+
+    asyncio.run(scenario())
+
+
+def test_logout_revokes_access_immediately(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """退出后旧 JWT 立即失效，刷新令牌同时作废。"""
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        view, issue = await _register_and_login(service, "logout@example.com", "203.0.113.99")
+        assert (await service.verify(issue.access_token)).subject == view.id
+
+        await service.logout(issue.refresh_token, issue.csrf_token)
+
+        with pytest.raises(InvalidAccessToken):
+            await service.verify(issue.access_token)
+        with pytest.raises(InvalidCredentials):
+            await service.refresh(issue.refresh_token, issue.csrf_token, "203.0.113.99")
+        with pytest.raises(InvalidCredentials):
+            await service.csrf_for_refresh(issue.refresh_token)
+
+        state = await _session_state(migrated_mysql_database, issue.session_id)
+        assert state["revoked_at"] is not None
+        assert state["revoke_reason"] == "logout"
+        active = (
+            await _query(
+                migrated_mysql_database,
+                "SELECT COUNT(*) FROM identity_refresh_tokens "
+                "WHERE active_auth_session_id = :sid AND revoked_at IS NULL",
+                sid=issue.session_id,
+            )
+        )[0][0]
+        assert active == 0
+
+    asyncio.run(scenario())
+
+
+async def _session_state(database_url: str, session_id: str) -> dict:
+    rows = await _query(
+        database_url,
+        "SELECT revoked_at, revoke_reason FROM identity_auth_sessions WHERE id = :sid",
+        sid=session_id,
+    )
+    assert rows, f"登录会话 {session_id} 不存在"
+    return {"revoked_at": rows[0][0], "revoke_reason": rows[0][1]}
+
+
+async def _token_rows(database_url: str, session_id: str) -> list[tuple]:
+    return await _query(
+        database_url,
+        "SELECT token_hash, consumed_at FROM identity_refresh_tokens "
+        "WHERE auth_session_id = :sid",
+        sid=session_id,
+    )
+
+
+async def _set_session_expiry(database_url: str, session_id: str, moment) -> None:
+    factory = create_session_factory(database_url)
+    async with factory() as db:
+        session = await db.get(AuthSession, session_id)
+        session.expires_at = moment
+        await db.commit()
+
+
+async def _delete_user(database_url: str, user_id: str) -> None:
+    factory = create_session_factory(database_url)
+    async with factory() as db:
+        await db.execute(
+            text("DELETE FROM identity_refresh_tokens WHERE auth_session_id IN "
+                 "(SELECT id FROM identity_auth_sessions WHERE user_id = :uid)"),
+            {"uid": user_id},
+        )
+        await db.execute(
+            text("DELETE FROM identity_auth_sessions WHERE user_id = :uid"), {"uid": user_id}
+        )
+        await db.execute(text("DELETE FROM identity_users WHERE id = :uid"), {"uid": user_id})
+        await db.commit()

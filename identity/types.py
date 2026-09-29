@@ -96,6 +96,10 @@ class InvalidCredentials(IdentityError):
     """登录/刷新凭证无效；对外不区分账号不存在、密码错误与账号禁用。"""
 
 
+class InvalidCsrf(IdentityError):
+    """CSRF 值缺失或不匹配；调用方应返回 403。"""
+
+
 class DemoModeDisabled(IdentityError):
     """当前部署环境不允许演示注册或演示账号登录。"""
 
