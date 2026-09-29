@@ -1,93 +1,75 @@
-# 电商 Agent 自建身份模块设计
+# 电商 Agent 身份模块设计（演示版）
 
 日期：2026-09-29
 
 状态：评审稿
 
-关联设计：[电商 Agent MVP 架构与交易交接设计](2026-09-29-commerce-agent-mvp-design.md)。本稿定义 `identity/` 的账号、登录、令牌与撤销；购物会话、购物车归属及宿主交接仍以关联设计为准。
+关联设计：[电商 Agent MVP 架构与交易交接设计](2026-09-29-commerce-agent-mvp-design.md)。本稿定义 `identity/` 如何产生和验证可信主体；购物会话、购物车归属及宿主交接仍以关联设计为准。
 
-## 1. 背景、目标与边界
+## 1. 目标和演示边界
 
-当前项目没有可接入的身份服务，现有推荐接口的 `user_id` 由调用方填写，不能证明请求者身份。电商 MVP 只服务已登录用户，跨购物会话共享一辆活动购物车，写车和结账交接必须绑定可信主体。因此本项目在同一 FastAPI 应用内建设独立的 `identity/` 模块，沿用 MySQL、SQLAlchemy 异步会话和 Alembic 迁移，不为身份另拆微服务。对购物域保留异步的 `IdentityProvider.verify(token) -> Principal` 边界，日后可替换签发方而不改变购物车所有权检查。
+项目目前没有身份服务，旧推荐请求的 `user_id` 由调用方填写，不能证明请求者身份。购物 MVP 要按真实主体隔离会话、购物车和确认动作。本期在同一 FastAPI 应用中建设 `identity/` 模块，沿用 MySQL、SQLAlchemy 异步会话和 Alembic；向购物域提供异步的 `IdentityProvider.verify(token) -> Principal`。
 
-本期交付邮箱密码账号、邮箱验证、自助登录、访问令牌刷新、退出登录和密码重置；不交付社交登录、第三方 OAuth/OIDC 授权服务器、MFA、管理员控制台、邮箱修改或跨系统单点登录。开放注册、验证和找回密码依赖真实邮件投递；邮件未接通时只允许通过受控运维流程创建内部联调账号，不开放生产自助注册或找回，也不能以页面显示成功代替邮件送达。购物端点的生产上线须完成真实账号登录、验证和恢复链路，开发测试的固定 `Principal` 只能在测试配置使用。
+**演示版的邮箱只是登录名，不验证邮箱所有权。** 注册提交邮箱和密码，在本地创建账号；登录用密码校验该账号，不发送邮件，不接 SMTP，不发送验证码，也没有“验证邮箱”“忘记密码”接口。演示注册仅在显式 `identity_demo_mode=true` 的隔离环境开放；正式环境必须拒绝这种自助注册。演示版能验证“持有已注册账号密码的人”，不能证明其控制该邮箱，也不能作为对外开放的真实用户账号系统。需要真实用户注册时，另设计邮箱所有权验证和账号恢复流程。本稿不要求实现这些流程。
 
-## 2. 方案选择
+这里的“模拟”仅限账号来源和邮箱验证：密码哈希、登录校验、令牌签发与验证、会话撤销、主体归属均走真实代码与持久化数据。不得用任意邮箱、请求体 `user_id`、固定开发主体或跳过密码检查来签发购物访问令牌。测试可注入受控 `Principal`，但生产配置不能启用测试替身。
+
+## 2. 方案及模块边界
 
 | 方案 | 取舍 | 决定 |
 | --- | --- | --- |
-| 同应用 `identity/` + MySQL 账号/登录会话 + 短期 JWT + 轮换的不透明刷新令牌 | 复用现有部署和事务能力；保留 Bearer API 契约；需自行维护密钥、限流、邮件和撤销 | **采用**。访问令牌用于请求身份，服务端登录会话用于立即撤销。 |
-| 纯无状态长寿命 JWT | 验证成本低，但退出、改密、禁用账号难以即时生效 | 不采用。 |
-| 仅用浏览器 Cookie 会话 | 同站点浏览器简单，但需要改变既定的 Bearer 购物 API 契约 | 不作为本期购物 API 凭证。 |
+| 本地演示账号 + 短期 JWT + 服务端登录会话 | 无需邮件服务；保留 Bearer API 契约并可验证跨用户隔离；演示账号没有邮箱归属证明 | **采用**，仅供内部演示和联调。 |
+| 固定令牌或前端直接传 `user_id` | 简单，但任何调用方都能冒充其他用户 | 不采用。 |
+| 完整邮箱注册、验证和找回 | 可支持真实邮箱归属和恢复，但需要邮件投递、重试和滥用防护 | 留给真实用户上线阶段单独设计。 |
 
-此处 JWT 并非完整 OAuth/OIDC 服务；本系统只为自己的 API 签发访问令牌，不向第三方客户端提供通用授权能力。JWT 的签名证明令牌由本服务签发，不能代替服务端对账号和登录会话状态的检查。
+`identity/` 管理演示账号、密码哈希、登录会话、访问令牌、刷新令牌、撤销和安全审计；`api/auth.py` 管理 HTTP、Cookie、CSRF、输入和错误映射；`api/commerce` 只使用 `require_principal` 返回的 `Principal`。Agent 不接触密码、原始令牌或账号查询工具。JWT 只用于本项目 API，不代表本项目提供通用 OAuth/OIDC 授权服务。
 
-## 3. 模块职责与数据模型
+## 3. 数据模型和主体
 
-`identity/` 负责账号状态、密码验证、邮件令牌、登录会话、访问令牌签发与验证、刷新令牌轮换和审计。`api/auth.py` 负责 HTTP 契约、Cookie/CSRF、输入校验和错误映射。`api/commerce` 只接受 `require_principal` 返回的 `Principal`，不能从请求体、查询参数、普通自定义头或聊天文本提取用户身份。密码、令牌、重置链接和邮件验证码不进入 Agent 上下文。
+表由 Alembic 创建；主键使用应用生成的 UUID `CHAR(36)`，时间使用 UTC `DATETIME(6)`。不在应用启动时自动建表。
 
-新增表使用本项目的应用生成 UUID `CHAR(36)` 和 UTC `DATETIME(6)`；通过 Alembic 建表，不在应用启动时自动建表。
-
-| 表 | 主要字段与约束 | 用途 |
+| 表 | 字段与约束 | 用途 |
 | --- | --- | --- |
-| `identity_users` | `id` 主键、`email_normalized` 唯一、`email_verified_at`、`password_hash`、`status=active/disabled`、`created_at`、`updated_at` | `id` 是不可变主体。邮箱不充当车归属键；本期不提供改邮箱接口。统一规范化规则为去首尾空白、Unicode NFC 与大小写折叠，不做特定邮箱商的点号或别名折叠。 |
-| `identity_auth_sessions` | `id` 主键、`user_id` 外键、`created_at`、`last_used_at`、`expires_at`、`revoked_at`、`revoke_reason` | 一台设备的一次登录；每个访问令牌带 `sid`。禁用账号、退出、重置密码可立即使会话失效。建议绝对有效期 30 天，不因刷新无限延长。 |
-| `identity_refresh_tokens` | `id` 主键、`auth_session_id` 外键、`token_hash` 唯一、`expires_at`、`consumed_at`、`revoked_at`、`created_at` | 只保存至少 256 位随机令牌的 SHA-256 哈希；保留已消费记录直至会话过期，以检测重放。每个会话同一时刻只有一个未消费且未撤销的刷新令牌；以仅对活动行生成会话 ID、对其他行生成 `NULL` 的生成列加唯一索引，并配合事务行锁保证。 |
-| `identity_email_tokens` | `id` 主键、`user_id` 外键、`purpose=verify_email/reset_password`、`token_hash` 唯一、`expires_at`、`consumed_at`、`created_at` | 验证邮箱和重置密码分别使用至少 256 位随机的一次性令牌；新令牌发出时作废同用途旧令牌。 |
-| `identity_mail_outbox` | `id` 主键、`user_id` 外键、`purpose`、`payload_ciphertext`、`status=pending/sent/failed`、`attempts`、`next_attempt_at`、`created_at` | 与账号/邮件令牌同事务入队；投递任务使用部署密钥解密邮件内容并限次重试，成功或令牌过期后删除密文。失败告警供运维修复。 |
+| `identity_users` | `id` 主键、`email_normalized` 唯一、`password_hash`、`status=active/disabled`、`source=demo`、`created_at`、`updated_at` | `id` 是不可变主体；邮箱只作登录名，不标记为已验证，也不作为购物车归属键。规范化规则是去首尾空白、Unicode NFC 和大小写折叠，不做邮箱商特定的点号或别名折叠。 |
+| `identity_auth_sessions` | `id` 主键、`user_id` 外键、`created_at`、`last_used_at`、`expires_at`、`revoked_at`、`revoke_reason` | 一次设备登录。建议绝对有效期 30 天，不因刷新无限延长；退出或禁用账号后失效。 |
+| `identity_refresh_tokens` | `id` 主键、`auth_session_id` 外键、`token_hash` 唯一、`expires_at`、`consumed_at`、`revoked_at`、`created_at` | 不透明随机令牌至少 256 位；只存 SHA-256 哈希。已消费行保留至会话到期，用于发现重放。每个会话最多一枚活动令牌，以活动行生成列唯一索引和事务行锁保证。 |
 
-不保存明文密码或明文刷新、验证、重置令牌。密码使用 Argon2id，参数至少满足 OWASP 当前建议的 `m=19456 KiB, t=2, p=1`，上线时按实例容量压测后可调高；每个密码由库生成独立盐。密码长度至少 15 个字符，允许至少 64 个字符及空格/Unicode，检查常见泄露密码；不要求数字、大小写和符号组合，也不要求定期修改。密码哈希版本/参数随哈希串保存，以便登录时逐步升级。
+密码使用 Argon2id 哈希，至少配置 `m=19456 KiB, t=2, p=1`，库为每个密码生成独立盐；密码或原始刷新令牌不落库、不入日志。密码至少 15 个字符，允许至少 64 个字符及空格/Unicode，不要求固定字符组合。演示版没有自助找回密码；忘记密码只能在隔离环境通过受控运维命令重置，重置时撤销该用户全部登录会话，不能由前端任意指定账号执行。
 
-## 4. 主体与访问令牌
+本服务配置稳定 `issuer` 和仅指向电商 API 的 `audience`，`subject` 使用 `identity_users.id`。`Principal(issuer, subject, principal_key)` 中的 `principal_key` 对 `issuer` 和 `subject` 的 UTF-8 字节分别加 4 字节大端长度前缀，串接后取 SHA-256 十六进制摘要；邮箱不参与。该键写入购物会话、购物车和交接记录。更换 `issuer` 时必须迁移主体映射，不能直接修改配置使旧车失联。
 
-本服务配置稳定的 `issuer`，例如正式部署的身份域标识；`audience` 固定指向电商 API。`subject` 只使用 `identity_users.id`。`Principal(issuer, subject, principal_key)` 的 `principal_key` 为 `issuer` 与 `subject` 的 UTF-8 字节串分别加 4 字节大端长度前缀后串接，再取 SHA-256 十六进制摘要；写入购物会话、购物车和交接记录。未来更换 `issuer` 时必须迁移映射，不能直接改配置让旧车失联。邮箱不进入 `principal_key`。
+## 4. 注册、登录、刷新与验证
 
-登录成功或刷新成功签发 RS256 JWT，默认有效期 15 分钟，必含 `iss`、`aud`、`sub`、`sid`、`iat`、`nbf`、`exp`、随机 `jti`；JWT 头使用服务端维护的 `kid`。私钥通过部署密钥管理提供，不提交仓库或存入数据库；验签只使用服务端配置的公钥集合和固定 `RS256` 算法，不读取令牌自带的密钥 URL，不接受 `alg=none`。轮换时先分发新公钥，再切换签发私钥；旧公钥至少保留到旧访问令牌全部过期并越过时钟容差。生产配置缺失、密钥加载失败或时钟异常时受保护端点拒绝服务。
+1. **演示注册**：`POST /api/v1/auth/register` 仅在 `identity_demo_mode=true` 且部署环境标记为 `development/test/demo` 时可用；提交邮箱和密码，规范化邮箱并保存 `source=demo` 的账号和密码哈希。邮箱重复返回冲突；页面明确标记“演示账号，邮箱未验证”。接口不发送邮件，也不自动登录。正式环境即使误设开关也拒绝启动或拒绝该端点。
+2. **登录**：`POST /api/v1/auth/login` 按邮箱查账号并验证密码。不存在账号、密码错误和禁用账号对外使用相同的凭证错误，避免枚举。成功后创建服务端登录会话和第一枚刷新令牌；事务提交后返回短期 access token 并设置刷新 Cookie。正式环境不接受 `source=demo` 的账号登录。
+3. **访问令牌**：登录或刷新签发固定 `RS256` 的 JWT，默认有效期 15 分钟，含 `iss`、`aud`、`sub`、`sid`、`iat`、`nbf`、`exp`、随机 `jti`，头部带本服务配置的 `kid`。私钥由部署密钥管理提供；只按服务端配置的公钥集合和固定算法验签，不接受 `alg=none` 或令牌指定的密钥 URL。轮换时先分发新公钥，再切换签发私钥；旧公钥保留至全部旧令牌过期并越过时钟容差。
+4. **每次请求验证**：FastAPI `require_principal` 提取 Bearer 令牌，经 `IdentityProvider.verify` 校验签名、`kid`、`iss`、`aud`、时间字段、非空 UUID `sub` 和 `sid`，再查 MySQL，确认账号与登录会话匹配、状态有效、未撤销且未过期。即使 JWT 尚未过期，退出或禁用账号也应立即生效。无效凭证返回 401；数据库或密钥故障返回 503，不降级为匿名或固定主体。
+5. **刷新**：`POST /api/v1/auth/refresh` 从刷新 Cookie 取令牌，以哈希定位记录；事务内锁会话与令牌，核对账号状态、时效和消费状态，消费旧令牌并保存新令牌，提交后返回新 access token 和刷新 Cookie。刷新令牌不能超过登录会话绝对到期时间。已消费令牌重放时撤销该会话；未知令牌不能触发对其他会话的撤销。客户端收敛并发刷新；若多标签页竞争导致撤销，重新登录。
+6. **退出**：`POST /api/v1/auth/logout` 撤销当前登录会话和所有剩余刷新令牌，清除 Cookie。账号禁用和受控密码重置撤销该用户全部登录会话。
 
-`require_principal` 对每个受保护请求验证签名、`kid`、`iss`、`aud`、时间声明、非空 UUID `sub` 和 `sid`，再查 MySQL，确认用户已验证且 `active`、登录会话属于该用户、未撤销且未过期。令牌即使还未到 `exp`，只要会话被撤销或账号被禁用就不能使用。凭证缺失、无效、过期或已撤销返回 401；数据库/密钥依赖故障返回 503，不把故障当作匿名身份。商品公开只读接口不要求登录。
+登录与注册按规范化邮箱和可信客户端 IP 在 Redis 中原子限流；演示默认登录每邮箱每 15 分钟 5 次失败、每 IP 每 15 分钟 30 次失败，注册每 IP 每小时 3 次，刷新每会话每分钟 30 次。触发后返回 429 与 `Retry-After`。Redis 不可用时这些端点拒绝服务。仅信任配置的反向代理提供的客户端 IP；不直接信任任意 `X-Forwarded-For`。安全审计记录失败次数、撤销和重放，不记录密码或原始令牌。
 
-## 5. 注册、登录与恢复流程
+## 5. 浏览器及 HTTP 契约
 
-1. **注册**：`POST /api/v1/auth/register` 接收邮箱和密码，创建未验证账号，生成高熵一次性邮箱验证令牌，保存其哈希，并在同一事务写加密邮件发件箱。验证令牌默认 24 小时有效。只有邮件服务已配置、投递任务健康且能持久化发件任务才开放注册；响应表示请求已受理，不表示收件人已收到邮件。外部响应不泄露邮箱是否已存在。未验证账号不能取得购物访问令牌。邮件投递失败会重试和告警，并提供限流的重新发送验证邮件入口。
-2. **验证邮箱**：`POST /api/v1/auth/verify-email` 提交一次性令牌；在事务中核对哈希、用途、时效、消费状态和账号，设置 `email_verified_at` 并消费令牌。重复或错误令牌不给出账号是否存在的信息。验证成功后用户再登录。
-3. **登录**：`POST /api/v1/auth/login` 用规范化邮箱查账号，验证 Argon2id 哈希；失败统一返回模糊的凭证错误，避免枚举账号。成功后创建 `identity_auth_sessions` 和第一枚刷新令牌，响应短期 access token、过期时间，并设置刷新 Cookie。密码验证和限流在所有实例一致生效，不能只靠进程内计数。
-4. **刷新**：`POST /api/v1/auth/refresh` 仅从刷新 Cookie 读取令牌，以其哈希定位记录；在同一 MySQL 事务中锁定登录会话和令牌行，核对未消费、未撤销、未过期和用户状态，消费旧令牌并保存新令牌；事务提交后才返回新 access token 和刷新 Cookie。刷新令牌的 `expires_at` 不得超过登录会话绝对到期时间。已消费令牌再次出现时撤销该登录会话及其所有刷新令牌，要求重新登录；未知随机令牌不得据此撤销别人的会话。客户端应把并发刷新收敛为单次请求，多标签页协调失败时以重新登录恢复。
-5. **退出**：`POST /api/v1/auth/logout` 撤销当前登录会话及剩余刷新令牌并清除 Cookie；即使令牌已失效也清除浏览器 Cookie。密码重置、禁用账号撤销该用户全部登录会话。本期不提供已登录改密接口；需要换密码时走重置流程。
-6. **找回密码**：`POST /api/v1/auth/password-reset/request` 对存在且已验证的邮箱生成一次性重置令牌并通过加密发件箱投递邮件，默认 30 分钟有效；无论邮箱是否存在都返回相同外部结果。`POST /api/v1/auth/password-reset/confirm` 在事务中验证并消费令牌、更新密码哈希、撤销全部登录会话；不自动登录。重置链接将令牌放在 URL fragment，由前端读取后通过请求体提交；服务端路由、访问日志、第三方请求和 Referer 不得包含令牌。
+默认前端与 API 在同站点 HTTPS。前端只在内存中保存 access token，调用购物 API 时发送 `Authorization: Bearer <access_token>`。刷新令牌放在带 `__Host-` 前缀、`Secure`、`HttpOnly`、`SameSite=Lax`、`Path=/`、无 `Domain` 的 Cookie，不放 `localStorage` 或 `sessionStorage`。登录响应给出当前会话的 CSRF 值；页面重载后先调用 `GET /api/v1/auth/csrf`，服务端凭刷新 Cookie 定位有效会话，返回与之绑定的签名 CSRF 值，再调用 `/refresh`。登录、注册、刷新、退出检查可信 `Origin`，刷新和退出还校验自定义头里的 CSRF 值。生产 CORS 仅允许明确配置的前端来源，不用 `*`。
 
-登录、注册、验证邮件、重置和刷新接口按账号/邮箱与可信客户端 IP 组合限流，计数存 Redis 并使用原子操作；Redis 不可用时这些接口拒绝服务，不能绕过限流。首版默认登录为每规范化邮箱每 15 分钟 5 次失败、每 IP 每 15 分钟 30 次失败；注册为每 IP 每小时 3 次；重发验证与重置申请为每邮箱每小时 3 次、每 IP 每小时 10 次；刷新为每会话每分钟 30 次。阈值可通过部署配置收紧；触发后返回 429 和 `Retry-After`。仅信任部署配置的反向代理提供的客户端 IP，不直接信任任意 `X-Forwarded-For`。失败次数、邮件发送和令牌重放写安全审计事件，但不记录密码、原始令牌、完整重置链接或敏感请求体。
-
-## 6. 浏览器与 API 契约
-
-默认宿主前端与 API 使用同站点 HTTPS。短期 access token 只保存在前端内存，调用购物 API 时放入 `Authorization: Bearer <access_token>`；刷新令牌只放 `__Host-` 前缀、`Secure`、`HttpOnly`、`SameSite=Lax`、`Path=/` 且无 `Domain` 的 Cookie，不放 `localStorage`/`sessionStorage`。页面重载后前端先请求 `GET /api/v1/auth/csrf`：服务端凭刷新 Cookie 定位有效会话，返回与该会话绑定的签名 CSRF 值；前端随后以自定义头提交该值调用 `/refresh`。登录时响应也返回当前会话的 CSRF 值。Cookie 会自动发送，因此登录、刷新、退出、注册和密码恢复的状态修改请求校验可信 `Origin`；刷新/退出额外校验 CSRF 值与 Cookie 所属会话一致。`SameSite` 只作附加防护。生产 CORS 明确列出宿主来源，不使用 `*`；跨站点部署需单独评审 Cookie、CSRF 和浏览器限制，不能直接把 `SameSite` 改为 `None`。
-
-| 端点 | 输入 | 成功结果 |
+| 端点 | 请求 | 成功结果 |
 | --- | --- | --- |
-| `POST /api/v1/auth/register` | 邮箱、密码 | 通用受理结果；仅邮件链路可用时开放 |
-| `POST /api/v1/auth/verify-email` | 一次性令牌 | 邮箱验证完成 |
-| `POST /api/v1/auth/resend-verification` | 邮箱 | 通用受理结果；限流并作废旧验证令牌 |
-| `POST /api/v1/auth/login` | 邮箱、密码 | access token、有效期、CSRF 值；设置刷新 Cookie |
-| `GET /api/v1/auth/csrf` | 刷新 Cookie | 当前会话的 CSRF 值；不轮换令牌 |
-| `POST /api/v1/auth/refresh` | 刷新 Cookie、CSRF 令牌 | 新 access token、有效期；轮换刷新 Cookie |
-| `POST /api/v1/auth/logout` | 当前登录凭证、刷新 Cookie、CSRF 令牌 | 撤销会话并清除 Cookie |
-| `POST /api/v1/auth/password-reset/request` | 邮箱 | 通用受理结果 |
-| `POST /api/v1/auth/password-reset/confirm` | 一次性令牌、新密码 | 密码更新并撤销全部会话 |
-| `GET /api/v1/auth/me` | Bearer access token | 当前用户 ID、已验证邮箱及账号状态 |
+| `POST /api/v1/auth/register` | 邮箱、密码；仅演示环境 | 演示账号 ID；无邮件、无自动登录 |
+| `POST /api/v1/auth/login` | 邮箱、密码 | access token、过期时间、CSRF 值；设置刷新 Cookie |
+| `GET /api/v1/auth/csrf` | 刷新 Cookie | 当前会话的 CSRF 值 |
+| `POST /api/v1/auth/refresh` | 刷新 Cookie、CSRF 值 | 新 access token；轮换刷新 Cookie |
+| `POST /api/v1/auth/logout` | 登录凭证、刷新 Cookie、CSRF 值 | 撤销会话并清除 Cookie |
+| `GET /api/v1/auth/me` | Bearer access token | 用户 ID、登录邮箱、`email_verified=false`、账号来源 |
 
-错误映射：无效凭证为 401，限流为 429，邮件/数据库/Redis/密钥依赖不可用为 503；注册和找回入口的外部响应不能泄露账号是否存在。所有认证响应设置禁止缓存，并避免把 access token 写入 URL。令牌刷新失败不沿用过期 access token 调用购物写端点。
+所有认证响应禁止缓存，不把令牌放 URL；请求体和日志不得记录密码、刷新令牌。Cookie 只用于认证端点，购物端点仍要求 Bearer。浏览器演示环境也使用 HTTPS，以保证刷新 Cookie 的 `Secure` 和 `__Host-` 属性有效。
 
-## 7. 与购物及宿主的边界
+## 6. 购物边界、验证和后续升级
 
-购物 `POST /sessions` 创建独立的 24 小时购物会话，归属当前 `principal_key`；登录会话绝对有效期、15 分钟 access token 和购物会话有效期互不替代。访问令牌刷新后只要 `Principal` 相同，就能继续使用未过期购物会话；购物会话过期不删除购物车。所有车、动作、交接记录继续按 `principal_key` 在 API 层与服务层双重校验。旧推荐 API 的 `user_id` 保持兼容，但不得成为新交易入口的身份依据。
+购物会话建议 24 小时有效，按 `principal_key` 归属；它不等于登录会话。刷新 access token 后同一主体可继续未过期购物会话，购物会话过期不删除购物车。所有车、动作和交接记录在 API 与服务层按主体双重校验。旧推荐接口的 `user_id` 保持兼容，但绝不能作为新交易入口的身份依据。宿主读取交接快照仍需独立服务凭证，不能把用户 JWT、`handoff_id` 或 URL 当作宿主服务身份。
 
-宿主读取交接快照仍需要独立服务凭证，并验证终端用户与 `checkout_handoffs.principal_key` 一致。本期 `identity/` 不提供通用服务到服务授权服务器；宿主结账接口、服务凭证及其轮换在交接集成时单独落实。不能把前端 JWT、`handoff_id` 或 URL 当作宿主服务身份。
+配置包含稳定 `issuer`、`audience`、签名密钥来源与 `kid`、CSRF 签名密钥、令牌/会话时效、允许来源、Redis 限流和 `identity_demo_mode`；`.env.example` 仅保留占位符。正式环境禁止演示账号登录及自助注册，缺少密钥、MySQL、Redis 或可信前端来源时受保护端点不可用。开发/测试使用隔离数据库、临时密钥和演示账号；固定 `Principal` 只用于单元测试。当前设计不将演示注册视为生产身份交付。
 
-## 8. 配置、验证与交付顺序
+验收覆盖：注册无邮件依赖、邮箱重复与并发唯一约束、错误密码/不存在/禁用账号的统一失败响应、演示模式在正式环境不可用、JWT 错误签名/算法/受众/签发方/过期拒绝、退出与密码重置后旧 JWT 立即失效、刷新轮换和旧令牌重放、跨用户读车/确认/交接拒绝、Redis 故障拒绝、Cookie/CSRF/CORS 配置。端到端演示从注册和密码登录取得 access token；不能用固定 `Principal` 冒充完整身份链路。
 
-在 `config/settings.py` 增加稳定 `issuer`、`audience`、签名密钥来源及 `kid`、CSRF 签名密钥、发件箱加密密钥、访问令牌和登录会话时效、邮件发送器、允许的前端来源及限流配置；`.env.example` 只给占位符，不含真实密钥。生产启动检查必需密钥、HTTPS/来源配置、MySQL 和 Redis；缺项时认证与交易受保护端点不可用。开发/测试使用隔离数据库、受控邮件发送器与临时测试密钥，不允许测试替身配置进入生产。
-
-按顺序交付：① 表结构、密码哈希、密钥加载和主体契约；② 登录/刷新/退出与即时撤销；③ 邮箱投递、验证、开放注册和重置；④ 购物端点 `require_principal` 接入与跨用户隔离；⑤ 宿主交接联调。邮件链路若未就绪，先以受控账号完成内部联调，开放注册和自助恢复保持关闭。
-
-验收覆盖：错误密码与不存在账号的统一响应、未验证/禁用账号拒绝登录、跨用户读车与确认拒绝、JWT 错误签名/算法/受众/签发方/过期拒绝、退出与重置密码后旧 JWT 立即失效、刷新轮换及旧令牌重放撤销、并发刷新只有一次成功、限流依赖故障拒绝、邮件令牌单次消费与过期、Cookie/CSRF/CORS 配置，以及身份配置缺失时交易端点拒绝服务。端到端测试必须从真实登录取得 access token，不把固定 `Principal` 当作生产链路验证。
-
-设计依据：[OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)、[OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)、[OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)、[OWASP Forgot Password](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html)、[NIST SP 800-63B](https://pages.nist.gov/800-63-4/sp800-63b/authenticators/)、[RFC 9700](https://www.rfc-editor.org/info/rfc9700/)。
+真实用户上线另需设计邮箱所有权验证、账号恢复、滥用处置与运维支持。引入这些能力前，不对外宣称邮箱已验证，也不把演示账号视为可供真实交易使用的生产身份。演示账号及其购物车不自动迁移为正式账号；若未来需要迁移，须另设计主体映射和归属证明。安全选择参考 [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)、[OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html) 与 [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)。
