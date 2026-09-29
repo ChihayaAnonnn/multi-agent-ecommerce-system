@@ -6,10 +6,20 @@ from dataclasses import dataclass
 from typing import Any
 
 from fastapi import HTTPException, Request
+from redis.asyncio import Redis
 
 from catalog.service import CatalogService
 from config import get_settings
 from db.session import create_session_factory
+from identity.csrf import CsrfSigner
+from identity.rate_limit import RedisRateLimiter
+from identity.service import IdentityService
+from identity.tokens import load_token_codec
+from identity.types import (
+    IdentityConfigurationError,
+    IdentityHttpConfig,
+    parse_trusted_networks,
+)
 from inventory.service import InventoryService
 from orchestrator.supervisor import SupervisorOrchestrator
 from pricing.service import PricingService
@@ -28,6 +38,41 @@ class ApiRuntime:
     inventory: InventoryService | None = None
     # 未配置数据库时的原因，用于向调用方说明 503。
     catalog_error: str | None = None
+    identity: IdentityService | None = None
+    identity_config: IdentityHttpConfig | None = None
+    # 身份未装配时的原因；认证与受保护端点据此返回 503。
+    identity_error: str | None = None
+    redis: Redis | None = None
+
+    async def aclose(self) -> None:
+        if self.redis is not None:
+            await self.redis.aclose()
+            self.redis = None
+
+
+def build_identity_service(settings, session_factory, redis_client) -> IdentityService:
+    """按配置装配身份服务；任何配置缺口都抛 `IdentityConfigurationError`。"""
+    codec = load_token_codec(settings)
+    csrf = CsrfSigner(settings.identity_csrf_secret)
+    limiter = RedisRateLimiter(
+        redis_client,
+        login_email_limit=settings.identity_login_email_limit,
+        login_ip_limit=settings.identity_login_ip_limit,
+        register_ip_limit=settings.identity_register_ip_limit,
+        refresh_session_limit=settings.identity_refresh_session_limit,
+        login_window_seconds=settings.identity_login_window_seconds,
+        register_window_seconds=settings.identity_register_window_seconds,
+        refresh_window_seconds=settings.identity_refresh_window_seconds,
+    )
+    return IdentityService(
+        session_factory,
+        codec,
+        limiter,
+        csrf,
+        settings.identity_environment,
+        settings.identity_demo_mode,
+        session_ttl_seconds=settings.identity_session_ttl_seconds,
+    )
 
 
 def create_runtime() -> ApiRuntime:
@@ -35,24 +80,47 @@ def create_runtime() -> ApiRuntime:
 
     数据库未配置或不是 MySQL URL 时，不初始化目录/价格/库存服务：
     旧推荐接口必须照常启动，新只读端点返回明确的 503。
+    身份配置缺失时只让认证与受保护端点 503，不影响旧推荐与公开只读接口。
     """
+    settings = get_settings()
     ab_engine = ABTestEngine()
     runtime = ApiRuntime(
         ab_engine=ab_engine,
         metrics_collector=MetricsCollector(),
         supervisor=SupervisorOrchestrator(ab_engine=ab_engine),
+        identity_config=IdentityHttpConfig(
+            allowed_origins=settings.allowed_origins,
+            trusted_proxy_networks=settings.trusted_proxy_networks,
+            session_ttl_seconds=settings.identity_session_ttl_seconds,
+        ),
     )
 
     try:
-        session_factory = create_session_factory(get_settings().database_url)
+        # 可信代理网段配错时同样视为配置故障，不静默忽略
+        parse_trusted_networks(settings.trusted_proxy_networks)
+        if "*" in settings.identity_allowed_origins:
+            raise IdentityConfigurationError("认证域 CORS 不允许使用通配来源 *")
+    except IdentityConfigurationError as exc:
+        runtime.identity_error = str(exc)
+        return runtime
+
+    try:
+        session_factory = create_session_factory(settings.database_url)
     except ValueError as exc:
         runtime.catalog_error = str(exc)
+        runtime.identity_error = str(exc)
         return runtime
 
     pricing = PricingService(session_factory)
     runtime.pricing = pricing
     runtime.inventory = InventoryService(session_factory)
     runtime.catalog = CatalogService(session_factory, price_reader=pricing)
+
+    try:
+        runtime.redis = Redis.from_url(settings.redis_url, decode_responses=True)
+        runtime.identity = build_identity_service(settings, session_factory, runtime.redis)
+    except IdentityConfigurationError as exc:
+        runtime.identity_error = str(exc)
     return runtime
 
 

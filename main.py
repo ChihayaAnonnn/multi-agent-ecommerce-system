@@ -13,12 +13,13 @@ from contextlib import asynccontextmanager
 import structlog
 import uvicorn
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
+from api.auth import router as auth_router
 from api.catalog import router as catalog_router
 from api.commerce_read import router as commerce_read_router
 from api.experiments import router as experiments_router
 from api.health import router as health_router
+from api.identity import configure_cors
 from api.metrics import router as metrics_router
 from api.recommendations import router as recommendations_router
 from api.runtime import create_runtime
@@ -34,6 +35,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.runtime.rec_graph = build_recommendation_graph()
     logger.info("app.startup", model=settings.llm_model)
     yield
+    # 释放身份模块的 Redis 连接；未装配身份时是空操作
+    await app.state.runtime.aclose()
     logger.info("app.shutdown")
 
 
@@ -45,12 +48,9 @@ app = FastAPI(
 )
 app.state.runtime = create_runtime()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 认证域 CORS 只允许显式配置的前端来源，绝不使用通配符：
+# 带凭证的跨站请求不允许 `*`，未配置来源时按拒绝处理。
+configure_cors(app, settings)
 
 for router in (
     health_router,
@@ -59,6 +59,7 @@ for router in (
     metrics_router,
     catalog_router,
     commerce_read_router,
+    auth_router,
 ):
     app.include_router(router)
 

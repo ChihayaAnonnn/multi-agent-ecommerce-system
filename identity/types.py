@@ -7,15 +7,42 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import struct
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from functools import lru_cache
 
 # 允许开放演示注册/登录的部署环境；其他环境一律拒绝 source=demo。
 DEMO_ENVIRONMENTS = ("development", "test", "demo")
 
 # 主体键编码版本；改变编码规则必须换前缀，避免新旧键混用。
 PRINCIPAL_KEY_VERSION = b"ecom-principal-v1\x00"
+
+
+@dataclass(frozen=True)
+class IdentityHttpConfig:
+    """认证端点需要的 HTTP 层配置（来源白名单、可信代理、Cookie 名与时效）。"""
+
+    allowed_origins: tuple[str, ...] = ()
+    trusted_proxy_networks: tuple[str, ...] = ()
+    refresh_cookie_name: str = "__Host-ecom_refresh"
+    session_ttl_seconds: int = 2592000
+    extra: dict = field(default_factory=dict)
+
+
+@lru_cache(maxsize=64)
+def parse_trusted_networks(networks: tuple[str, ...]) -> tuple:
+    """解析可信代理 CIDR；配置写错时直接报错，不静默忽略。"""
+    parsed = []
+    for entry in networks:
+        try:
+            parsed.append(ipaddress.ip_network(entry, strict=False))
+        except ValueError as exc:
+            raise IdentityConfigurationError(
+                f"可信代理网段不是合法 CIDR：{entry}（ECOM_IDENTITY_TRUSTED_PROXY_NETWORKS）"
+            ) from exc
+    return tuple(parsed)
 
 
 @dataclass(frozen=True)
