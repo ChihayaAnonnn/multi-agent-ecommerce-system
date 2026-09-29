@@ -18,10 +18,30 @@ from sqlalchemy.exc import IntegrityError
 
 from db.base import utcnow
 from db.session import create_session_factory
+from identity.csrf import CsrfSigner
 from identity.models import AuthSession, IdentityUser, RefreshToken
+from identity.passwords import hash_password
+from identity.rate_limit import RedisRateLimiter
+from identity.service import (
+    DEFAULT_SESSION_TTL_SECONDS,
+    IdentityService,
+    hash_refresh_token,
+    normalize_email,
+)
+from identity.tokens import TokenCodec
+from identity.types import (
+    DemoModeDisabled,
+    EmailAlreadyRegistered,
+    IdentityConfigurationError,
+    InvalidCredentials,
+    UserView,
+)
 from tests.conftest import downgrade_to, read_schema, upgrade_to
 
 IDENTITY_TABLES = {"identity_users", "identity_auth_sessions", "identity_refresh_tokens"}
+
+IDENTITY_ISSUER = "https://identity.ecom.test"
+IDENTITY_AUDIENCE = "ecom-api"
 
 
 async def _query(database_url: str, statement, **params) -> list[tuple]:
@@ -285,5 +305,268 @@ def test_email_uniqueness_after_normalization(migrated_mysql_database: str):
             )
             with pytest.raises(IntegrityError):
                 await db.commit()
+
+    asyncio.run(scenario())
+
+
+# ---------- 演示注册与密码登录 ----------
+
+
+@pytest.fixture(scope="module")
+def identity_keypair() -> tuple[str, str]:
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode()
+    public_pem = key.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode()
+    return private_pem, public_pem
+
+
+@pytest.fixture(scope="module")
+def identity_codec(identity_keypair) -> TokenCodec:
+    private_pem, public_pem = identity_keypair
+    return TokenCodec(
+        issuer=IDENTITY_ISSUER,
+        audience=IDENTITY_AUDIENCE,
+        active_kid="test-key-1",
+        private_key_pem=private_pem,
+        public_keys={"test-key-1": public_pem},
+    )
+
+
+CSRF_SECRET = "c" * 48
+
+
+async def _build_service(
+    database_url: str,
+    redis_url: str,
+    codec: TokenCodec,
+    *,
+    environment: str = "test",
+    demo_mode: bool = True,
+    session_ttl_seconds: int = DEFAULT_SESSION_TTL_SECONDS,
+    limiter: RedisRateLimiter | None = None,
+    csrf: CsrfSigner | None = None,
+) -> IdentityService:
+    """在事件循环内构造服务；Redis 连接必须属于当前循环。"""
+    if limiter is None:
+        from redis.asyncio import Redis
+
+        client = Redis.from_url(redis_url, decode_responses=True)
+        limiter = RedisRateLimiter(client)
+    return IdentityService(
+        create_session_factory(database_url),
+        codec,
+        limiter,
+        csrf or CsrfSigner(CSRF_SECRET),
+        environment,
+        demo_mode,
+        session_ttl_seconds=session_ttl_seconds,
+    )
+
+
+async def _load_user(database_url: str, user_id: str) -> IdentityUser:
+    async with create_session_factory(database_url)() as db:
+        return await db.get(IdentityUser, user_id)
+
+
+async def _disable_user(database_url: str, user_id: str) -> None:
+    factory = create_session_factory(database_url)
+    async with factory() as db:
+        user = await db.get(IdentityUser, user_id)
+        user.status = "disabled"
+        await db.commit()
+
+
+def test_demo_register_and_login(migrated_mysql_database: str, clean_redis: str, identity_codec):
+    """注册只写账号不自动登录；登录返回可验签的令牌且主体互不相同。"""
+    password = "a-long-enough-demo-password"
+
+    async def scenario():
+        csrf = CsrfSigner(CSRF_SECRET)
+        service = await _build_service(
+            migrated_mysql_database, clean_redis, identity_codec, csrf=csrf
+        )
+        view = await service.register_demo("Demo@Example.com ", password, "203.0.113.7")
+
+        assert view.email == "demo@example.com"
+        assert view.email_verified is False
+        assert view.source == "demo"
+
+        stored = await _load_user(migrated_mysql_database, view.id)
+        assert stored.password_hash != password
+        assert stored.password_hash.startswith("$argon2id$")
+        assert password not in stored.password_hash
+
+        # 注册不自动登录：此时还没有任何登录会话
+        sessions = (
+            await _query(
+                migrated_mysql_database,
+                "SELECT COUNT(*) FROM identity_auth_sessions WHERE user_id = :uid",
+                uid=view.id,
+            )
+        )[0][0]
+        assert sessions == 0
+
+        now = utcnow()
+        issue = await service.login("  dEmo@example.COM ", password, "203.0.113.7")
+        assert issue.user_id == view.id
+        assert issue.refresh_token and len(issue.refresh_token) >= 32
+        assert identity_codec.decode(issue.access_token, now).user_id == view.id
+        assert identity_codec.decode(issue.access_token, now).session_id == issue.session_id
+        assert csrf.verify(issue.session_id, issue.csrf_token) is True
+        assert csrf.verify("another-session", issue.csrf_token) is False
+
+        # 另一位用户拿到的是不同主体
+        other = await service.register_demo("other@example.com", password, "203.0.113.8")
+        other_issue = await service.login("other@example.com", password, "203.0.113.8")
+        assert identity_codec.decode(other_issue.access_token, now).user_id == other.id
+        assert other.id != view.id
+
+        # 刷新令牌只存哈希
+        hashes = await _query(
+            migrated_mysql_database,
+            "SELECT token_hash FROM identity_refresh_tokens WHERE auth_session_id = :sid",
+            sid=issue.session_id,
+        )
+        assert len(hashes) == 1
+        assert hashes[0][0] == hash_refresh_token(issue.refresh_token)
+        assert issue.refresh_token not in hashes[0][0]
+
+        # 会话绝对到期为 30 天
+        expires = (
+            await _query(
+                migrated_mysql_database,
+                "SELECT created_at, expires_at FROM identity_auth_sessions WHERE id = :sid",
+                sid=issue.session_id,
+            )
+        )[0]
+        assert expires[1] - expires[0] == timedelta(days=30)
+
+    asyncio.run(scenario())
+
+
+def test_concurrent_equivalent_email_registration_creates_one_user(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """大小写与 NFC 等价的邮箱并发注册只产生一名用户。"""
+    composed = "café@example.com"
+    decomposed = "café@example.com"
+    assert composed != decomposed
+    assert normalize_email(composed) == normalize_email(decomposed.upper())
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        results = await asyncio.gather(
+            service.register_demo(composed, "a-long-enough-password", "203.0.113.21"),
+            service.register_demo(
+                decomposed.upper(), "another-long-enough-password", "203.0.113.22"
+            ),
+            return_exceptions=True,
+        )
+
+        succeeded = [item for item in results if isinstance(item, UserView)]
+        conflicts = [item for item in results if isinstance(item, EmailAlreadyRegistered)]
+        assert len(succeeded) == 1, results
+        assert len(conflicts) == 1, results
+        assert succeeded[0].email == normalize_email(composed)
+
+        rows = (
+            await _query(
+                migrated_mysql_database,
+                "SELECT COUNT(*) FROM identity_users WHERE email_normalized = :email",
+                email=normalize_email(composed),
+            )
+        )[0][0]
+        assert rows == 1
+
+    asyncio.run(scenario())
+
+
+def test_bad_credentials_are_indistinguishable(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """不存在账号、密码错误与禁用账号对外是同一个领域错误。"""
+    password = "a-long-enough-demo-password"
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        registered_view = await service.register_demo(
+            "real@example.com", password, "203.0.113.31"
+        )
+        registered = await _load_user(migrated_mysql_database, registered_view.id)
+        disabled = await service.register_demo("blocked@example.com", password, "203.0.113.32")
+        await _disable_user(migrated_mysql_database, disabled.id)
+
+        errors = []
+        for email, candidate in (
+            ("ghost@example.com", password),
+            ("real@example.com", password + "-wrong"),
+            ("blocked@example.com", password),
+        ):
+            with pytest.raises(InvalidCredentials) as error:
+                await service.login(email, candidate, "203.0.113.31")
+            errors.append(error.value)
+
+        # 同一个错误类型、同一句对外文案、都没有多余信息
+        assert {type(item) for item in errors} == {InvalidCredentials}
+        assert len({str(item) for item in errors}) == 1
+        assert password not in str(errors[0])
+        assert registered.password_hash not in str(errors[0])
+
+    asyncio.run(scenario())
+
+
+def test_demo_mode_gate(migrated_mysql_database: str, clean_redis: str, identity_codec):
+    """正式环境即便误设开关也拒绝装配，且不接受演示账号注册与登录。"""
+    password = "a-long-enough-demo-password"
+
+    async def scenario():
+        with pytest.raises(IdentityConfigurationError):
+            await _build_service(
+                migrated_mysql_database,
+                clean_redis,
+                identity_codec,
+                environment="production",
+                demo_mode=True,
+            )
+
+        service = await _build_service(
+            migrated_mysql_database,
+            clean_redis,
+            identity_codec,
+            environment="production",
+            demo_mode=False,
+        )
+        assert service.demo_registration_enabled is False
+
+        with pytest.raises(DemoModeDisabled):
+            await service.register_demo("prod@example.com", password, "203.0.113.41")
+
+        # 直接写库造一个演示账号：正式环境的登录同样拒绝它
+        factory = create_session_factory(migrated_mysql_database)
+        user = await _create_user(
+            factory, "prod-demo@example.com", password_hash=hash_password(password)
+        )
+        with pytest.raises(InvalidCredentials):
+            await service.login("prod-demo@example.com", password, "203.0.113.42")
+        assert (await _load_user(migrated_mysql_database, user.id)).status == "active"
+
+        # 其他环境标签（例如拼错的 deploy）同样不开放演示模式
+        with pytest.raises(IdentityConfigurationError):
+            await _build_service(
+                migrated_mysql_database,
+                clean_redis,
+                identity_codec,
+                environment="deploy",
+                demo_mode=True,
+            )
 
     asyncio.run(scenario())
