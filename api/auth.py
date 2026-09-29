@@ -21,6 +21,7 @@ from api.identity import (
 )
 from db.base import UtcDateTime
 from identity.passwords import PasswordPolicyError
+from identity.service import MAX_EMAIL_LENGTH, normalize_email
 from identity.types import (
     AuthIssue,
     DemoModeDisabled,
@@ -29,6 +30,7 @@ from identity.types import (
     InvalidAccessToken,
     InvalidCredentials,
     InvalidCsrf,
+    InvalidEmail,
     Principal,
     RateLimited,
     UserView,
@@ -46,12 +48,15 @@ class RegisterRequest(BaseModel):
     @field_validator("email")
     @classmethod
     def _looks_like_login_name(cls, value: str) -> str:
-        # 演示邮箱只作登录名，这里只挡住明显不可能入座的输入
+        # 演示邮箱只作登录名，这里只挡住明显不可能入座的输入。
+        # 长度按规范化后的结果判断：大小写折叠可能让结果变长。
         candidate = value.strip()
         if "@" not in candidate or candidate.startswith("@") or candidate.endswith("@"):
             raise ValueError("邮箱格式不正确")
         if any(character.isspace() for character in candidate):
             raise ValueError("邮箱不能包含空白字符")
+        if len(normalize_email(candidate)) > MAX_EMAIL_LENGTH:
+            raise ValueError("邮箱过长")
         return candidate
 
 
@@ -177,7 +182,7 @@ async def register(
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except EmailAlreadyRegistered as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    except PasswordPolicyError as exc:
+    except (PasswordPolicyError, InvalidEmail) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RateLimited as exc:
         raise HTTPException(

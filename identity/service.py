@@ -32,6 +32,7 @@ from identity.types import (
     InvalidAccessToken,
     InvalidCredentials,
     InvalidCsrf,
+    InvalidEmail,
     Principal,
     UnknownAccount,
     UserView,
@@ -41,6 +42,10 @@ from identity.types import (
 # 刷新令牌至少 256 位随机；只保存 SHA-256 十六进制摘要。
 REFRESH_TOKEN_BYTES = 32
 DEFAULT_SESSION_TTL_SECONDS = 2592000  # 30 天绝对到期
+
+# 与 identity_users.email_normalized 的列宽一致。大小写折叠可能让规范化结果变长
+# （例如 ß -> ss），因此必须在写入前校验规范化后的长度，而不是只校验原始输入。
+MAX_EMAIL_LENGTH = 320
 
 # 账号不存在时也执行一次真实的 Argon2 校验，抹平与「密码错误」的时序差异。
 _TIMING_DUMMY_PASSWORD = "timing-equalization-dummy-password"
@@ -134,6 +139,8 @@ class IdentityService:
         await self._limiter.check_register(client_ip)
 
         normalized = normalize_email(email)
+        if not normalized or len(normalized) > MAX_EMAIL_LENGTH:
+            raise InvalidEmail("邮箱格式不正确")
         validate_password(password)
         password_hash = await asyncio.to_thread(hash_password, password)
 
@@ -162,6 +169,10 @@ class IdentityService:
         """校验密码并创建登录会话；失败原因对外不可区分。"""
         normalized = normalize_email(email)
         await self._limiter.check_login(normalized, client_ip)
+        if not normalized or len(normalized) > MAX_EMAIL_LENGTH:
+            # 长度不合法的登录名不可能对应任何账号，仍按统一凭证错误处理
+            await self._limiter.record_login_failure(normalized, client_ip)
+            raise InvalidCredentials("邮箱或密码不正确")
 
         async with _database_errors("登录"):
             async with self._sessions() as db:

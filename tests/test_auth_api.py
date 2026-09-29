@@ -422,6 +422,45 @@ def test_origin_csrf_cors_and_missing_dependencies(
     asyncio.run(scenario())
 
 
+def test_register_rejects_unusable_login_names_and_short_passwords(
+    migrated_mysql_database: str, clean_redis: str, identity_key_files
+):
+    """明显不可用的登录名与过短密码是 422，不是 503，也不建号。"""
+    settings = identity_settings(identity_key_files)
+
+    async def scenario():
+        runtime = build_runtime(migrated_mysql_database, clean_redis, settings, client=None)
+        app = build_app(runtime, settings)
+        async with http_client(app) as client:
+            for email in (
+                "no-at-sign",
+                "@example.com",
+                "trailing@",
+                "has space@example.com",
+                # 大小写折叠会让 ß 变成 ss：规范化后超长必须在写入前被拒
+                "ß" * 200 + "@example.com",
+            ):
+                rejected = await client.post(
+                    "/api/v1/auth/register",
+                    json={"email": email, "password": DEMO_PASSWORD},
+                )
+                assert rejected.status_code == 422, (email[:20], rejected.text)
+
+            too_short = await client.post(
+                "/api/v1/auth/register",
+                json={"email": "short@example.com", "password": "way-too-short"},
+            )
+            assert too_short.status_code == 422
+
+            # 只有合规输入才建号，且此前没有留下任何账号
+            assert (await _register(client, "accepted@example.com")).status_code == 201
+            assert (await _login(client, "accepted@example.com")).status_code == 200
+
+        await runtime.redis.aclose()
+
+    asyncio.run(scenario())
+
+
 def test_forwarded_ip_only_from_trusted_proxy(
     migrated_mysql_database: str, clean_redis: str, identity_key_files
 ):

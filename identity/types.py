@@ -135,6 +135,10 @@ class EmailAlreadyRegistered(IdentityError):
     """邮箱已被注册（规范化后唯一）。"""
 
 
+class InvalidEmail(IdentityError):
+    """邮箱不符合演示版登录名的格式约束（例如规范化后超出列宽）。"""
+
+
 class UnknownAccount(IdentityError):
     """受控运维命令里指定的账号不存在或不是演示账号。"""
 
