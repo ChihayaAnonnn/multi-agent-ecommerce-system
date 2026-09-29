@@ -22,8 +22,8 @@ from identity.types import (
     parse_trusted_networks,
 )
 
-# 刷新 Cookie：__Host- 前缀要求 Secure、Path=/ 且不带 Domain。
-REFRESH_COOKIE_NAME = "__Host-ecom_refresh"
+# 刷新 Cookie 名默认值见 identity.types.IdentityHttpConfig：
+# `__Host-` 前缀要求 Secure、Path=/ 且不带 Domain。
 CSRF_HEADER_NAME = "X-CSRF-Token"
 
 BEARER_SCHEME = HTTPBearer(auto_error=False)

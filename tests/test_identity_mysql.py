@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import pathlib
 import secrets
 import uuid
 from datetime import timedelta
@@ -20,7 +21,7 @@ from db.base import utcnow
 from db.session import create_session_factory
 from identity.csrf import CsrfSigner
 from identity.models import AuthSession, IdentityUser, RefreshToken
-from identity.passwords import hash_password
+from identity.passwords import PasswordPolicyError, hash_password, verify_password
 from identity.rate_limit import RedisRateLimiter
 from identity.service import (
     DEFAULT_SESSION_TTL_SECONDS,
@@ -38,6 +39,7 @@ from identity.types import (
     InvalidAccessToken,
     InvalidCredentials,
     InvalidCsrf,
+    UnknownAccount,
     UserView,
 )
 from tests.conftest import downgrade_to, read_schema, upgrade_to
@@ -864,3 +866,181 @@ async def _delete_user(database_url: str, user_id: str) -> None:
         )
         await db.execute(text("DELETE FROM identity_users WHERE id = :uid"), {"uid": user_id})
         await db.commit()
+
+
+# ---------- 受控演示密码重置 ----------
+
+SCRIPTS_DIR = pathlib.Path(__file__).resolve().parents[1] / "scripts"
+
+
+def _load_reset_script():
+    import importlib.util
+
+    path = SCRIPTS_DIR / "reset_demo_password.py"
+    spec = importlib.util.spec_from_file_location("reset_demo_password", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_controlled_reset_revokes_all_sessions(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """受控重置后两枚旧 JWT 与两枚刷新令牌全部失效，新密码可登录、旧密码不可。"""
+    old_password = "a-long-enough-demo-password"
+    new_password = "another-long-enough-password"
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        view = await service.register_demo("reset@example.com", old_password, "203.0.113.101")
+        first = await service.login("reset@example.com", old_password, "203.0.113.101")
+        second = await service.login("reset@example.com", old_password, "203.0.113.102")
+        assert first.session_id != second.session_id
+        assert (await service.verify(first.access_token)).subject == view.id
+        assert (await service.verify(second.access_token)).subject == view.id
+
+        await service.reset_demo_password(view.id, new_password)
+
+        for issue in (first, second):
+            with pytest.raises(InvalidAccessToken):
+                await service.verify(issue.access_token)
+            with pytest.raises(InvalidCredentials):
+                await service.refresh(issue.refresh_token, issue.csrf_token, "203.0.113.101")
+            with pytest.raises(InvalidCredentials):
+                await service.csrf_for_refresh(issue.refresh_token)
+            state = await _session_state(migrated_mysql_database, issue.session_id)
+            assert state["revoked_at"] is not None
+            assert state["revoke_reason"] == "password_reset"
+
+        # 活动刷新令牌槽位全部释放
+        active = (
+            await _query(
+                migrated_mysql_database,
+                "SELECT COUNT(*) FROM identity_refresh_tokens t "
+                "JOIN identity_auth_sessions s ON s.id = t.auth_session_id "
+                "WHERE s.user_id = :uid AND t.active_auth_session_id IS NOT NULL",
+                uid=view.id,
+            )
+        )[0][0]
+        assert active == 0
+
+        # 新密码可登录、旧密码不可，且哈希已更新
+        with pytest.raises(InvalidCredentials):
+            await service.login("reset@example.com", old_password, "203.0.113.103")
+        reopened = await service.login("reset@example.com", new_password, "203.0.113.104")
+        assert (await service.verify(reopened.access_token)).subject == view.id
+
+        stored = await _load_user(migrated_mysql_database, view.id)
+        assert stored.password_hash != new_password
+        assert verify_password(new_password, stored.password_hash) is True
+        assert verify_password(old_password, stored.password_hash) is False
+
+    asyncio.run(scenario())
+
+
+def test_reset_denied_in_production(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """正式环境与无效用户 ID 都不修改账号。"""
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        view = await service.register_demo("keep@example.com", DEMO_PASSWORD, "203.0.113.111")
+        before = await _load_user(migrated_mysql_database, view.id)
+
+        production = await _build_service(
+            migrated_mysql_database,
+            clean_redis,
+            identity_codec,
+            environment="production",
+            demo_mode=False,
+        )
+        with pytest.raises(DemoModeDisabled):
+            await production.reset_demo_password(view.id, "another-long-enough-password")
+
+        # 无效用户 ID / 非演示账号
+        with pytest.raises(UnknownAccount):
+            await service.reset_demo_password(str(uuid.uuid4()), "another-long-enough-password")
+        factory = create_session_factory(migrated_mysql_database)
+        other_source = await _create_user(
+            factory, "not-demo@example.com", source="password", password_hash=before.password_hash
+        )
+        with pytest.raises(UnknownAccount):
+            await service.reset_demo_password(other_source.id, "another-long-enough-password")
+
+        # 不合规的新密码同样被拒，账号保持不变
+        with pytest.raises(PasswordPolicyError):
+            await service.reset_demo_password(view.id, "short")
+
+        after = await _load_user(migrated_mysql_database, view.id)
+        assert after.password_hash == before.password_hash
+        # 原密码仍然可以登录，说明账号没被改动
+        reopened = await service.login("keep@example.com", DEMO_PASSWORD, "203.0.113.112")
+        assert (await service.verify(reopened.access_token)).subject == view.id
+
+    asyncio.run(scenario())
+
+
+def test_reset_script_takes_no_password_argument_and_hides_secrets(monkeypatch, capsys):
+    """脚本只从交互式输入读密码，失败时不回显密码或数据库 URL。"""
+    secret = "a-very-secret-demo-password"
+    script = _load_reset_script()
+
+    # 不接受命令行密码参数（argparse 会把参数原样回显，这里用占位值）
+    with pytest.raises(SystemExit):
+        script.parse_args(
+            ["--user-id", "00000000-0000-0000-0000-000000000000", "--password", "placeholder"]
+        )
+    parsed = script.parse_args(["--user-id", "00000000-0000-0000-0000-000000000000"])
+    assert parsed.user_id == "00000000-0000-0000-0000-000000000000"
+    capsys.readouterr()
+
+    # 交互式读取：源码里必须用 getpass，而不是明文回显
+    source = (SCRIPTS_DIR / "reset_demo_password.py").read_text(encoding="utf-8")
+    assert "getpass" in source
+    assert "--password" not in source
+
+    # 失败路径只输出脱敏原因
+    async def failing_reset(user_id: str, new_password: str) -> None:
+        raise IdentityConfigurationError(
+            "未配置身份签名私钥：请设置 ECOM_IDENTITY_PRIVATE_KEY_PATH"
+        )
+
+    monkeypatch.setattr(script, "reset_demo_password", failing_reset)
+    exit_code = script.main(
+        ["--user-id", "00000000-0000-0000-0000-000000000000"],
+        password_reader=lambda: secret,
+    )
+    captured = capsys.readouterr()
+    output = captured.out + captured.err
+    assert exit_code == 1
+    assert secret not in output
+    assert "mysql+asyncmy://" not in output
+    assert "ECOM_IDENTITY_PRIVATE_KEY_PATH" in output
+
+    # 交互式读取：两次不一致按取消处理，一致才返回
+    class StubGetpass:
+        def __init__(self, answers):
+            self.answers = list(answers)
+
+        def getpass(self, prompt=""):
+            return self.answers.pop(0)
+
+    monkeypatch.setattr(script, "getpass", StubGetpass([secret, "different-long-password"]))
+    with pytest.raises(ValueError):
+        script.prompt_new_password()
+    monkeypatch.setattr(script, "getpass", StubGetpass([secret, secret]))
+    assert script.prompt_new_password() == secret
+
+    # 取消时不执行重置，也不回显密码
+    def cancelling_reader() -> str:
+        raise ValueError("两次输入不一致")
+
+    assert (
+        script.main(
+            ["--user-id", "00000000-0000-0000-0000-000000000000"],
+            password_reader=cancelling_reader,
+        )
+        == 1
+    )
+    assert secret not in capsys.readouterr().err

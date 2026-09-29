@@ -135,6 +135,10 @@ class EmailAlreadyRegistered(IdentityError):
     """邮箱已被注册（规范化后唯一）。"""
 
 
+class UnknownAccount(IdentityError):
+    """受控运维命令里指定的账号不存在或不是演示账号。"""
+
+
 class RateLimited(IdentityError):
     """触发限流，调用方应返回 429 与 `Retry-After`。"""
 

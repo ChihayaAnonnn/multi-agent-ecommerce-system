@@ -33,6 +33,7 @@ from identity.types import (
     InvalidCredentials,
     InvalidCsrf,
     Principal,
+    UnknownAccount,
     UserView,
     make_principal,
 )
@@ -116,8 +117,13 @@ class IdentityService:
     # ---------- 演示注册 ----------
 
     @property
+    def demo_environment(self) -> bool:
+        """当前部署环境是否允许存在演示账号。"""
+        return self.environment in DEMO_ENVIRONMENTS
+
+    @property
     def demo_registration_enabled(self) -> bool:
-        return self.demo_mode and self.environment in DEMO_ENVIRONMENTS
+        return self.demo_mode and self.demo_environment
 
     async def register_demo(self, email: str, password: str, client_ip: str) -> UserView:
         """创建演示账号。不发送邮件，也不自动登录。"""
@@ -220,6 +226,41 @@ class IdentityService:
             user_id=user_id,
             session_id=session_id,
         )
+
+    # ---------- 受控密码重置 ----------
+
+    async def reset_demo_password(self, user_id: str, new_password: str) -> None:
+        """受控运维入口：重置演示账号密码并撤销该用户全部登录会话。
+
+        只允许在演示环境调用，且只作用于 `source=demo` 的账号；命令本身不打印
+        任何秘密，失败只回抛脱敏后的领域错误。
+        """
+        if not self.demo_environment:
+            raise DemoModeDisabled(
+                f"受控密码重置只允许在 {', '.join(DEMO_ENVIRONMENTS)} 环境执行，"
+                f"当前环境为 {self.environment or '未配置'}"
+            )
+        validate_password(new_password)
+        password_hash = await asyncio.to_thread(hash_password, new_password)
+        now = utcnow()
+
+        async with _database_errors("重置密码"):
+            async with self._sessions() as db:
+                user = await db.get(IdentityUser, user_id)
+                if user is None or user.source != DEMO_SOURCE:
+                    raise UnknownAccount("账号不存在或不是演示账号")
+
+                # 重置同时撤销全部登录会话与刷新令牌：旧 JWT 立即失效
+                sessions = (
+                    await db.execute(
+                        select(AuthSession).where(AuthSession.user_id == user.id)
+                    )
+                ).scalars().all()
+                for session in sessions:
+                    await self._revoke_session(db, session, now, "password_reset")
+
+                user.password_hash = password_hash
+                await db.commit()
 
     # ---------- 逐请求验证 ----------
 
