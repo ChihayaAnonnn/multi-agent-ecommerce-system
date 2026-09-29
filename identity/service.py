@@ -269,6 +269,8 @@ class IdentityService:
 
         JWT 未过期不代表仍然可用——退出、禁用或重置密码后立即失效。
         数据库故障抛 `IdentityDependencyError`，调用方返回 503，绝不降级为匿名。
+
+        这里是只读路径：`last_used_at` 只在刷新与退出时更新，避免每次读请求都写库。
         """
         now = utcnow()
         claims = self._tokens.decode(token, now)
@@ -312,7 +314,7 @@ class IdentityService:
         now = utcnow()
         async with _database_errors("读取登录会话"):
             async with self._sessions() as db:
-                session, user = await self._load_active_session(db, raw_refresh, now)
+                session, _user = await self._load_active_session(db, raw_refresh, now)
         return self._csrf.issue(session.id)
 
     async def refresh(self, raw_refresh: str, csrf_value: str, client_ip: str) -> AuthIssue:

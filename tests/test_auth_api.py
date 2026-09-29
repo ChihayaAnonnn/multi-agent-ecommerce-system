@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -183,6 +184,18 @@ def bearer(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+async def _expire_auth_session(database_url: str, session_id: str) -> None:
+    """把登录会话的绝对到期时间改到过去，模拟会话过期。"""
+    from identity.models import AuthSession
+
+    factory = create_session_factory(database_url)
+    async with factory() as db:
+        session = await db.get(AuthSession, session_id)
+        assert session is not None
+        session.expires_at = session.created_at
+        await db.commit()
+
+
 async def _register(client: AsyncClient, email: str, password: str = DEMO_PASSWORD):
     return await client.post(
         "/api/v1/auth/register", json={"email": email, "password": password}
@@ -212,6 +225,7 @@ def test_auth_flow_and_cookie_flags(migrated_mysql_database: str, clean_redis: s
             assert body["email"] == "flow@example.com"
             assert body["email_verified"] is False
             assert body["source"] == "demo"
+            assert register.headers["cache-control"] == "no-store"
             # 注册不自动登录：没有下发刷新 Cookie
             assert "set-cookie" not in register.headers
             assert (await client.get("/api/v1/auth/me")).status_code == 401
@@ -223,6 +237,11 @@ def test_auth_flow_and_cookie_flags(migrated_mysql_database: str, clean_redis: s
             assert token["token_type"] == "Bearer"
             assert token["csrf_token"]
             assert token["session_id"]
+            # 对外时间必须带 UTC 标识
+            expires_at = datetime.fromisoformat(token["expires_at"].replace("Z", "+00:00"))
+            assert expires_at.tzinfo is not None
+            assert expires_at.utcoffset() == timedelta(0)
+            assert expires_at > datetime.now(timezone.utc)
 
             cookie = login.headers["set-cookie"]
             assert cookie.startswith(f"{runtime.identity_config.refresh_cookie_name}=")
@@ -337,10 +356,22 @@ def test_origin_csrf_cors_and_missing_dependencies(
             assert (await client.post("/api/v1/auth/logout")).status_code == 403
 
             # Cookie 不可用时取不到 CSRF
-            client.cookies.set(runtime.identity_config.refresh_cookie_name, "garbage")
+            cookie_name = runtime.identity_config.refresh_cookie_name
+            refresh_token = client.cookies.get(cookie_name)
+            assert refresh_token
+            client.cookies.set(cookie_name, "garbage")
             assert (await client.get("/api/v1/auth/csrf")).status_code == 401
-            client.cookies.delete(runtime.identity_config.refresh_cookie_name)
-            assert (await client.post("/api/v1/auth/refresh", headers={"X-CSRF-Token": csrf})).status_code == 401
+            assert (
+                await client.post("/api/v1/auth/refresh", headers={"X-CSRF-Token": csrf})
+            ).status_code == 401
+
+            # Cookie 本身没问题，但登录会话已过期：同样取不到 CSRF，也不能刷新
+            await _expire_auth_session(migrated_mysql_database, login.json()["session_id"])
+            client.cookies.set(cookie_name, refresh_token)
+            assert (await client.get("/api/v1/auth/csrf")).status_code == 401
+            assert (
+                await client.post("/api/v1/auth/refresh", headers={"X-CSRF-Token": csrf})
+            ).status_code == 401
 
         # 身份未装配：认证端点 503，且不泄露密钥内容
         broken = SimpleNamespace(
