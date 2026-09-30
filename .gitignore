@@ -32,6 +32,7 @@ Thumbs.db
 # IDE
 .vscode/
 .cursor/
+.worktrees/
 
 # Docker
 docker-compose.override.yml
