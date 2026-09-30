@@ -41,3 +41,7 @@ class TurnResponse(BaseModel):
     cart: dict[str, Any] | None = None
     handoff: dict[str, Any] | None = None
     comparison: dict[str, Any] | None = None
+
+
+class CompareRequest(CommerceInput):
+    product_ids: list[str] = Field(min_length=2, max_length=3)

@@ -10,6 +10,8 @@ from redis.asyncio import Redis
 
 from catalog.service import CatalogService
 from shopping_session.service import ShoppingSessionService
+from commerce_orchestrator.facts import CommerceFactsReader
+from commerce_orchestrator.service import CommerceOrchestrator
 from config import get_settings
 from db.session import create_session_factory
 from identity.csrf import CsrfSigner
@@ -43,6 +45,7 @@ class ApiRuntime:
     identity_config: IdentityHttpConfig | None = None
     # 身份未装配时的原因；认证与受保护端点据此返回 503。
     identity_error: str | None = None
+    commerce: CommerceOrchestrator | None = None
     shopping_sessions: ShoppingSessionService | None = None
     redis: Redis | None = None
 
@@ -118,6 +121,8 @@ def create_runtime() -> ApiRuntime:
     runtime.pricing = pricing
     runtime.inventory = InventoryService(session_factory)
     runtime.catalog = CatalogService(session_factory, price_reader=pricing)
+
+    runtime.commerce = CommerceOrchestrator(runtime.shopping_sessions, CommerceFactsReader(runtime.catalog, pricing, runtime.inventory), runtime.catalog, settings.commerce_scan_limit)
 
     try:
         runtime.redis = Redis.from_url(settings.redis_url, decode_responses=True)

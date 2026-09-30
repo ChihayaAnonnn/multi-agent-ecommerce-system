@@ -22,7 +22,7 @@ async def invoke(awaitable):
         return await awaitable
     except CommerceError as exc:
         raise HTTPException(exc.status_code, detail={'code':exc.code, **exc.details}) from exc
-    except SQLAlchemyError as exc:
+    except (SQLAlchemyError, CommerceDependencyError) as exc:
         raise HTTPException(503, detail={'code':'dependency_unavailable'}) from exc
 
 
@@ -34,3 +34,23 @@ async def create_session(principal: Principal = Depends(require_principal), serv
 @router.get('/sessions/{session_id}', response_model=ShoppingSessionView)
 async def get_session(session_id: str, principal: Principal = Depends(require_principal), service: ShoppingSessionService = Depends(sessions)):
     return await invoke(service.get_owned(session_id, principal))
+
+from models.commerce import TurnRequest, TurnResponse, CompareRequest
+from commerce_orchestrator.facts import CommerceDependencyError
+
+
+def orchestrator(request: Request):
+    service = getattr(request.app.state.runtime, 'commerce', None)
+    if service is None:
+        raise HTTPException(503, detail={'code':'dependency_unavailable'})
+    return service
+
+
+@router.post('/sessions/{session_id}/turns', response_model=TurnResponse)
+async def turn(session_id: str, body: TurnRequest, principal: Principal = Depends(require_principal), service=Depends(orchestrator)):
+    return await invoke(service.turn(principal,session_id,body))
+
+
+@router.post('/sessions/{session_id}/compare')
+async def compare(session_id: str, body: CompareRequest, principal: Principal = Depends(require_principal), service=Depends(orchestrator)):
+    return await invoke(service.compare(principal,session_id,body.product_ids))

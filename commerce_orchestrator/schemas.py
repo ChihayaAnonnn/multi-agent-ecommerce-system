@@ -27,6 +27,21 @@ class ShoppingIntent(BaseModel):
     soft_preferences: list[str] = Field(default_factory=list, max_length=20)
     sources: dict[str, Source] = Field(default_factory=dict)
 
+    def apply(self, update: 'IntentUpdate') -> 'ShoppingIntent':
+        data = self.model_dump()
+        for field in update.model_fields_set - {'sources'}:
+            source = update.sources.get(field, 'explicit')
+            if source == 'inferred' and field not in {'soft_preferences', 'purpose'}:
+                continue
+            data[field] = getattr(update, field)
+            data['sources'][field] = source
+        return ShoppingIntent.model_validate(data)
+
+
+class IntentUpdate(ShoppingIntent):
+    """仅 fields_set 中的已验证字段参与覆盖。"""
+    pass
+
 
 class SKUQuote(BaseModel):
     sku_id: str
