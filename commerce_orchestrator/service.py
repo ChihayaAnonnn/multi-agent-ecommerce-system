@@ -20,6 +20,7 @@ class CommerceOrchestrator:
     def __init__(self, sessions: ShoppingSessionService, facts: CommerceFactsReader, catalog: CatalogService, scan_limit: int = 200):
         self.sessions, self.facts, self.catalog = sessions, facts, catalog
         self.cart = None
+        self.checkout = None
         self.discovery = DiscoveryService(facts, catalog, scan_limit)
         self.comparison = CompareService(sessions, catalog, facts)
 
@@ -58,6 +59,14 @@ class CommerceOrchestrator:
                         target['quantity'] = turn.quantity
                     response.proposed_action = (await self.cart.propose_action(principal,session_id,kind,target,turn.expected_cart_version,claim)).model_dump(mode='json')
                     response.status = 'confirm_action'
+            elif intent == 'checkout' and self.checkout is not None:
+                if turn.expected_cart_version is None:
+                    response.question = '请先读取购物车版本。'
+                else:
+                    preview = await self.checkout.preview(principal,session_id,turn.expected_cart_version,claim)
+                    response.proposed_action = preview.model_dump(mode='json')
+                    response.status = 'confirm_action' if preview.checkout_eligible else 'clarify'
+                    response.errors = preview.errors
             elif intent in {'cart_read','cart_mutation','checkout'}:
                 response.status = 'unavailable'; response.errors = [{'code':'capability_unavailable'}]
             elif intent == 'compare':

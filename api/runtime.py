@@ -8,6 +8,9 @@ from typing import Any
 from fastapi import HTTPException, Request
 from redis.asyncio import Redis
 
+from checkout.service import CheckoutService
+from checkout.gateway import DemoHostCheckoutGateway, UnavailableHostCheckoutGateway
+from identity.types import DEMO_ENVIRONMENTS
 from cart.service import CartService
 from catalog.service import CatalogService
 from shopping_session.service import ShoppingSessionService
@@ -46,6 +49,7 @@ class ApiRuntime:
     identity_config: IdentityHttpConfig | None = None
     # 身份未装配时的原因；认证与受保护端点据此返回 503。
     identity_error: str | None = None
+    checkout: CheckoutService | None = None
     cart: CartService | None = None
     commerce: CommerceOrchestrator | None = None
     shopping_sessions: ShoppingSessionService | None = None
@@ -128,6 +132,10 @@ def create_runtime() -> ApiRuntime:
     runtime.commerce = CommerceOrchestrator(runtime.shopping_sessions, CommerceFactsReader(runtime.catalog, pricing, runtime.inventory), runtime.catalog, settings.commerce_scan_limit)
 
     runtime.commerce.cart = runtime.cart
+    gateway = DemoHostCheckoutGateway(settings.identity_environment) if settings.commerce_demo_checkout_enabled and settings.identity_environment in DEMO_ENVIRONMENTS else UnavailableHostCheckoutGateway()
+    runtime.checkout = CheckoutService(session_factory, runtime.shopping_sessions, runtime.cart, gateway,
+        tuple(h.strip() for h in settings.commerce_checkout_allowed_hosts.split(',') if h.strip()), settings.commerce_checkout_allowed_path)
+    runtime.commerce.checkout = runtime.checkout
 
     try:
         runtime.redis = Redis.from_url(settings.redis_url, decode_responses=True)

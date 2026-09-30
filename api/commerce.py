@@ -74,3 +74,27 @@ from models.commerce import ConfirmationRequest
 @router.post('/sessions/{session_id}/actions/{action_id}/confirm')
 async def confirm_action(session_id: str, action_id: str, body: ConfirmationRequest, principal: Principal=Depends(require_principal), service=Depends(carts)):
     return await invoke(service.confirm(principal,session_id,action_id,body.approved,body.idempotency_key))
+
+from models.commerce import CheckoutPreviewRequest,CheckoutHandoffRequest
+
+
+def checkout(request: Request):
+    service=getattr(request.app.state.runtime,'checkout',None)
+    if service is None:
+        raise HTTPException(503,detail={'code':'checkout_unavailable'})
+    return service
+
+
+@router.post('/sessions/{session_id}/checkout-preview')
+async def checkout_preview(session_id: str,body: CheckoutPreviewRequest,principal: Principal=Depends(require_principal),service=Depends(checkout)):
+    return await invoke(service.preview(principal,session_id,body.cart_version))
+
+
+@router.post('/sessions/{session_id}/checkout-handoff')
+async def checkout_handoff(session_id: str,body: CheckoutHandoffRequest,principal: Principal=Depends(require_principal),service=Depends(checkout)):
+    return await invoke(service.confirm_handoff(principal,session_id,body.action_id,body.approved,body.idempotency_key))
+
+
+@router.get('/sessions/{session_id}/handoffs/{handoff_id}')
+async def get_handoff(session_id: str,handoff_id: str,principal: Principal=Depends(require_principal),service=Depends(checkout)):
+    return await invoke(service.get_owned(principal,session_id,handoff_id))

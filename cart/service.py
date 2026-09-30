@@ -130,7 +130,7 @@ class CartService:
         await db.flush()
         action=PendingAction(id=new_id(),session_id=session_id,source_turn_id=source_turn.turn_id if source_turn else None,
             principal_key=principal.principal_key,cart_id=cart.id,kind=kind,payload_json=target,proposal_hash=digest,
-            expected_cart_version=cart.version,quote_snapshot_json=snapshot,status='pending',expires_at=utcnow()+timedelta(seconds=self.action_ttl))
+            expected_cart_version=cart.version,quote_snapshot_json=snapshot,status='pending',expires_at=utcnow()+timedelta(seconds=self.action_ttl),created_at=utcnow(),updated_at=utcnow())
         db.add(action);await db.flush()
         return action
 
@@ -267,3 +267,12 @@ class CartService:
                     result=CartConfirmationView(status='cart_updated',cart=self.cart_view(cart.id,cart.version,lines,quotes))
             self.save_confirmation(action,approved,idempotency_key,result.model_dump(mode='json'))
             return result
+
+    @staticmethod
+    def invalidate_action(action: PendingAction) -> None:
+        action.status='invalidated'
+
+    def resolve_action(self,action: PendingAction,status: str,approved: bool,key: str,result: dict) -> None:
+        """交接服务在共享事务中通过车领域消费动作。"""
+        action.status=status
+        self.save_confirmation(action,approved,key,result)

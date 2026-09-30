@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     commerce_action_ttl_seconds: int = 600
     commerce_max_line_quantity: int = 10
     commerce_scan_limit: int = 200
+    commerce_demo_checkout_enabled: bool = False
+    commerce_checkout_allowed_hosts: str = ""
+    commerce_checkout_allowed_path: str = "/checkout/"
 
     # A/B Testing
     ab_test_enabled: bool = True

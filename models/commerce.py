@@ -50,3 +50,11 @@ class CompareRequest(CommerceInput):
 class ConfirmationRequest(CommerceInput):
     approved: bool = Field(strict=True)
     idempotency_key: str = Field(min_length=1,max_length=64)
+
+
+class CheckoutPreviewRequest(CommerceInput):
+    cart_version: int=Field(ge=1,strict=True)
+
+
+class CheckoutHandoffRequest(ConfirmationRequest):
+    action_id: str=Field(min_length=1,max_length=36)
