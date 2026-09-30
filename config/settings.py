@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     # 测试库地址 ECOM_TEST_DATABASE_URL 只由 tests/conftest.py 读取，不进入应用配置。
     database_url: str = ""
 
+    # 内部演示购物保护值，正式政策另行确认。
+    commerce_session_ttl_seconds: int = 86400
+    commerce_turn_lease_seconds: int = 120
+    commerce_action_ttl_seconds: int = 600
+    commerce_max_line_quantity: int = 10
+    commerce_scan_limit: int = 200
+
     # A/B Testing
     ab_test_enabled: bool = True
     ab_test_default_bucket_count: int = 100

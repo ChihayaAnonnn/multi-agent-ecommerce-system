@@ -16,6 +16,7 @@ from fastapi import FastAPI
 
 from api.auth import router as auth_router
 from api.catalog import router as catalog_router
+from api.commerce import router as commerce_router
 from api.commerce_read import router as commerce_read_router
 from api.experiments import router as experiments_router
 from api.health import router as health_router
@@ -59,6 +60,7 @@ for router in (
     metrics_router,
     catalog_router,
     commerce_read_router,
+    commerce_router,
     auth_router,
 ):
     app.include_router(router)

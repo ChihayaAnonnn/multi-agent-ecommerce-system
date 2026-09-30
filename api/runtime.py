@@ -9,6 +9,7 @@ from fastapi import HTTPException, Request
 from redis.asyncio import Redis
 
 from catalog.service import CatalogService
+from shopping_session.service import ShoppingSessionService
 from config import get_settings
 from db.session import create_session_factory
 from identity.csrf import CsrfSigner
@@ -42,6 +43,7 @@ class ApiRuntime:
     identity_config: IdentityHttpConfig | None = None
     # 身份未装配时的原因；认证与受保护端点据此返回 503。
     identity_error: str | None = None
+    shopping_sessions: ShoppingSessionService | None = None
     redis: Redis | None = None
 
     async def aclose(self) -> None:
@@ -111,6 +113,7 @@ def create_runtime() -> ApiRuntime:
         runtime.identity_error = str(exc)
         return runtime
 
+    runtime.shopping_sessions = ShoppingSessionService(session_factory, settings.commerce_session_ttl_seconds, settings.commerce_turn_lease_seconds)
     pricing = PricingService(session_factory)
     runtime.pricing = pricing
     runtime.inventory = InventoryService(session_factory)
