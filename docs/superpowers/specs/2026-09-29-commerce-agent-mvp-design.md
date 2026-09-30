@@ -2,7 +2,9 @@
 
 日期：2026-09-29
 
-状态：评审稿
+状态：设计已审阅通过（含 2026-09-30 编排修订）
+
+编排选型修订：2026-09-30，按评审结论采用独立的 LangGraph commerce 流程。
 
 对应需求：`docs/prd-ecommerce-agent.md` 的 P0/F01–F10，覆盖“表达需求 → 发现与比较 → 选 SKU → 确认加购 → 核价 → 结账交接”旅程。身份、购物车和交接是本稿重点。
 
@@ -14,7 +16,7 @@
 
 身份来源改为**本项目自建 `identity/` 模块**，账号、登录、令牌与撤销的设计见 [身份模块演示版设计](2026-09-29-identity-module-design.md)。演示注册以邮箱作登录名并校验本地密码，不发邮件、不验证邮箱所有权；令牌签发、逐请求验证与主体归属仍使用真实代码和持久化数据。本仓以不可变用户 UUID 建立主体，购物入口只通过 `IdentityProvider.verify(token) -> Principal` 获取身份。固定 `Principal` 仅用于单元测试；演示账号不能作为面向真实用户的生产身份。请求中的 `user_id` 不能作为临时认证方案。
 
-当前依据：`catalog/models.py` 的 Product/SKU，`pricing/models.py` 的 `amount_minor` 和版本，`inventory/models.py` 的 SKU 库位余额，以及 `api/commerce_read.py` 的只读报价。现有 `models/schemas.py:RecommendationRequest.user_id` 仅是请求字段，`main.py` 尚未接入鉴权。`orchestrator/supervisor.py` 与 `orchestrator/graph.py` 是旧推荐编排，不能直接当作含会话状态与交易确认的 MVP 流程；`agents/product_rec_agent.py` 的样例商品不能作为真实在售结果。`docs/superpowers/specs/2026-09-28-catalog-pricing-inventory-design.md` 已将购物车、身份和支付留到下一阶段。
+当前依据：`catalog/models.py` 的 Product/SKU，`pricing/models.py` 的 `amount_minor` 和版本，`inventory/models.py` 的 SKU 库位余额，以及 `api/commerce_read.py` 的只读报价。`identity/` 与 `api/identity.py:require_principal` 已实现并通过独立验收，但购物交易路由尚未接入该依赖。现有 `models/schemas.py:RecommendationRequest.user_id` 仅是旧接口的请求字段。`orchestrator/supervisor.py` 与 `orchestrator/graph.py` 是旧推荐编排，不能直接当作含会话状态与交易确认的 MVP 流程；旧图在库存过滤后结果为空时回填未验证候选，新流程禁止这种行为。`agents/product_rec_agent.py` 的样例商品不能作为真实在售结果。`docs/superpowers/specs/2026-09-28-catalog-pricing-inventory-design.md` 已将购物车和支付留到下一阶段。
 
 ## 2. 方案比较
 
@@ -26,6 +28,20 @@
 
 参考边界：`ecommerce-agent-references/commerce-agents/shopping-agent/core/shopping_agent/backend.py` 把购物车操作与 `checkout_handoff` 留给宿主；`gates.py` 的“已见商品及变体”门禁可借鉴，但其进程内会话锁不能替代本仓 MySQL 并发控制。`ecommerce-agent-references/e-commerce-agents/agents/python/shared/tools/cart_tools.py` 展示登录用户读写车的工具形态，使用的是示例库、按 Product 而非本仓 SKU 购物车。兄弟仓库 `../vivix-billing/proto/svrproto/paymentsvrproto/param.proto:375` 和 `../vivix-billing/app/payment/internal/provider/stripe/gateway.go:580` 是上述 Billing 边界的源码依据。
 
+### 2.1 Agent 框架选型与后续演进
+
+选型要求是：MVP 能明确分支并复用现有异步 FastAPI/LLM 接入；模型只能提取约束、在可信候选内排序与解释；跨轮购物状态、提案和交易结果由 MySQL 记录。后续 V1 个性化推荐需要独立演进召回、排序与实验，V2 查询型客服需要可信订单/物流工具，V3 退换退款才可能需要长时间暂停、人工审批与恢复。比较以官方文档截至 2026-09-30 的能力和本仓已安装的 LangGraph/LangChain 为依据：
+
+| 候选 | 符合点 | 本项目取舍 |
+| --- | --- | --- |
+| [LangGraph `StateGraph`](https://docs.langchain.com/oss/python/langgraph/workflows-agents) | 显式节点、条件分支、异步调用；现有 `orchestrator/graph.py` 和依赖可复用经验 | **采用**为新增 commerce 图的编排层；节点、重试与图状态需自行约束，不以图替代业务事务。 |
+| [LangChain `create_agent`](https://docs.langchain.com/oss/python/langchain/agents) | 工具调用循环和结构化输出适合开放式子任务 | 模型自行选择工具的范围超过当前交易路径所需；保留 LangChain 模型客户端，MVP 不用通用 Agent 循环统领交易。 |
+| [CrewAI Flows/Crews](https://docs.crewai.com/en/concepts/flows) | Flows 有分支、持久化和人工反馈，Crews 适合角色协作 | 可行备选，但要新增框架并决定其流程状态如何与现有 MySQL 会话/动作对应；当前没有必须采用角色自治协作的需求。 |
+| [AgentScope 2.0](https://docs.agentscope.io/stable/en/index) | 提供 ReAct、权限和完整 Agent 服务能力 | 适合将来独立运营复杂 Agent 服务；本期只需单仓购物编排，引入新运行时的集成与维护成本较高。 |
+| [AutoGen GraphFlow](https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/graph-flow.html) / [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) | 均覆盖多 Agent 工作流；后者是 AutoGen 的直接后继 | AutoGen GraphFlow 仍标为实验性；转向另一套框架需重接本仓服务与状态，本期无收益证据。 |
+
+**决定**：MVP 的对话购物入口新增独立 `commerce_orchestrator/graph.py`，不把交易能力叠加到旧 `orchestrator/graph.py` 的样例推荐图。LangGraph 只调度明确授权的节点；高频首页推荐的召回、排序、库存过滤和 A/B 实验仍由普通异步业务服务完成，是否经图入口取决于交互是否需要多步路由。未来客服先复用可信只读查询接口；需要跨请求人工审批时可单独设计 support 图及持久 checkpoint。框架不能代替商品事实、权限、幂等和交易状态。若出现独立部署的 Agent 团队、复杂自治协作或实测的维护/时延问题，再以同一领域 DTO 对 CrewAI、AgentScope 或 Microsoft Agent Framework 做原型比较。
+
 ## 3. 领域边界与依赖
 
 ```mermaid
@@ -33,11 +49,13 @@ flowchart LR
   UI[宿主前端 / 对话入口] --> API[api/commerce]
   API --> ID[identity: 验证主体]
   API --> S[shopping_session: 会话与购物约束]
-  API --> O[commerce_orchestrator: 意图与候选编排]
+  API --> O[commerce_orchestrator: LangGraph commerce 图]
   O --> CA
   O --> P
   O --> I
   O --> S
+  O --> C
+  O --> H
   API --> C[cart: 提案、确认、购物车]
   API --> H[checkout: 预览与交接]
   C --> CA[catalog 只读校验]
@@ -50,7 +68,7 @@ flowchart LR
 
 - `identity/` 负责本仓演示邮箱密码账号、登录会话、访问令牌、刷新与撤销，并向购物域提供 `Principal(issuer, subject, principal_key)`；详见[独立设计](2026-09-29-identity-module-design.md)。每次请求必须验证签名、签发方、受众、有效期及本仓账号/会话撤销状态；任何主体字段均不从购物请求体获得。演示账号不能用于真实用户生产交易。未来需传给 Billing 的 `user_id` 由受信身份映射取得。
 - `shopping_session/` 持有 `session_id`、主体、过期时间、结构化购物约束、已展示 Product/SKU 和轮次幂等记录；会话不拥有购物车。令牌刷新后，只要验证得到同一主体即可继续访问。会话过期不删除购物车。
-- `commerce_orchestrator/` 处理 P0 意图路由、条件提取、目录发现、报价库存核验、比较、排序及动作提案；只调用领域接口，不直接读写 ORM。旧推荐 API 可继续服务既有调用方，新购物流程不允许从样例商品回填。
+- `commerce_orchestrator/` 以独立 LangGraph `StateGraph` 处理 P0 意图路由、条件提取、目录发现、报价库存核验、比较、排序及动作提案；节点只调用受控领域接口，不直接读写 ORM。旧推荐 API 可继续服务既有调用方，新购物流程不允许从样例商品回填。
 - `cart/` 独占 `carts`、`cart_lines`、`pending_actions` 写入，协调目录、价格和库存的事务内校验。Agent 仅生成动作提案，不能直接提交写入。
 - `checkout/` 负责交接预览、确认、持久记录和 `HostCheckoutGateway`。宿主负责后续订单与支付，必须独立核价、校验库存和授权；本仓交接快照不能充当锁价或库存承诺。
 - `catalog/`、`pricing/`、`inventory/` 仍拥有各自数据和规则。为写车事务增加显式的同事务校验接口；`cart/` 不直接更新这三个模块的表。
@@ -63,13 +81,13 @@ flowchart LR
 
 | 表 | 关键字段 | 约束及用途 |
 | --- | --- | --- |
-| `commerce_sessions` | `id`, `principal_key`, `status`, `expires_at`, `state_json`, `version`, `created_at`, `updated_at` | `principal_key = issuer + subject` 的稳定编码；按 `principal_key, expires_at` 索引。`state_json` 只保存购物条件和对话状态，不存认证令牌。建议会话有效期 24 小时，可配置。 |
+| `commerce_sessions` | `id`, `principal_key`, `status`, `expires_at`, `state_json`, `version`, `active_turn_id`, `turn_lease_token`, `turn_lease_expires_at`, `created_at`, `updated_at` | `principal_key = issuer + subject` 的稳定编码；按 `principal_key, expires_at` 索引。`state_json` 只保存购物条件和对话状态，不存认证令牌。一次只允许一个有效轮次租约；建议会话有效期 24 小时，可配置。 |
 | `session_seen_products` | `session_id`, `product_id`, `first_seen_at` | 复合主键；比较只接收本会话目录工具确实展示过的商品族。 |
 | `session_seen_skus` | `session_id`, `sku_id`, `first_seen_at` | 复合主键；只允许本会话已由目录工具返回的 SKU 生成新增加购提案。既有购物车行可做改量/移除。 |
-| `commerce_turns` | `session_id`, `turn_id`, `request_hash`, `response_json`, `created_at` | `UNIQUE(session_id, turn_id)`；同轮同参回原响应，同轮异参冲突。保存经校验后的响应，不保存明文访问令牌。 |
+| `commerce_turns` | `session_id`, `turn_id`, `request_hash`, `status`, `response_json`, `created_at` | `UNIQUE(session_id, turn_id)`；同轮同参回原响应，同轮异参冲突。`processing/completed` 配合会话租约恢复；保存经校验后的响应，不保存明文访问令牌。 |
 | `carts` | `id`, `principal_key`, `version`, `created_at`, `updated_at` | `UNIQUE(principal_key)`；一名登录用户一辆活动车。购物车版本从 1 起，任何有效行变更递增。 |
 | `cart_lines` | `id`, `cart_id`, `sku_id`, `quantity`, `product_name_snapshot`, `sku_options_snapshot`, `image_url_snapshot`, `last_seen_unit_amount_minor`, `last_seen_price_version`, `created_at`, `updated_at` | `UNIQUE(cart_id, sku_id)`、外键 `sku_id`；`quantity > 0`。快照供历史展示，不能作现行价或可售依据。`last_seen_*` 可空，表示此前校验失败或无价。 |
-| `pending_actions` | `id`, `session_id`, `principal_key`, `cart_id`, `kind`, `payload_json`, `expected_cart_version`, `quote_snapshot_json`, `status`, `expires_at`, `confirmation_key`, `result_json`, `created_at`, `updated_at` | `kind=add/set_quantity/remove/checkout_handoff`；`status=pending/declined/consumed/invalidated/expired`。`UNIQUE(principal_key, confirmation_key)`，未确认时为空；购物车动作同键重试返回原结果，交接动作同键重试查询交接记录恢复，异键或异参冲突。建议提案 10 分钟过期。 |
+| `pending_actions` | `id`, `session_id`, `source_turn_id`, `principal_key`, `cart_id`, `kind`, `payload_json`, `expected_cart_version`, `quote_snapshot_json`, `status`, `expires_at`, `confirmation_key`, `result_json`, `created_at`, `updated_at` | `kind=add/set_quantity/remove/checkout_handoff`；`status=pending/declined/consumed/invalidated/expired`。`UNIQUE(session_id, source_turn_id)` 对聊天轮次提案去重，直接预览可为空；`UNIQUE(principal_key, confirmation_key)` 对确认去重。相同轮次恢复时只能复用原提案，异参冲突；建议提案 10 分钟过期。 |
 | `checkout_handoffs` | `id`, `principal_key`, `cart_id`, `cart_version`, `action_id`, `snapshot_json`, `snapshot_hash`, `status`, `destination_kind`, `destination_ref`, `expires_at`, `created_at`, `updated_at` | `UNIQUE(action_id)`；`status=preparing/ready/failed/expired`。记录交接时的不可变商品摘要和宿主引用，不存支付结果。URL 若会过期，重复调用只可返回仍有效的记录；失效后需重新预览和确认。 |
 | `commerce_events` | `event_id`, `session_id`, `principal_key`, `request_id`, `kind`, `occurred_at`, `payload_json` | `event_id` 唯一；只记录曝光、比较、确认、车变更、交接等 P0 事件。支付转化不是本阶段事件。事件失败不影响购物业务提交。 |
 
@@ -81,7 +99,7 @@ flowchart LR
 
 新流程采用明确的 `ShoppingIntent` DTO，至少包含 `category_id`、`query_text`、`budget_max_minor`、`currency`、`purpose`、`hard_conditions[]`、`soft_preferences[]`，每项记录 `source=explicit/session/inferred`。只把用户明说或确认的条件作为硬过滤；模型推断只能影响排序。新一轮明确修改覆盖旧约束，例如“改为 1500 元”覆盖此前的 2000 元上限。类目和属性代码必须映射到本仓 `categories`、`category_attributes`，不能由模型自造。冲突或缺少可搜索信息时状态为 `clarify`，一次只问一个可回答的问题。结构化状态写入 `commerce_sessions.state_json` 并递增版本，不能只放在提示词中。
 
-意图至少分 `shop`、`compare`、`cart_read`、`cart_mutation`、`checkout`、`order_tracking`、`after_sales`、`unknown`。MVP 的查单与售后只返回 `unsupported` 和可用的宿主入口；不能查询或编造订单。`turn_id` 的重试先查持久结果，避免重复调用模型或重复生成动作。模型异常时保留用户显式条件，要求用户编辑条件或继续使用确定性目录查询。
+意图至少分 `shop`、`compare`、`cart_read`、`cart_mutation`、`checkout`、`order_tracking`、`after_sales`、`unknown`。MVP 的查单与售后只返回 `unsupported` 和可用的宿主入口；不能查询或编造订单。`turn_id` 的重试先查持久结果；处理中轮次由数据库租约保护，同会话另一 `turn_id` 在有效租约期间返回可重试状态。过期恢复取得新令牌；旧执行者完成轮次或生成提案时必须验证当前租约，避免迟到结果覆盖状态。模型异常时保留用户显式条件，要求用户编辑条件或继续使用确定性目录查询。
 
 ### 5.2 发现、报价与排序（F03/F04/F05）
 
@@ -103,9 +121,17 @@ flowchart LR
 | 商品发现与推荐组件（改造） | 查询真实目录、获取批量报价和库存，输出候选 ID 与排序 | 硬过滤在代码完成；LLM 只能重排已校验候选，不可新造商品 |
 | 比较与说明组件（新增） | 从目录属性和 SKU 组合生成比较矩阵及基于事实的理由 | 不同类目、缺失属性和单位冲突由确定性逻辑处理 |
 | 购物车执行组件（新增，确定性服务） | 生成动作摘要，确认后在事务中写车 | 已见 SKU、主体、版本、幂等、价格和库存校验全部由服务执行 |
-| Supervisor/编排器（改造） | 连接意图、发现、比较、购物车、交接状态，返回统一 `status` | 不直接改业务表；无效依赖结果不能回填为可购买候选 |
+| 独立 Commerce StateGraph（新增） | 连接意图、发现、比较、读车、提案与交接预览分支，返回统一 `status` | 图节点不直接改 ORM；不能触发确认命令或把无效依赖结果回填为可买候选 |
 
 响应状态采用 `clarify/shortlist/compare/confirm_action/cart_updated/handoff/unsupported/unavailable`；`handoff` 只来自已完成的宿主交接，不代表订单或付款。`POST /turns` 对所有开放意图返回统一 envelope：`request_id`、`session_id`、`turn_id`、`intent`、`status`、`constraints`、`items[]`、`question`、`proposed_action`、`errors[]`。路由到未开放意图时保持同一形状。已有两条推荐入口可作为兼容接口保留，但 MVP 的购物交易入口须共用一条可信业务流水线。Agent 可调用只读查询和 `propose_action`，不暴露直接写车或创建交接的工具；所有写入通过下面的确认命令。
+
+#### 5.4.1 Commerce 图的执行契约
+
+`CommerceOrchestrator.turn` 先验证主体与会话并取得 `TurnClaim(session_id, turn_id, lease_token, session_version)`；已完成的同参轮次直接回放。携带 `respond_to_action_id` 的聊天确认先由确定性代码核对动作、精确短语和幂等键，再调用与按钮相同的确认命令，**不进入图或模型**。其余轮次使用异步 `graph.ainvoke`：`parse_intent → validate_route`，然后按意图走 `discover → quote_filter → rank_explain`、`compare`、`read_cart`、`propose_cart_action` 或 `preview_checkout`，最终汇入 `finalize`；条件不足走 `clarify`，未开放的查单/售后走 `unsupported`，可信依赖故障走 `unavailable`。规格选择仍经目录校验与重新报价。图输入和临时状态只含本轮消息、已验证的购物条件、候选事实、轮次标识和响应草稿；不含 Bearer、刷新令牌或密码。只有验证过的 Product/SKU ID 能进入输出。
+
+`propose_cart_action` 和 `preview_checkout` 节点只能通过 `CartService.propose_action` / `CheckoutService.preview` 创建**待确认提案**，传入当前 `TurnClaim`。服务在短事务中校验仍持有有效租约及会话版本，并以 `(session_id, source_turn_id)` 唯一键保证同轮重试复用相同提案；异参返回冲突。图返回后，编排器以当前租约和会话版本完成轮次、保存结构化状态及最终响应。租约失效的旧执行者不能提交响应或提案；提案已持久化但响应尚未保存时，同轮恢复读取原提案，不再生成第二个动作。若原提案已失效，返回需要新轮次重新提案的状态，不把旧快照恢复成可确认动作。模型调用及外部网络调用均不持有上述数据库锁。
+
+MVP 每次从 MySQL 的 `commerce_sessions.state_json` 和轮次/动作记录恢复输入，图的 State 仅在单次 `ainvoke` 内有效；**不启用 LangGraph checkpointer 或 `interrupt()`**。因此图 checkpoint 不是购物业务的第二份事实来源。将来客服若需要跨请求暂停审批，可单独设计 support 图和持久 checkpoint；[官方中断语义](https://docs.langchain.com/oss/python/langgraph/interrupts)要求 durable checkpointer 与稳定 `thread_id`，恢复时节点从头重执行，任何外部写工具仍须由业务服务保证幂等。V1 推荐优化按需复用图外的召回、排序、硬过滤和实验服务，不把高频推荐接口强制迁入 commerce 图。
 
 ### 5.5 页面与反馈（F10）
 
@@ -181,13 +207,13 @@ flowchart LR
 ## 10. 非功能要求与验证
 
 - **一致性**：购物车行和确认结果在同一 MySQL 事务提交；唯一键与行锁覆盖并发双击和多端改车。交接使用持久化状态及宿主幂等请求处理跨系统重试。生产前必须明确宿主对 `handoff_id` 的保存时长与重放规则。
-- **安全**：凭证只在服务端验证；不在日志、会话 JSON 或交接快照中保存原始令牌。所有会话、车、动作、交接查询都按主体过滤。认证端点还须落实[独立设计](2026-09-29-identity-module-design.md)中的 Cookie、CSRF、限流与密钥管理。CORS 需为交易端点收窄到实际宿主来源；现有 `main.py` 的 `allow_origins=["*"]` 不能作为含凭证交易入口的最终配置。
+- **安全**：凭证只在服务端验证；不在日志、会话 JSON 或交接快照中保存原始令牌。所有会话、车、动作、交接查询都按主体过滤。认证端点沿用已实现的[独立设计](2026-09-29-identity-module-design.md)中的 Cookie、CSRF、限流与密钥管理。当前 `api/identity.py:configure_cors` 已使用明确的允许来源；新增交易端点也必须沿用该白名单，不得改回通配来源。
 - **金额**：只用整数分和 `CNY`，不接受浮点数；显示的 `current_subtotal` 为商品小计，不是最终支付金额。对外时间带 UTC 标识。价格/库存快照年龄阈值若采用 PRD 建议值 60 秒，也不能代替确认与交接时的强制重查。
-- **可观测性**：记录 `session_id`、`action_id`、`cart_id`、`handoff_id`、请求关联 ID、错误码和阶段耗时；不记录敏感令牌。埋点区分提案、确认、车写入成功、交接成功与付款成功，MVP 不产出后者。
-- **测试**：使用隔离 MySQL 验证唯一约束、锁和事务；用受控身份与宿主替身验证鉴权、重试、超时恢复。覆盖跨用户访问、未确认不写、重复确认只加一次、同键异参冲突、并发版本冲突、价格上涨、SKU 下架、库存不足/未知、读服务故障、空车、交接宿主失败和非法 URL。端到端测试从两个类目的真实 SKU 中选品，确认加购后改价，先阻止旧预览，再用新价格确认并得到 `handoff`，全过程无订单或支付成功声明。
+- **可观测性**：记录 `session_id`、`turn_id`、图节点/分支、`action_id`、`cart_id`、`handoff_id`、请求关联 ID、错误码和阶段耗时；不记录敏感令牌或完整模型提示词。埋点区分提案、确认、车写入成功、交接成功与付款成功，MVP 不产出后者。
+- **测试**：使用隔离 MySQL 验证唯一约束、锁和事务；用受控身份、模型与宿主替身验证鉴权、图分支、重试、超时恢复。覆盖跨用户访问、同轮租约恢复后提案不重复、旧租约不能生成动作、聊天确认不经过模型、未确认不写、重复确认只加一次、同键异参冲突、并发版本冲突、价格上涨、SKU 下架、库存不足/未知、读服务故障、空车、交接宿主失败和非法 URL。端到端测试从两个类目的真实 SKU 中选品，经独立 commerce 图确认加购后改价，先阻止旧预览，再用新价格确认并得到 `handoff`，全过程无订单或支付成功声明。
 
 ## 11. 实施顺序与评审点
 
-实施建议按依赖拆为：① 自建 `identity/` 的账号、登录、刷新、撤销及购物会话归属；② 真实目录发现、批量报价库存、结构化意图与比较；③ MySQL 购物车及版本/幂等；④ 提案、确认与跨领域实时校验；⑤ 交接预览、状态机与宿主网关；⑥ 页面事件、Agent 接入与端到端验收。身份模块内部交付顺序见[独立设计](2026-09-29-identity-module-design.md)。每一步只开放已具备可信依赖的端点；交易写入口必须走上述确定性服务。
+实施建议按依赖拆为：① 已完成的 `identity/` 作为可信主体前置能力，新增购物会话、轮次租约及归属；② 真实目录发现、批量报价库存、结构化意图与比较；③ MySQL 购物车及版本/幂等、提案轮次去重；④ 提案、确认与跨领域实时校验；⑤ 交接预览、状态机与宿主网关；⑥ 独立 LangGraph commerce 图、受约束模型节点和聊天确认门禁；⑦ 页面事件与端到端验收。身份模块内部交付顺序见[独立设计](2026-09-29-identity-module-design.md)。每一步只开放已具备可信依赖的端点；交易写入口必须走上述确定性服务。
 
 待落实的部署与外部接入参数：本仓身份签名密钥的安全托管和轮换、可信前端来源；宿主结账入口和服务鉴权；宿主如何消费不可变交接快照、重校金额库存及如何处理过期；商品每行数量上限和会话/动作时效正式值。内部演示不要求邮件服务，但不能以未验证邮箱的演示账号或模拟宿主宣称生产 MVP 已完成；面向真实用户上线须另行设计账号归属验证与恢复。

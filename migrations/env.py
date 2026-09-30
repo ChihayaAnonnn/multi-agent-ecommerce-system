@@ -14,6 +14,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import commerce_events.models  # noqa: F401
 import checkout.models  # noqa: F401
 import cart.models  # noqa: F401
 import shopping_session.models  # noqa: F401

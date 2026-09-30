@@ -37,6 +37,7 @@ class TurnResponse(BaseModel):
     question: str | None = None
     proposed_action: dict[str, Any] | None = None
     errors: list[dict[str, Any]] = Field(default_factory=list)
+    action_result: Literal['declined'] | None = None
     incomplete: bool = False
     cart: dict[str, Any] | None = None
     handoff: dict[str, Any] | None = None
@@ -58,3 +59,14 @@ class CheckoutPreviewRequest(CommerceInput):
 
 class CheckoutHandoffRequest(ConfirmationRequest):
     action_id: str=Field(min_length=1,max_length=36)
+
+from uuid import UUID
+from commerce_events.schemas import EventKind,EventPayload
+
+
+class EventRequest(CommerceInput):
+    event_id: UUID
+    session_id: UUID
+    request_id: str=Field(min_length=1,max_length=64)
+    kind: EventKind
+    payload: EventPayload=Field(default_factory=EventPayload)

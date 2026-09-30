@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import HTTPException, Request
 from redis.asyncio import Redis
 
+from commerce_events.service import CommerceEventService
 from checkout.service import CheckoutService
 from checkout.gateway import DemoHostCheckoutGateway, UnavailableHostCheckoutGateway
 from identity.types import DEMO_ENVIRONMENTS
@@ -50,6 +51,7 @@ class ApiRuntime:
     identity_config: IdentityHttpConfig | None = None
     # 身份未装配时的原因；认证与受保护端点据此返回 503。
     identity_error: str | None = None
+    commerce_events: CommerceEventService | None = None
     checkout: CheckoutService | None = None
     cart: CartService | None = None
     commerce: CommerceOrchestrator | None = None
@@ -142,6 +144,7 @@ def create_runtime() -> ApiRuntime:
         runtime.commerce.intent_model = SafeIntentModel(model)
         runtime.commerce.reranker = SafeCandidateReranker(model)
     runtime.commerce.configure_graph()
+    runtime.commerce_events = CommerceEventService(session_factory, runtime.shopping_sessions)
 
     try:
         runtime.redis = Redis.from_url(settings.redis_url, decode_responses=True)

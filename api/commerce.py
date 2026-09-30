@@ -98,3 +98,21 @@ async def checkout_handoff(session_id: str,body: CheckoutHandoffRequest,principa
 @router.get('/sessions/{session_id}/handoffs/{handoff_id}')
 async def get_handoff(session_id: str,handoff_id: str,principal: Principal=Depends(require_principal),service=Depends(checkout)):
     return await invoke(service.get_owned(principal,session_id,handoff_id))
+
+from fastapi import Response
+from models.commerce import EventRequest
+
+
+def events(request: Request):
+    service=getattr(request.app.state.runtime,'commerce_events',None)
+    if service is None:
+        raise HTTPException(503,detail={'code':'event_unavailable'})
+    return service
+
+
+@router.post('/events')
+async def record_event(body: EventRequest,response: Response,principal: Principal=Depends(require_principal),service=Depends(events)):
+    receipt=await invoke(service.record(principal,str(body.session_id),str(body.event_id),body.request_id,body.kind,body.payload.model_dump(mode='json',exclude_none=True)))
+    if not receipt.accepted:
+        response.status_code=503
+    return receipt

@@ -16,6 +16,7 @@ from fastapi import FastAPI
 
 from api.auth import router as auth_router
 from api.catalog import router as catalog_router
+from api.commerce_demo import configure_commerce_demo
 from api.commerce import router as commerce_router
 from api.commerce_read import router as commerce_read_router
 from api.experiments import router as experiments_router
@@ -52,6 +53,7 @@ app.state.runtime = create_runtime()
 # 认证域 CORS 只允许显式配置的前端来源，绝不使用通配符：
 # 带凭证的跨站请求不允许 `*`，未配置来源时按拒绝处理。
 configure_identity_http(app, settings)
+configure_commerce_demo(app, settings)
 
 for router in (
     health_router,
