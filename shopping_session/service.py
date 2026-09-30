@@ -101,3 +101,11 @@ class ShoppingSessionService:
             row.state_json, row.version = completion.state, row.version+1
             row.active_turn_id = row.turn_lease_token = row.turn_lease_expires_at = None
             await self._record_seen(db, row.id, completion.product_ids, completion.sku_ids)
+
+    async def release_turn(self,claim: TurnClaim) -> None:
+        """失败的执行者仅释放自己仍持有的租约，绝不清理后继轮次。"""
+        async with self.factory() as db,db.begin():
+            row=await db.scalar(select(CommerceSession).where(CommerceSession.id==claim.session_id,
+                CommerceSession.principal_key==claim.principal_key).with_for_update())
+            if row and row.active_turn_id==claim.turn_id and row.turn_lease_token==claim.lease_token:
+                row.active_turn_id=row.turn_lease_token=row.turn_lease_expires_at=None

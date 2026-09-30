@@ -16,6 +16,7 @@ from catalog.service import CatalogService
 from shopping_session.service import ShoppingSessionService
 from commerce_orchestrator.facts import CommerceFactsReader
 from commerce_orchestrator.service import CommerceOrchestrator
+from commerce_orchestrator.model import LLMCommerceModel, SafeIntentModel, SafeCandidateReranker
 from config import get_settings
 from db.session import create_session_factory
 from identity.csrf import CsrfSigner
@@ -136,6 +137,11 @@ def create_runtime() -> ApiRuntime:
     runtime.checkout = CheckoutService(session_factory, runtime.shopping_sessions, runtime.cart, gateway,
         tuple(h.strip() for h in settings.commerce_checkout_allowed_hosts.split(',') if h.strip()), settings.commerce_checkout_allowed_path)
     runtime.commerce.checkout = runtime.checkout
+    if settings.llm_api_key:
+        model = LLMCommerceModel(settings)
+        runtime.commerce.intent_model = SafeIntentModel(model)
+        runtime.commerce.reranker = SafeCandidateReranker(model)
+    runtime.commerce.configure_graph()
 
     try:
         runtime.redis = Redis.from_url(settings.redis_url, decode_responses=True)

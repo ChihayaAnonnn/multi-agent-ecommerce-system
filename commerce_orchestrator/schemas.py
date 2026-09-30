@@ -1,5 +1,5 @@
 """购物约束和可信候选 DTO。"""
-from typing import Literal
+from typing import Literal, Any
 from pydantic import BaseModel, ConfigDict, Field
 from catalog.schemas import SKUDetailView
 from pricing.schemas import PriceView
@@ -57,3 +57,27 @@ class CandidatePage(BaseModel):
     items: list[SKUQuote] = Field(default_factory=list)
     incomplete: bool = False
     scanned: int = 0
+
+# 仅单次 ainvoke 有效，MySQL 才是跨轮状态的事实来源。
+from typing import TypedDict, TYPE_CHECKING
+from identity.types import Principal
+if TYPE_CHECKING:
+    from shopping_session.schemas import TurnClaim
+    from models.commerce import TurnRequest,TurnResponse
+else:
+    # LangGraph 会运行 get_type_hints；边界已由领域 DTO 校验，避免反向导入循环。
+    TurnClaim = TurnRequest = TurnResponse = Any
+
+
+class CommerceGraphState(TypedDict,total=False):
+    principal: 'Principal'
+    claim: 'TurnClaim'
+    turn: 'TurnRequest'
+    current: ShoppingIntent
+    route: str
+    candidate_ids: list[str]
+    facts: dict
+    candidates: list[dict]
+    response: 'TurnResponse'
+    trace: list[str]
+    model_degraded: bool

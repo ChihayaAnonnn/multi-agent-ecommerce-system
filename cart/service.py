@@ -276,3 +276,20 @@ class CartService:
         """交接服务在共享事务中通过车领域消费动作。"""
         action.status=status
         self.save_confirmation(action,approved,key,result)
+
+    async def get_action(self,principal: Principal,session_id: str,action_id: str) -> PendingAction:
+        """图外确认门禁的只读动作查询。"""
+        async with self.factory() as db:
+            await self.sessions.owned_row(db,session_id,principal.principal_key)
+            action=await db.scalar(select(PendingAction).where(PendingAction.id==action_id,
+                PendingAction.session_id==session_id,PendingAction.principal_key==principal.principal_key))
+            if action is None:
+                raise CommerceError('not_found',404)
+            return action
+
+    async def is_only_pending(self,principal: Principal,session_id: str,action_id: str) -> bool:
+        async with self.factory() as db:
+            await self.sessions.owned_row(db,session_id,principal.principal_key)
+            ids=list(await db.scalars(select(PendingAction.id).where(PendingAction.session_id==session_id,
+                PendingAction.principal_key==principal.principal_key,PendingAction.status=='pending',PendingAction.expires_at>utcnow())))
+            return ids==[action_id]
