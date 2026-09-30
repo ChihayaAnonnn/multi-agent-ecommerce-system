@@ -21,6 +21,7 @@ def request_hash(data: dict) -> str:
 class CommerceOrchestrator:
     def __init__(self, sessions: ShoppingSessionService, facts: CommerceFactsReader, catalog: CatalogService, scan_limit: int = 200):
         self.sessions, self.facts, self.catalog = sessions, facts, catalog
+        self.cart = None
         self.discovery = DiscoveryService(facts, catalog, scan_limit)
         self.comparison = CompareService(sessions, catalog, facts)
 
@@ -43,6 +44,9 @@ class CommerceOrchestrator:
             if intent in {'order_tracking','after_sales'}:
                 response.status = 'unsupported'
                 response.question = '当前支持选品、比较和购物准备。'
+            elif intent == 'cart_read' and self.cart is not None:
+                response.cart = (await self.cart.get_cart(principal)).model_dump(mode='json')
+                response.status = 'cart_updated'
             elif intent in {'cart_read','cart_mutation','checkout'}:
                 response.status = 'unavailable'; response.errors = [{'code':'capability_unavailable'}]
             elif intent == 'compare':

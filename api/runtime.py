@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import HTTPException, Request
 from redis.asyncio import Redis
 
+from cart.service import CartService
 from catalog.service import CatalogService
 from shopping_session.service import ShoppingSessionService
 from commerce_orchestrator.facts import CommerceFactsReader
@@ -45,6 +46,7 @@ class ApiRuntime:
     identity_config: IdentityHttpConfig | None = None
     # 身份未装配时的原因；认证与受保护端点据此返回 503。
     identity_error: str | None = None
+    cart: CartService | None = None
     commerce: CommerceOrchestrator | None = None
     shopping_sessions: ShoppingSessionService | None = None
     redis: Redis | None = None
@@ -122,7 +124,10 @@ def create_runtime() -> ApiRuntime:
     runtime.inventory = InventoryService(session_factory)
     runtime.catalog = CatalogService(session_factory, price_reader=pricing)
 
+    runtime.cart = CartService(session_factory, runtime.shopping_sessions, CommerceFactsReader(runtime.catalog, pricing, runtime.inventory), settings.commerce_max_line_quantity, settings.commerce_action_ttl_seconds)
     runtime.commerce = CommerceOrchestrator(runtime.shopping_sessions, CommerceFactsReader(runtime.catalog, pricing, runtime.inventory), runtime.catalog, settings.commerce_scan_limit)
+
+    runtime.commerce.cart = runtime.cart
 
     try:
         runtime.redis = Redis.from_url(settings.redis_url, decode_responses=True)

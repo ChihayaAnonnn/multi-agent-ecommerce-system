@@ -54,3 +54,16 @@ async def turn(session_id: str, body: TurnRequest, principal: Principal = Depend
 @router.post('/sessions/{session_id}/compare')
 async def compare(session_id: str, body: CompareRequest, principal: Principal = Depends(require_principal), service=Depends(orchestrator)):
     return await invoke(service.compare(principal,session_id,body.product_ids))
+
+
+def carts(request: Request):
+    service=getattr(request.app.state.runtime,'cart',None)
+    if service is None:
+        raise HTTPException(503,detail={'code':'dependency_unavailable'})
+    return service
+
+
+@router.get('/sessions/{session_id}/cart')
+async def get_cart(session_id: str, principal: Principal=Depends(require_principal), session_service=Depends(sessions), cart_service=Depends(carts)):
+    await invoke(session_service.get_owned(session_id,principal))
+    return await invoke(cart_service.get_cart(principal))

@@ -14,6 +14,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import cart.models  # noqa: F401
 import shopping_session.models  # noqa: F401
 import catalog.models  # noqa: F401  注册目录表到 metadata
 import identity.models  # noqa: F401  注册身份表到 metadata
