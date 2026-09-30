@@ -30,6 +30,10 @@ async function main(){
     await confirmAction(true);assert(kinds.some(x=>x[0]==='cart_updated'),'button commit emits cart_updated');
     kinds=[];api=async()=>({status:'declined'});pendingAction={action_id:'b',kind:'add'};confirmation=null;
     await confirmAction(false);assert(kinds.some(x=>x[0]==='confirm'&&x[1].status==='declined')&&!kinds.some(x=>x[0]==='cart_updated'),'decline event distinguishes cancellation');
-    print('5 commerce demo contracts passed');
+    let submitted=null;sendTurn=async input=>{submitted=input;};pendingAction=null;
+    $('message').value='想买耳机，预算500元';
+    $('shop-form').onsubmit({preventDefault(){},submitter:new Node()});await ticks();
+    assert(JSON.stringify(submitted)===JSON.stringify({message:'想买耳机，预算500元'}),'chat submits only user message, without hidden filter constraints');
+    print('6 commerce demo contracts passed');
 }
 main().catch(e=>{print(String(e));quit(1);});

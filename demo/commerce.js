@@ -5,7 +5,7 @@ let accessToken = null, csrfToken = null, sessionId = null, epoch = 0;
 let cartView = null, selectedSku = null, pendingAction = null, confirmation = null;
 let refreshOperation = null;
 let requestId = crypto.randomUUID(), lastRetry = null;
-const catalogDetails = new Map(), comparedProducts = new Set();
+const comparedProducts = new Set();
 const labels = {dependency_unavailable:'可信事实暂不可用，请稍后重试。',checkout_unavailable:'宿主交接暂不可用，可使用同一请求重试。',event_unavailable:'反馈采集暂不可用。',reconfirmation_required:'价格、规格或可售条件发生变化，请核对新摘要并再次确认。',cart_version_conflict:'购物车已被另一端修改，请刷新后重新生成提案。',session_expired:'购物会话已过期，请新建会话继续使用原购物车。',turn_processing:'当前轮次仍在处理中，请稍后使用原请求重试。',stock_unknown:'库存未知，暂不可购买。',out_of_stock:'当前缺货。',insufficient_stock:'当前可售量不足。',price_missing:'缺少可信现价。',constraints_mismatch:'所选规格不符合当前条件。',not_seen:'请选择当前会话已展示的商品与规格。',invalid_quantity:'数量须为正整数，且不能超过演示保护值。',action_expired:'提案已过期，请重新生成。',action_already_resolved:'该动作已处理或失效，请刷新购物车。',idempotency_conflict:'请求内容发生变化，请重新生成动作。',empty_cart:'购物车为空。',not_found:'无法访问这份资源。',model_degraded:'模型已降级：使用确定性结果和中性说明。'};
 const money = amount => amount === null || amount === undefined ? '未提供' : new Intl.NumberFormat('zh-CN',{style:'currency',currency:'CNY'}).format(amount / 100);
 const textValue = value => value === true ? '是' : value === false ? '否' : String(value ?? '未提供');
@@ -73,7 +73,7 @@ const exposures=new IntersectionObserver(entries=>{
 },{threshold:.5});
 async function newSession() {
     resetWorkspace(); const session=await api('/api/v1/commerce/sessions',{}); sessionId=session.session_id;
-    await refreshCart(); notify('购物会话已就绪，请填写需求与明确条件。');
+    await refreshCart(); notify('购物会话已就绪，请通过聊天描述你的需求。');
 }
 async function refreshCart() {
     if(!sessionId)return;
@@ -201,22 +201,6 @@ function renderHandoff(result) {
     root.append(element('p','有效期至 '+new Date(result.expires_at).toLocaleTimeString('zh-CN'),'muted small'));
     notify('模拟交接已持久化，可以查看受控入口。');void event('handoff',{handoff_id:result.handoff_id,status:'handoff',demo:result.destination.demo});
 }
-async function loadCatalog() {
-    try {
-        const page=await api('/api/v1/catalog/products?limit=20',undefined,{auth:false});
-        const details=await Promise.all(page.items.map(p=>api(`/api/v1/catalog/products/${p.id}`,undefined,{auth:false})));
-        for(const detail of details)catalogDetails.set(detail.category.id,detail);
-        for(const [id,detail] of catalogDetails){const option=element('option',detail.category.name);option.value=id;$('category').append(option);}
-    } catch (_) { notify('目录暂不可用，请先确认服务配置。',true); }
-}
-$('category').onchange=()=>{
-    $('filters').replaceChildren();const detail=catalogDetails.get($('category').value);
-    if(!detail)return;
-    for(const attr of detail.category_attributes.filter(a=>a.is_filterable && a.value_type==='boolean')) {
-        const label=element('label'),input=element('input');input.type='checkbox';input.dataset.code=attr.code;
-        label.append(input,document.createTextNode(' 明确要求：'+attr.name));$('filters').append(label);
-    }
-};
 $('login-form').onsubmit=event=>{event.preventDefault();void run(async()=>{
     if(refreshOperation)await refreshOperation.promise.catch(()=>{});
     const auth=await api('/api/v1/auth/login',{email:$('email').value,password:$('password').value},{auth:false});
@@ -239,9 +223,8 @@ $('shop-form').onsubmit=event=>{event.preventDefault();void run(async()=>{
         await sendTurn(input);return;
     }
     selectedSku=null;$('sku-panel').hidden=true;$('comparison-panel').hidden=true;
-    const constraints={category_id:$('category').value || null,query_text:$('query').value.trim() || null,hard_conditions:[...$('filters').querySelectorAll('input:checked')].map(i=>({code:i.dataset.code,value:true,source:'explicit'}))};
-    if($('budget').value!=='')constraints.budget_max_minor=Number($('budget').value)*100;
-    await sendTurn({message,constraints});
+    if(!message){notify('请先输入你的购物需求。');return;}
+    await sendTurn({message});
 },event.submitter);};
 $('compare').onclick=()=>run(async()=>{await sendTurn({message:'比较',product_ids:[...comparedProducts]});void event('compare',{status:'compare'});},$('compare'));
 $('propose').onclick=()=>run(async()=>{if(!selectedSku)return;await refreshCart();await sendTurn({message:'加入购物车',selected_sku_id:selectedSku.sku_id,quantity:Number($('quantity').value),expected_cart_version:cartView.version});},$('propose'));
@@ -249,4 +232,3 @@ $('approve').onclick=()=>run(()=>confirmAction(true),$('approve'));
 $('decline').onclick=()=>run(()=>confirmAction(false),$('decline'));
 $('checkout').onclick=()=>run(async()=>{await refreshCart();await sendTurn({message:'结账',expected_cart_version:cartView.version});},$('checkout'));
 $('retry').onclick=()=>{const fn=lastRetry;if(fn)void run(fn,$('retry'));};
-void loadCatalog();

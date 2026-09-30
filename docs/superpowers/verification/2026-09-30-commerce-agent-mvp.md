@@ -53,3 +53,9 @@ JavaScriptCore 命令是当前 macOS 的本地验证命令；页面运行本身�
 2026-09-30 按用户选择，将实施分支快进合并至 `python`（实现提交 `dfa41ad`）。主工作区完整回归 `157 passed in 122.09s`，MySQL/Redis 零跳过，JavaScript 契约5项通过。完整提交范围检查清理一处文件尾多余空行后通过。
 
 演示服务迁到主工作区，健康检查、页面与 JavaScript 在真实 HTTPS 上通过；地址仍为 `https://localhost:18443/demo/commerce`，账号与购物车数据保留。实施 worktree 与已合并的特性分支已清理。原目录计划未提交修改保留原位；设计原修改已包含在合并版本中且逐字一致；原始 MVP 计划和本地验收配置快照保存在忽略目录 `.superpowers/merge-backups/2026-09-30-commerce-agent-mvp/`，原文档同时保留在命名 stash `pre-commerce-merge original plan and reviewed design`，不覆盖已更新的实施计划。没有推送远端。
+
+## 聊天需求入口调整
+
+按用户要求删除类目、搜索词、预算和附加属性筛选控件，购物需求仅从聊天框输入；同时移除为表单预加载目录的代码，普通聊天请求只提交消息与轮次ID，不生成隐藏的 `constraints`。页面与请求契约测试先复现失败，再修复通过；相关 Python 测试18项、JavaScript契约6项通过，实际HTTPS页面及脚本核验通过。
+
+现有意图解析仍以部分预算规则及软偏好为主，不能可靠地从自然语言建立类目/搜索关键词。本次未扩展该后端能力，也不将移除表单称为完整的自然语言购物能力。
