@@ -50,11 +50,10 @@ def test_redis_limits_and_failure(clean_redis: str):
         # 其他 IP 不受影响
         await limiter.check_register("198.51.100.8")
 
-        # 登录失败：同一规范化邮箱 5 次后拒绝
+        # 登录：同一规范化邮箱第 6 次尝试被拒（失败的尝试一直计入）
         email = normalize_email("  Demo@Example.COM  ")
         for _ in range(LOGIN_EMAIL_LIMIT):
             await limiter.check_login(email, ip)
-            await limiter.record_login_failure(email, ip)
         with pytest.raises(RateLimited):
             await limiter.check_login(email, ip)
         # 大小写与空白等价写法共享同一计数器
@@ -63,7 +62,17 @@ def test_redis_limits_and_failure(clean_redis: str):
         # 不同邮箱在同一 IP 上仍然可以尝试
         await limiter.check_login("someone-else@example.com", ip)
 
-        # 登录失败：IP 维度 30 次后拒绝，即使换邮箱
+        # 成功登录释放占用：不消耗失败配额
+        ok_email = normalize_email("ok@example.com")
+        for _ in range(LOGIN_EMAIL_LIMIT):
+            await limiter.check_login(ok_email, "203.0.113.44")
+            await limiter.clear_login_attempts(ok_email, "203.0.113.44")
+        for _ in range(LOGIN_EMAIL_LIMIT):
+            await limiter.check_login(ok_email, "203.0.113.44")
+        with pytest.raises(RateLimited):
+            await limiter.check_login(ok_email, "203.0.113.44")
+
+        # 登录：IP 维度 30 次后拒绝，即使换邮箱
         failing_ip = "203.0.113.55"
         for index in range(LOGIN_IP_LIMIT):
             await limiter.record_login_failure(f"user{index}@example.com", failing_ip)
@@ -86,6 +95,45 @@ def test_redis_limits_and_failure(clean_redis: str):
             assert await client.ttl(key) > 0, key
         # 邮箱不进键名：键里不能出现明文邮箱
         assert not any("example.com" in key for key in keys)
+
+        await client.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_concurrent_logins_cannot_exceed_the_limit(clean_redis: str):
+    """并发登录不能突破上限：计数与判定必须是同一次原子操作。
+
+    先检查、失败后再补记时，N 个并发请求会同时读到未超限的旧值全部放行。
+    """
+
+    async def scenario():
+        client = Redis.from_url(clean_redis, decode_responses=True)
+        limiter = _limiter(client)
+        email = normalize_email("race@example.com")
+        ip = "198.51.100.31"
+
+        results = await asyncio.gather(
+            *[limiter.check_login(email, ip) for _ in range(LOGIN_EMAIL_LIMIT * 2)],
+            return_exceptions=True,
+        )
+        allowed = [item for item in results if item is None]
+        blocked = [item for item in results if isinstance(item, RateLimited)]
+        assert len(allowed) == LOGIN_EMAIL_LIMIT, results
+        assert len(blocked) == LOGIN_EMAIL_LIMIT, results
+        for error in blocked:
+            assert error.retry_after_seconds > 0
+
+        # IP 维度同样原子：换邮箱也绕不过
+        other_ip = "198.51.100.32"
+        results = await asyncio.gather(
+            *[
+                limiter.check_login(f"user{index}@example.com", other_ip)
+                for index in range(LOGIN_IP_LIMIT * 2)
+            ],
+            return_exceptions=True,
+        )
+        assert len([item for item in results if item is None]) == LOGIN_IP_LIMIT
 
         await client.aclose()
 

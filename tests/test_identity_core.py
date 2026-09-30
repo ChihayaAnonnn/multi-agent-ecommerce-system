@@ -383,3 +383,80 @@ def test_csrf_is_session_bound():
         CsrfSigner("too-short")
     with pytest.raises(ValueError):
         signer.issue("")
+
+
+def test_codec_rejects_broken_or_mismatched_keys(keypair, other_keypair):
+    """私钥损坏、与当前 kid 不配对或不是 RSA 时，装配阶段就失败。
+
+    否则错误会推迟到会话事务提交之后的签发阶段，留下孤儿登录会话，
+    对外还只是一个 500。
+    """
+    private_pem, public_pem = keypair
+    other_private, other_public = other_keypair
+    base = {"issuer": ISSUER, "audience": AUDIENCE, "active_kid": ACTIVE_KID}
+
+    # 私钥与当前 kid 的公钥不配对
+    with pytest.raises(IdentityConfigurationError) as mismatch:
+        TokenCodec(private_key_pem=other_private, public_keys={ACTIVE_KID: public_pem}, **base)
+    assert "不配对" in str(mismatch.value)
+
+    # 私钥不可解析 / 传成公钥
+    for broken in ("not-a-pem", public_pem):
+        with pytest.raises(IdentityConfigurationError) as error:
+            TokenCodec(private_key_pem=broken, public_keys={ACTIVE_KID: public_pem}, **base)
+        assert "BEGIN" not in str(error.value) or "无法解析" in str(error.value)
+
+    # 非 RSA 私钥：算法固定 RS256
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    ec_key = ec.generate_private_key(ec.SECP256R1())
+    ec_pem = ec_key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode()
+    with pytest.raises(IdentityConfigurationError):
+        TokenCodec(private_key_pem=ec_pem, public_keys={ACTIVE_KID: public_pem}, **base)
+
+    # 公钥不可解析：当前 kid 与轮换用的其他 kid 都要在装配时校验
+    with pytest.raises(IdentityConfigurationError):
+        TokenCodec(private_key_pem=private_pem, public_keys={ACTIVE_KID: "not-a-pem"}, **base)
+    with pytest.raises(IdentityConfigurationError):
+        TokenCodec(
+            private_key_pem=private_pem,
+            public_keys={ACTIVE_KID: public_pem, "key-old": "not-a-pem"},
+            **base,
+        )
+
+    # 配对正确时照常工作；轮换用的公钥不参与配对校验
+    codec = TokenCodec(
+        private_key_pem=private_pem,
+        public_keys={ACTIVE_KID: public_pem, "key-old": other_public},
+        **base,
+    )
+    assert codec.decode(codec.issue("u-1", "s-1", NOW), NOW).session_id == "s-1"
+
+
+def test_load_token_codec_rejects_mismatched_key_files(tmp_path, keypair, other_keypair):
+    """配置文件层面的不配对同样在装配时报错，而不是等到签发。"""
+    from config.settings import Settings
+
+    private_pem, public_pem = keypair
+    other_private, _other_public = other_keypair
+
+    private_file = tmp_path / "identity-private.pem"
+    private_file.write_text(other_private, encoding="utf-8")
+    keys_file = tmp_path / "identity-public-keys.json"
+    keys_file.write_text(json.dumps({ACTIVE_KID: public_pem}), encoding="utf-8")
+
+    with pytest.raises(IdentityConfigurationError):
+        load_token_codec(
+            Settings(
+                identity_issuer=ISSUER,
+                identity_audience=AUDIENCE,
+                identity_active_kid=ACTIVE_KID,
+                identity_private_key_path=str(private_file),
+                identity_public_keys_path=str(keys_file),
+                identity_csrf_secret="c" * 48,
+            )
+        )

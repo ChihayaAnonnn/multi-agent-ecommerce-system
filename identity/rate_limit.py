@@ -1,7 +1,10 @@
 """基于 Redis 的原子限流。
 
 限流键分维度独立计数（规范化邮箱、客户端 IP、登录会话），用单条 Lua 脚本
-把 `INCR` 与首次 `EXPIRE` 合并成一次原子操作，避免并发下漏设过期时间。
+把「计数」与「判定」合成一次原子操作：先检查后计数会让并发请求同时读到
+未超限的旧值（TOCTOU），一起放行并突破上限。登录成功后把这次占用还回去，
+正常用户不消耗失败配额。
+
 Redis 不可用时一律拒绝服务（`IdentityDependencyError`），不因为「读不到计数」
 就放行——否则故障即等于关闭限流。
 """
@@ -29,11 +32,19 @@ end
 return {current, ttl}
 """
 
-# 只读检查：用于「失败次数是否已达上限」，不消耗计数。
-_READ_SCRIPT = """
+# 释放一次占用：登录成功后把本次占用还回去，正常用户不消耗失败配额。
+# 只减不加，且归零即删；不会把别人累计的失败一起抹掉。
+_RELEASE_SCRIPT = """
 local value = tonumber(redis.call('GET', KEYS[1]) or '0')
-local ttl = redis.call('TTL', KEYS[1])
-return {value, ttl}
+if value <= 0 then
+  redis.call('DEL', KEYS[1])
+  return 0
+end
+local remaining = redis.call('DECR', KEYS[1])
+if remaining <= 0 then
+  redis.call('DEL', KEYS[1])
+end
+return remaining
 """
 
 
@@ -67,7 +78,7 @@ class RedisRateLimiter:
         self._refresh_window = refresh_window_seconds
         self._prefix = key_prefix
         self._counter = redis_client.register_script(_COUNTER_SCRIPT)
-        self._reader = redis_client.register_script(_READ_SCRIPT)
+        self._releaser = redis_client.register_script(_RELEASE_SCRIPT)
 
     # ---------- 键 ----------
 
@@ -100,18 +111,15 @@ class RedisRateLimiter:
         if int(count) > limit:
             raise RateLimited(max(1, int(ttl)))
 
-    async def _enforce_existing(self, key: str, limit: int, window: int) -> None:
-        """只检查已有失败计数，不消耗计数。"""
-        try:
-            count, ttl = await self._reader(keys=[key], args=[window])
-        except Exception as exc:
-            raise IdentityDependencyError("限流服务不可用") from exc
-        if int(count) >= limit:
-            raise RateLimited(max(1, int(ttl)))
-
     async def _record(self, key: str, window: int) -> None:
         try:
             await self._counter(keys=[key], args=[window])
+        except Exception as exc:
+            raise IdentityDependencyError("限流服务不可用") from exc
+
+    async def _release(self, key: str) -> None:
+        try:
+            await self._releaser(keys=[key], args=[])
         except Exception as exc:
             raise IdentityDependencyError("限流服务不可用") from exc
 
@@ -124,16 +132,30 @@ class RedisRateLimiter:
         )
 
     async def check_login(self, email: str, client_ip: str) -> None:
-        """登录前检查失败次数；邮箱与 IP 任一超限即拒绝。"""
-        await self._enforce_existing(
+        """占用一次登录尝试配额并检查上限；邮箱与 IP 任一超限即拒绝。
+
+        「计数」与「判定」在同一条 Lua 脚本里完成。若先读计数再在验证失败后补记，
+        并发请求会同时读到未超限的旧值（TOCTOU），一起放行并突破失败上限。
+        登录成功后调用 `clear_login_attempts` 把这次占用还回去。
+        """
+        await self._increment_and_enforce(
             self._login_email_key(email), self._login_email_limit, self._login_window
         )
-        await self._enforce_existing(
+        await self._increment_and_enforce(
             self._login_ip_key(client_ip), self._login_ip_limit, self._login_window
         )
 
+    async def clear_login_attempts(self, email: str, client_ip: str) -> None:
+        """登录成功后释放本次占用：成功登录不消耗失败配额。"""
+        await self._release(self._login_email_key(email))
+        await self._release(self._login_ip_key(client_ip))
+
     async def record_login_failure(self, email: str, client_ip: str) -> None:
-        """登录失败后计一次；邮箱与 IP 两个维度同时累加。"""
+        """补记一次失败，与 `check_login` 共用同一计数器。
+
+        正常登录流程在 `check_login` 时已经占用配额，不需要再调用；
+        这里留给没有先占用的调用方（审计补记、运维脚本）。
+        """
         await self._record(self._login_email_key(email), self._login_window)
         await self._record(self._login_ip_key(client_ip), self._login_window)
 

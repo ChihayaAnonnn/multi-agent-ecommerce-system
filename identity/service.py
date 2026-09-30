@@ -166,12 +166,15 @@ class IdentityService:
     # ---------- 密码登录 ----------
 
     async def login(self, email: str, password: str, client_ip: str) -> AuthIssue:
-        """校验密码并创建登录会话；失败原因对外不可区分。"""
+        """校验密码并创建登录会话；失败原因对外不可区分。
+
+        限流在入口处原子占用一次尝试配额，成功后才释放：失败的尝试一直计入，
+        并发请求不会因为「先检查后计数」同时获准。
+        """
         normalized = normalize_email(email)
         await self._limiter.check_login(normalized, client_ip)
         if not normalized or len(normalized) > MAX_EMAIL_LENGTH:
             # 长度不合法的登录名不可能对应任何账号，仍按统一凭证错误处理
-            await self._limiter.record_login_failure(normalized, client_ip)
             raise InvalidCredentials("邮箱或密码不正确")
 
         async with _database_errors("登录"):
@@ -187,7 +190,6 @@ class IdentityService:
         if user is None:
             # 账号不存在也做一次等价开销的哈希校验，减少时序枚举
             await asyncio.to_thread(verify_password, password, _timing_dummy_hash())
-            await self._limiter.record_login_failure(normalized, client_ip)
             raise InvalidCredentials("邮箱或密码不正确")
 
         matched = await asyncio.to_thread(verify_password, password, user.password_hash)
@@ -196,13 +198,19 @@ class IdentityService:
             or user.status != "active"
             or (user.source == DEMO_SOURCE and not self.demo_registration_enabled)
         ):
-            await self._limiter.record_login_failure(normalized, client_ip)
             raise InvalidCredentials("邮箱或密码不正确")
 
-        return await self._issue_session(user)
+        issue = await self._issue_session(user, user.password_hash)
+        await self._limiter.clear_login_attempts(normalized, client_ip)
+        return issue
 
-    async def _issue_session(self, user: IdentityUser) -> AuthIssue:
-        """创建登录会话与第一枚刷新令牌，提交后才签发访问令牌。"""
+    async def _issue_session(self, user: IdentityUser, verified_hash: str) -> AuthIssue:
+        """创建登录会话与第一枚刷新令牌，提交后才签发访问令牌。
+
+        事务内先锁账号行再复核密码哈希：受控重置（以及禁用、改密）会更新同一行，
+        如果不复核，重置就可能提交在「密码校验通过」和「会话落库」之间，
+        导致这次用旧密码建立的会话躲过撤销。
+        """
         now = utcnow()
         session = AuthSession(
             id=new_id(),
@@ -221,7 +229,26 @@ class IdentityService:
         )
         async with _database_errors("创建登录会话"):
             async with self._sessions() as db:
-                db.add_all([session, token_row])
+                current = (
+                    await db.execute(
+                        select(IdentityUser)
+                        .where(IdentityUser.id == user.id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                ).scalar_one_or_none()
+                if (
+                    current is None
+                    or current.password_hash != verified_hash
+                    or current.status != "active"
+                    or (current.source == DEMO_SOURCE and not self.demo_registration_enabled)
+                ):
+                    raise InvalidCredentials("账号状态已变化，请重新登录")
+
+                # 会话行先落库再插令牌行，不依赖 ORM 的内部排序
+                db.add(session)
+                await db.flush()
+                db.add(token_row)
                 await db.commit()
 
         return self._issue_tokens(user.id, session.id, raw_refresh, now)
@@ -257,14 +284,27 @@ class IdentityService:
 
         async with _database_errors("重置密码"):
             async with self._sessions() as db:
-                user = await db.get(IdentityUser, user_id)
+                # 先锁账号行：与登录的会话创建串行，避免在「会话刚落库」与
+                # 「撤销该用户全部会话」之间出现窗口
+                user = (
+                    await db.execute(
+                        select(IdentityUser)
+                        .where(IdentityUser.id == user_id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                ).scalar_one_or_none()
                 if user is None or user.source != DEMO_SOURCE:
                     raise UnknownAccount("账号不存在或不是演示账号")
 
-                # 重置同时撤销全部登录会话与刷新令牌：旧 JWT 立即失效
+                # 重置同时撤销全部登录会话与刷新令牌：旧 JWT 立即失效。
+                # 加锁读取，拿到的必须是账号锁之后的最新已提交状态。
                 sessions = (
                     await db.execute(
-                        select(AuthSession).where(AuthSession.user_id == user.id)
+                        select(AuthSession)
+                        .where(AuthSession.user_id == user.id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
                     )
                 ).scalars().all()
                 for session in sessions:
@@ -402,7 +442,7 @@ class IdentityService:
                 ):
                     raise InvalidCredentials("刷新令牌已失效，请重新登录")
 
-                self._ensure_user_usable(user)
+                self._ensure_usable_for_refresh(user)
 
                 raw_refresh_next = new_refresh_token()
                 locked.consumed_at = now
@@ -427,26 +467,28 @@ class IdentityService:
         now = utcnow()
         async with _database_errors("退出登录"):
             async with self._sessions() as db:
-                row = (
+                # 固定锁顺序与 refresh 一致：先会话行、再令牌行。
+                # 反过来会在与刷新并发时形成 ABBA 死锁。
+                located = (
                     await db.execute(
-                        select(RefreshToken)
-                        .where(RefreshToken.token_hash == hash_refresh_token(raw_refresh))
-                        .with_for_update()
-                        .execution_options(populate_existing=True)
+                        select(RefreshToken).where(
+                            RefreshToken.token_hash == hash_refresh_token(raw_refresh)
+                        )
                     )
                 ).scalar_one_or_none()
-                if row is None:
+                if located is None:
                     raise InvalidCredentials("刷新令牌无效")
                 session = (
                     await db.execute(
                         select(AuthSession)
-                        .where(AuthSession.id == row.auth_session_id)
+                        .where(AuthSession.id == located.auth_session_id)
                         .with_for_update()
                         .execution_options(populate_existing=True)
                     )
                 ).scalar_one_or_none()
                 if session is None:
                     raise InvalidCredentials("刷新令牌无效")
+                # 下面的撤销语句会在会话锁之后才碰令牌行，与 refresh 的顺序一致
                 if not self._csrf.verify(session.id, csrf_value):
                     raise InvalidCsrf("CSRF 校验失败")
 
@@ -462,6 +504,17 @@ class IdentityService:
             raise InvalidAccessToken("账号已停用")
         if user.source == DEMO_SOURCE and not self.demo_registration_enabled:
             raise InvalidAccessToken("当前部署环境不接受演示账号")
+
+    def _ensure_usable_for_refresh(self, user: IdentityUser) -> None:
+        """刷新与取 CSRF 路径把「账号不可用」统一成凭证错误。
+
+        这两个端点对外只有 401（凭证失效）这一种失败语义；直接抛
+        `InvalidAccessToken` 会在路由层变成未映射异常 → 500。
+        """
+        try:
+            self._ensure_user_usable(user)
+        except InvalidAccessToken as exc:
+            raise InvalidCredentials("刷新令牌已失效，请重新登录") from exc
 
     async def _load_active_session(self, db, raw_refresh: str, now):
         """按刷新令牌哈希定位仍然可用的会话与账号。"""
@@ -482,7 +535,7 @@ class IdentityService:
         user = await db.get(IdentityUser, session.user_id)
         if user is None:
             raise InvalidCredentials("登录会话已失效")
-        self._ensure_user_usable(user)
+        self._ensure_usable_for_refresh(user)
         return session, user
 
     async def _revoke_session(self, db, session: AuthSession, now, reason: str) -> None:

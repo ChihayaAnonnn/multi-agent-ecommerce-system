@@ -14,8 +14,10 @@ import uuid
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from db.base import utcnow
 from db.session import create_session_factory
@@ -39,6 +41,7 @@ from identity.types import (
     InvalidAccessToken,
     InvalidCredentials,
     InvalidCsrf,
+    RateLimited,
     UnknownAccount,
     UserView,
 )
@@ -1044,3 +1047,214 @@ def test_reset_script_takes_no_password_argument_and_hides_secrets(monkeypatch, 
         == 1
     )
     assert secret not in capsys.readouterr().err
+
+
+# ---------- 审查修复的回归用例 ----------
+
+# 观察锁是否已被持有的等待时间：本地 MySQL 上取锁远快于该值
+LOCK_OBSERVE_DELAY = 0.5
+
+LOGIN_EMAIL_LIMIT = 5
+
+
+def test_login_after_password_change_does_not_create_session(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """密码校验通过后账号被改密或禁用：不得再落库登录会话。"""
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        view = await service.register_demo("stale@example.com", DEMO_PASSWORD, "203.0.113.111")
+
+        # 模拟「登录已读到旧快照，随后重置提交」的窗口
+        stale = await _load_user(migrated_mysql_database, view.id)
+        await service.reset_demo_password(view.id, "another-long-enough-password")
+        with pytest.raises(InvalidCredentials):
+            await service._issue_session(stale, stale.password_hash)
+
+        # 账号被禁用同样拒绝
+        await _disable_user(migrated_mysql_database, view.id)
+        with pytest.raises(InvalidCredentials):
+            await service._issue_session(stale, stale.password_hash)
+
+        sessions = (
+            await _query(
+                migrated_mysql_database,
+                "SELECT COUNT(*) FROM identity_auth_sessions WHERE user_id = :uid",
+                uid=view.id,
+            )
+        )[0][0]
+        assert sessions == 0
+
+    asyncio.run(scenario())
+
+
+def test_login_and_reset_race_leaves_no_usable_session(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """登录与受控重置并发：不允许留下用旧密码建立的可用会话。"""
+    new_password = "another-long-enough-password"
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        view = await service.register_demo(
+            "race-reset@example.com", DEMO_PASSWORD, "203.0.113.112"
+        )
+
+        results = await asyncio.gather(
+            service.login("race-reset@example.com", DEMO_PASSWORD, "203.0.113.112"),
+            service.reset_demo_password(view.id, new_password),
+            return_exceptions=True,
+        )
+        for item in results:
+            assert not isinstance(item, IdentityDependencyError), item
+            assert not isinstance(item, InvalidAccessToken), item
+
+        # 无论谁先提交，重置结束后都不能有仍可用（未撤销）的会话
+        active = (
+            await _query(
+                migrated_mysql_database,
+                "SELECT COUNT(*) FROM identity_auth_sessions "
+                "WHERE user_id = :uid AND revoked_at IS NULL",
+                uid=view.id,
+            )
+        )[0][0]
+        assert active == 0
+
+        # 万一登录抢在重置之前提交，它拿到的令牌也必须立刻失效
+        for issue in [item for item in results if isinstance(item, AuthIssue)]:
+            with pytest.raises(InvalidAccessToken):
+                await service.verify(issue.access_token)
+
+        # 旧密码不再可用，新密码可用
+        with pytest.raises(InvalidCredentials):
+            await service.login("race-reset@example.com", DEMO_PASSWORD, "203.0.113.113")
+        reopened = await service.login("race-reset@example.com", new_password, "203.0.113.114")
+        assert reopened.user_id == view.id
+
+    asyncio.run(scenario())
+
+
+def test_logout_locks_session_before_token(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """logout 与 refresh 必须以相同顺序加锁，否则并发时会 ABBA 死锁。
+
+    做法：先用外部事务占住令牌行，再看 logout 是否已经拿到会话锁。
+    若 logout 反过来先锁令牌行，它会停在令牌行上，会话行就不会被占用。
+    """
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        _view, issue = await _register_and_login(
+            service, "lock-order@example.com", "203.0.113.115"
+        )
+        factory = create_session_factory(migrated_mysql_database)
+        # 探测连接用独立引擎（NullPool）：会话级的锁等待超时随连接一起消失，
+        # 不会残留到连接池里影响其他用例。
+        probe_engine = create_async_engine(
+            migrated_mysql_database, poolclass=NullPool
+        )
+
+        try:
+            async with factory() as holder_db:
+                await holder_db.execute(
+                    select(RefreshToken)
+                    .where(
+                        RefreshToken.token_hash == hash_refresh_token(issue.refresh_token)
+                    )
+                    .with_for_update()
+                )
+
+                logout_task = asyncio.create_task(
+                    service.logout(issue.refresh_token, issue.csrf_token)
+                )
+                await asyncio.sleep(LOCK_OBSERVE_DELAY)
+                assert not logout_task.done(), "logout 不应在令牌行被占用时完成"
+
+                # 用一个最多等 2 秒的连接去抢会话行：拿不到，说明 logout 已经
+                # 先锁住了会话行（refresh 的顺序）；拿到了，说明它还在令牌行上。
+                session_lock_held = True
+                async with async_sessionmaker(probe_engine, expire_on_commit=False)() as probe_db:
+                    await probe_db.execute(
+                        text("SET SESSION innodb_lock_wait_timeout = 2")
+                    )
+                    try:
+                        await probe_db.execute(
+                            select(AuthSession)
+                            .where(AuthSession.id == issue.session_id)
+                            .with_for_update()
+                        )
+                        session_lock_held = False
+                        await probe_db.rollback()
+                    except OperationalError:
+                        session_lock_held = True
+
+                # 放掉令牌行，让 logout 走完
+                await holder_db.rollback()
+                await logout_task
+
+            assert session_lock_held, "logout 必须先锁会话行再锁令牌行（与 refresh 同序）"
+        finally:
+            await probe_engine.dispose()
+
+        state = await _session_state(migrated_mysql_database, issue.session_id)
+        assert state["revoke_reason"] == "logout"
+        with pytest.raises(InvalidAccessToken):
+            await service.verify(issue.access_token)
+
+    asyncio.run(scenario())
+
+
+def test_refresh_and_logout_concurrently_do_not_deadlock(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """刷新与退出并发执行不得因锁顺序相反而死锁。"""
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        for round_index in range(3):
+            _view, issue = await _register_and_login(
+                service, f"no-deadlock-{round_index}@example.com", "203.0.113.116"
+            )
+            results = await asyncio.gather(
+                service.refresh(issue.refresh_token, issue.csrf_token, "203.0.113.116"),
+                service.logout(issue.refresh_token, issue.csrf_token),
+                return_exceptions=True,
+            )
+            for item in results:
+                assert not isinstance(item, IdentityDependencyError), f"并发锁冲突：{item}"
+                assert item is None or isinstance(item, AuthIssue) or isinstance(
+                    item, (InvalidCredentials, InvalidCsrf)
+                ), item
+
+    asyncio.run(scenario())
+
+
+def test_concurrent_logins_stop_at_the_email_limit(
+    migrated_mysql_database: str, clean_redis: str, identity_codec
+):
+    """并发登录不能突破每邮箱失败上限：计数与判定必须是原子的。"""
+
+    async def scenario():
+        service = await _build_service(migrated_mysql_database, clean_redis, identity_codec)
+        await service.register_demo("burst@example.com", DEMO_PASSWORD, "203.0.113.117")
+
+        attempts = LOGIN_EMAIL_LIMIT * 2
+        results = await asyncio.gather(
+            *[
+                service.login("burst@example.com", DEMO_PASSWORD + "-wrong", "203.0.113.117")
+                for _ in range(attempts)
+            ],
+            return_exceptions=True,
+        )
+        rejected = [item for item in results if isinstance(item, InvalidCredentials)]
+        limited = [item for item in results if isinstance(item, RateLimited)]
+        assert len(rejected) + len(limited) == attempts, results
+        # 超过上限的尝试必须被限流拦住，而不是都去做密码校验
+        assert len(rejected) <= LOGIN_EMAIL_LIMIT, results
+        assert len(limited) >= attempts - LOGIN_EMAIL_LIMIT, results
+        for error in limited:
+            assert error.retry_after_seconds > 0
+
+    asyncio.run(scenario())

@@ -16,6 +16,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import jwt
+from cryptography.exceptions import UnsupportedAlgorithm
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 from identity.types import IdentityConfigurationError, InvalidAccessToken
 
@@ -44,6 +47,34 @@ class AccessClaims:
     user_id: str
     session_id: str
     jti: str
+
+
+def _spki_der(public_key) -> bytes:
+    """公钥的 DER SubjectPublicKeyInfo，用于比对两把公钥是否同一把。"""
+    return public_key.public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+
+def _load_rsa_private_key(pem: str):
+    try:
+        key = serialization.load_pem_private_key(pem.encode("utf-8"), password=None)
+    except (ValueError, TypeError, UnsupportedAlgorithm) as exc:
+        raise IdentityConfigurationError(
+            "身份签名私钥无法解析：应为未加密的 PEM 私钥"
+        ) from exc
+    if not isinstance(key, rsa.RSAPrivateKey):
+        raise IdentityConfigurationError(
+            "身份签名私钥必须是 RSA 私钥：访问令牌算法固定 RS256"
+        )
+    return key
+
+
+def _load_public_key(pem: str, kid: str):
+    try:
+        return serialization.load_pem_public_key(pem.encode("utf-8"))
+    except (ValueError, TypeError, UnsupportedAlgorithm) as exc:
+        raise IdentityConfigurationError(f"公钥 {kid} 无法解析：应为 PEM 公钥") from exc
 
 
 class TokenCodec:
@@ -77,12 +108,26 @@ class TokenCodec:
         if clock_skew_seconds < 0:
             raise IdentityConfigurationError("时钟容差不能为负数")
 
+        # 装配阶段就把密钥解析并比对完：私钥损坏或与当前 kid 不配对时立即失败，
+        # 否则会在会话事务提交之后、签发令牌时才炸，留下孤儿登录会话。
+        private_key = _load_rsa_private_key(private_key_pem)
+        active_public_key = _load_public_key(public_keys[active_kid], active_kid)
+        if _spki_der(private_key.public_key()) != _spki_der(active_public_key):
+            raise IdentityConfigurationError(
+                f"身份签名私钥与当前 kid（{active_kid}）的公钥不配对："
+                "请修正 ECOM_IDENTITY_PRIVATE_KEY_PATH 或公钥集合"
+            )
+        for kid, pem in public_keys.items():
+            # 轮换用的其他公钥也要能解析，不能等到换 kid 时才发现配置损坏
+            if kid != active_kid:
+                _load_public_key(pem, kid)
+
         self.issuer = issuer
         self.audience = audience
         self.active_kid = active_kid
         self.access_ttl_seconds = access_ttl_seconds
         self.clock_skew_seconds = clock_skew_seconds
-        self._private_key_pem = private_key_pem
+        self._private_key = private_key
         self._public_keys = dict(public_keys)
 
     def issue(self, user_id: str, session_id: str, now: datetime) -> str:
@@ -102,7 +147,7 @@ class TokenCodec:
         }
         return jwt.encode(
             claims,
-            self._private_key_pem,
+            self._private_key,
             algorithm=ALGORITHM,
             headers={"kid": self.active_kid},
         )
