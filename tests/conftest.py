@@ -185,23 +185,36 @@ def redis_test_url() -> str:
     return url
 
 
-async def _flush_redis(url: str) -> None:
-    """清空隔离测试库；每次都在自己的事件循环里建立并关闭连接。"""
+# 身份模块只写这一个前缀的键；夹具据此清理，绝不做 FLUSHDB。
+RATE_LIMIT_KEY_PATTERN = "identity:rl:*"
+
+
+async def _clear_identity_keys(url: str) -> None:
+    """只删除身份限流自己的键。
+
+    这个 Redis 可能与别的服务共用同一个 DB（本机就是如此），`FLUSHDB`
+    会连带清掉别人正在用的状态，因此按前缀精确删除。
+    每次调用都在自己的事件循环里建立并关闭连接，避免跨循环复用。
+    """
     from redis.asyncio import Redis
 
     client = Redis.from_url(url, decode_responses=True)
     try:
-        await client.flushdb()
+        keys = [
+            key async for key in client.scan_iter(match=RATE_LIMIT_KEY_PATTERN, count=200)
+        ]
+        if keys:
+            await client.delete(*keys)
     finally:
         await client.aclose()
 
 
 @pytest.fixture
 def clean_redis(redis_test_url: str) -> str:
-    """给出一个用例前后都清空的隔离 Redis URL。
+    """给出一个用例前后都清掉身份限流键的 Redis URL。
 
     返回 URL 而不是连接对象：用例在自己的事件循环内建立连接，避免跨循环复用。
     """
-    asyncio.run(_flush_redis(redis_test_url))
+    asyncio.run(_clear_identity_keys(redis_test_url))
     yield redis_test_url
-    asyncio.run(_flush_redis(redis_test_url))
+    asyncio.run(_clear_identity_keys(redis_test_url))
