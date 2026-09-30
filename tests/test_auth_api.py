@@ -404,9 +404,21 @@ def test_origin_csrf_cors_and_missing_dependencies(
         async with http_client(broken_app) as client:
             unavailable = await _login(client, "guard@example.com")
             assert unavailable.status_code == 503
+            assert unavailable.headers["cache-control"] == "no-store"
             detail = unavailable.json()["detail"]
             assert "BEGIN" not in detail and "PRIVATE KEY" not in detail
-            assert (await client.get("/api/v1/auth/csrf")).status_code == 503
+            csrf_unavailable = await client.get("/api/v1/auth/csrf")
+            assert csrf_unavailable.status_code == 503
+            assert csrf_unavailable.headers["cache-control"] == "no-store"
+
+            missing_bearer = await client.get("/api/v1/auth/me")
+            assert missing_bearer.status_code == 401
+            assert missing_bearer.headers["cache-control"] == "no-store"
+            unavailable_me = await client.get(
+                "/api/v1/auth/me", headers=bearer("any-token")
+            )
+            assert unavailable_me.status_code == 503
+            assert unavailable_me.headers["cache-control"] == "no-store"
 
             # 受保护路由：无 Bearer 是 401，带令牌而依赖故障是 503
             assert (await client.get("/api/v1/test/owned-resources/res-1")).status_code == 401

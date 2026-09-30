@@ -200,9 +200,15 @@ class IdentityService:
         ):
             raise InvalidCredentials("邮箱或密码不正确")
 
-        issue = await self._issue_session(user, user.password_hash)
+        # Redis 释放占用也可能失败。先完成它再落库会话，避免接口返回 503
+        # 时留下客户端从未收到令牌的活动会话。
         await self._limiter.clear_login_attempts(normalized, client_ip)
-        return issue
+        try:
+            return await self._issue_session(user, user.password_hash)
+        except InvalidCredentials:
+            # 改密或禁用可能恰好发生在密码校验后；最终复核失败仍算一次失败。
+            await self._limiter.record_login_failure(normalized, client_ip)
+            raise
 
     async def _issue_session(self, user: IdentityUser, verified_hash: str) -> AuthIssue:
         """创建登录会话与第一枚刷新令牌，提交后才签发访问令牌。

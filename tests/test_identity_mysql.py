@@ -1057,6 +1057,48 @@ LOCK_OBSERVE_DELAY = 0.5
 LOGIN_EMAIL_LIMIT = 5
 
 
+def test_login_redis_release_failure_does_not_leave_session(
+    migrated_mysql_database: str, clean_redis: str, identity_codec, monkeypatch
+):
+    """限流释放失败返回依赖错误时，不得留下客户端拿不到令牌的活动会话。"""
+
+    async def scenario():
+        from redis.asyncio import Redis
+
+        client = Redis.from_url(clean_redis, decode_responses=True)
+        try:
+            limiter = RedisRateLimiter(client)
+            service = await _build_service(
+                migrated_mysql_database, clean_redis, identity_codec, limiter=limiter
+            )
+            view = await service.register_demo(
+                "release-failure@example.com", DEMO_PASSWORD, "203.0.113.118"
+            )
+
+            async def failed_release(email: str, client_ip: str) -> None:
+                raise IdentityDependencyError("限流服务不可用")
+
+            monkeypatch.setattr(limiter, "clear_login_attempts", failed_release)
+            with pytest.raises(IdentityDependencyError):
+                await service.login(
+                    "release-failure@example.com", DEMO_PASSWORD, "203.0.113.118"
+                )
+
+            active = (
+                await _query(
+                    migrated_mysql_database,
+                    "SELECT COUNT(*) FROM identity_auth_sessions "
+                    "WHERE user_id = :uid AND revoked_at IS NULL",
+                    uid=view.id,
+                )
+            )[0][0]
+            assert active == 0
+        finally:
+            await client.aclose()
+
+    asyncio.run(scenario())
+
+
 def test_login_after_password_change_does_not_create_session(
     migrated_mysql_database: str, clean_redis: str, identity_codec
 ):

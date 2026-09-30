@@ -31,6 +31,7 @@ CSRF_HEADER_NAME = "X-CSRF-Token"
 BEARER_SCHEME = HTTPBearer(auto_error=False)
 
 _UNAUTHORIZED_HEADERS = {"WWW-Authenticate": "Bearer"}
+NO_STORE = {"Cache-Control": "no-store"}
 
 
 def is_trusted_proxy(address: str, networks: tuple[str, ...]) -> bool:
@@ -88,7 +89,7 @@ def require_identity(request: Request) -> IdentityService:
     service = getattr(runtime, "identity", None)
     if service is None:
         detail = getattr(runtime, "identity_error", None) or "身份服务未配置"
-        raise HTTPException(status_code=503, detail=detail)
+        raise HTTPException(status_code=503, detail=detail, headers=NO_STORE)
     return service
 
 
@@ -102,7 +103,9 @@ async def require_principal(
     """
     if credentials is None or not credentials.credentials:
         raise HTTPException(
-            status_code=401, detail="需要访问令牌", headers=_UNAUTHORIZED_HEADERS
+            status_code=401,
+            detail="需要访问令牌",
+            headers={**_UNAUTHORIZED_HEADERS, **NO_STORE},
         )
 
     service = require_identity(request)
@@ -110,14 +113,12 @@ async def require_principal(
         return await service.verify(credentials.credentials)
     except InvalidAccessToken as exc:
         raise HTTPException(
-            status_code=401, detail="访问令牌无效或已失效", headers=_UNAUTHORIZED_HEADERS
+            status_code=401,
+            detail="访问令牌无效或已失效",
+            headers={**_UNAUTHORIZED_HEADERS, **NO_STORE},
         ) from exc
     except IdentityDependencyError as exc:
-        raise HTTPException(status_code=503, detail="身份服务不可用") from exc
-
-
-# 认证响应（含错误响应）一律禁止缓存。
-NO_STORE = {"Cache-Control": "no-store"}
+        raise HTTPException(status_code=503, detail="身份服务不可用", headers=NO_STORE) from exc
 
 
 def configure_cors(app, settings) -> None:
