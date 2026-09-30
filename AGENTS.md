@@ -1,5 +1,9 @@
 # Repository Guidelines
 
+## Communication
+
+Use Simplified Chinese for user-facing explanations, questions, progress updates, and summaries. Keep code identifiers, API names, paths, commands, and error text in their original form; repository comments and documentation should generally use Simplified Chinese.
+
 ## Project Structure & Module Organization
 
 `main.py` exposes the FastAPI application. Recommendation agents live in `agents/`; `orchestrator/` coordinates them through the supervisor and LangGraph flow. Put request and response models in `models/`, configuration in `config/`, and supporting logic such as experiments, metrics, and feature storage in `services/`. Tests belong in `tests/` and should mirror the module they cover (for example, `tests/test_ab_test.py`). Architecture and project notes live in `docs/`; `plan.md` records the original plan.
@@ -17,6 +21,10 @@ Read [`ecommerce-agent-references/README.md`](ecommerce-agent-references/README.
 | Retail policies, tools, tasks, end-to-end agent evaluation | `ecommerce-agent-references/tau2-bench/` | [sierra-research/tau2-bench](https://github.com/sierra-research/tau2-bench) |
 
 Treat these repositories as read-only examples. Verify behavior in their code before adapting it, and implement changes in this project's own modules. Do not assume their demo checkout, payment, refund, or logistics flows are production integrations. Do not stage their nested Git repositories or install and run them unless the task requires it.
+
+## Design & Technology Choices
+
+Before settling on an architecture or technology, identify the requirements and constraints, compare viable alternatives, and document the trade-offs behind the decision. Consider correctness, security, performance, reliability, implementation complexity, maintainability, operational burden, cost, and fit with the existing codebase as applicable. State why the chosen option fits this project, what it gives up, and which assumptions or risks remain; do not present a technology choice without its decision rationale.
 
 ## Build, Test, and Development Commands
 
