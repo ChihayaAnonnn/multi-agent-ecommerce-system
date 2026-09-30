@@ -19,7 +19,7 @@ from api.auth import router as auth_router
 from api.catalog import router as catalog_router
 from api.commerce_read import router as commerce_read_router
 from api.health import router as health_router
-from api.identity import configure_cors, require_principal
+from api.identity import configure_identity_http, require_principal
 from api.recommendations import router as recommendations_router
 from api.runtime import build_identity_service
 from catalog.service import CatalogService
@@ -135,7 +135,7 @@ async def echo_client_ip(request: Request):
 
 def build_app(runtime, settings: Settings) -> FastAPI:
     app = FastAPI()
-    configure_cors(app, settings)
+    configure_identity_http(app, settings)
     for router in (
         health_router,
         recommendations_router,
@@ -182,6 +182,18 @@ def http_client(app, *, client=("198.51.100.7", 1234)) -> AsyncClient:
 
 def bearer(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+async def _disable_user(database_url: str, user_id: str) -> None:
+    """把账号置为 disabled，模拟运维停用。"""
+    from identity.models import IdentityUser
+
+    factory = create_session_factory(database_url)
+    async with factory() as db:
+        user = await db.get(IdentityUser, user_id)
+        assert user is not None
+        user.status = "disabled"
+        await db.commit()
 
 
 async def _expire_auth_session(database_url: str, session_id: str) -> None:
@@ -572,6 +584,78 @@ def test_principal_dependency_isolation(
             )
 
         PROTECTED_RESOURCES.clear()
+        await runtime.redis.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_disabled_account_is_401_not_500(
+    migrated_mysql_database: str, clean_redis: str, identity_key_files
+):
+    """账号被禁用后 /csrf、/refresh、/me 都是 401，不能变成未映射的 500。"""
+    settings = identity_settings(identity_key_files)
+
+    async def scenario():
+        runtime = build_runtime(migrated_mysql_database, clean_redis, settings, client=None)
+        app = build_app(runtime, settings)
+        async with http_client(app) as client:
+            await _register(client, "disabled@example.com")
+            login = await _login(client, "disabled@example.com")
+            assert login.status_code == 200
+            token = login.json()
+
+            await _disable_user(migrated_mysql_database, token["user_id"])
+
+            for response in (
+                await client.get("/api/v1/auth/csrf"),
+                await client.post(
+                    "/api/v1/auth/refresh", headers={"X-CSRF-Token": token["csrf_token"]}
+                ),
+            ):
+                assert response.status_code == 401, response.text
+                assert response.headers["cache-control"] == "no-store"
+
+            me = await client.get("/api/v1/auth/me", headers=bearer(token["access_token"]))
+            assert me.status_code == 401
+
+        await runtime.redis.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_validation_errors_do_not_echo_submitted_values(
+    migrated_mysql_database: str, clean_redis: str, identity_key_files
+):
+    """422 不回显提交内容，且同样禁止缓存。
+
+    pydantic 默认会把 `input` 放进错误详情，提交超长密码时等于把明文回显给调用方。
+    """
+    settings = identity_settings(identity_key_files)
+
+    async def scenario():
+        runtime = build_runtime(migrated_mysql_database, clean_redis, settings, client=None)
+        app = build_app(runtime, settings)
+        async with http_client(app) as client:
+            # 密码长度由服务层的密码策略判定（不在 pydantic 约束里，避免回显）
+            long_password = "p" * 300
+            too_long = await client.post(
+                "/api/v1/auth/register",
+                json={"email": "echo@example.com", "password": long_password},
+            )
+            assert too_long.status_code == 422, too_long.text
+            assert long_password not in too_long.text
+            assert too_long.headers["cache-control"] == "no-store"
+
+            # 超长邮箱由 pydantic 拦下，同样不能回显
+            long_email = "a" * 400 + "@example.com"
+            email_error = await client.post(
+                "/api/v1/auth/login",
+                json={"email": long_email, "password": DEMO_PASSWORD},
+            )
+            assert email_error.status_code == 422, email_error.text
+            assert long_email not in email_error.text
+            assert email_error.headers["cache-control"] == "no-store"
+
         await runtime.redis.aclose()
 
     asyncio.run(scenario())

@@ -19,7 +19,7 @@ from api.catalog import router as catalog_router
 from api.commerce_read import router as commerce_read_router
 from api.experiments import router as experiments_router
 from api.health import router as health_router
-from api.identity import configure_cors
+from api.identity import configure_identity_http
 from api.metrics import router as metrics_router
 from api.recommendations import router as recommendations_router
 from api.runtime import create_runtime
@@ -50,7 +50,7 @@ app.state.runtime = create_runtime()
 
 # 认证域 CORS 只允许显式配置的前端来源，绝不使用通配符：
 # 带凭证的跨站请求不允许 `*`，未配置来源时按拒绝处理。
-configure_cors(app, settings)
+configure_identity_http(app, settings)
 
 for router in (
     health_router,

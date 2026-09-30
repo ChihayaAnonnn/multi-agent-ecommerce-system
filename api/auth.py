@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from api.identity import (
     CSRF_HEADER_NAME,
+    NO_STORE,
     client_ip_for,
     identity_http_config,
     require_identity,
@@ -38,12 +39,22 @@ from identity.types import (
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
-NO_STORE = {"Cache-Control": "no-store"}
+
+def _fail(status_code: int, detail: str, *, retry_after: int | None = None) -> HTTPException:
+    """认证端点的错误响应同样禁止缓存。
+
+    长度上限刻意不写成 pydantic 约束：约束失败时框架会把提交值放进 422 响应，
+    等于把明文密码回显给调用方。密码策略统一由服务层的 `validate_password` 判定。
+    """
+    headers = dict(NO_STORE)
+    if retry_after is not None:
+        headers["Retry-After"] = str(retry_after)
+    return HTTPException(status_code=status_code, detail=detail, headers=headers)
 
 
 class RegisterRequest(BaseModel):
     email: str = Field(min_length=3, max_length=320)
-    password: str = Field(min_length=1, max_length=256)
+    password: str = Field(min_length=1)
 
     @field_validator("email")
     @classmethod
@@ -111,20 +122,20 @@ def _check_origin(request: Request) -> None:
         return
     config = identity_http_config(request)
     if not config.allowed_origins or origin not in config.allowed_origins:
-        raise HTTPException(status_code=403, detail="请求来源不被信任")
+        raise _fail(403, "请求来源不被信任")
 
 
 def _require_csrf(request: Request) -> str:
     value = request.headers.get(CSRF_HEADER_NAME)
     if not value:
-        raise HTTPException(status_code=403, detail="缺少 CSRF 校验值")
+        raise _fail(403, "缺少 CSRF 校验值")
     return value
 
 
 def _refresh_cookie(request: Request) -> str:
     value = request.cookies.get(identity_http_config(request).refresh_cookie_name)
     if not value:
-        raise HTTPException(status_code=401, detail="缺少刷新令牌 Cookie")
+        raise _fail(401, "缺少刷新令牌 Cookie")
     return value
 
 
@@ -179,19 +190,15 @@ async def register(
             payload.email, payload.password, client_ip_for(request)
         )
     except DemoModeDisabled as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
+        raise _fail(403, str(exc)) from exc
     except EmailAlreadyRegistered as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise _fail(409, str(exc)) from exc
     except (PasswordPolicyError, InvalidEmail) as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise _fail(422, str(exc)) from exc
     except RateLimited as exc:
-        raise HTTPException(
-            status_code=429,
-            detail=str(exc),
-            headers={"Retry-After": str(exc.retry_after_seconds)},
-        ) from exc
+        raise _fail(429, str(exc), retry_after=exc.retry_after_seconds) from exc
     except IdentityDependencyError as exc:
-        raise HTTPException(status_code=503, detail="身份服务不可用") from exc
+        raise _fail(503, "身份服务不可用") from exc
     response.headers.update(NO_STORE)
     return RegisterResponse(**_user_view(view))
 
@@ -204,15 +211,11 @@ async def login(payload: LoginRequest, request: Request) -> Response:
     try:
         issue = await service.login(payload.email, payload.password, client_ip_for(request))
     except InvalidCredentials as exc:
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
+        raise _fail(401, str(exc)) from exc
     except RateLimited as exc:
-        raise HTTPException(
-            status_code=429,
-            detail=str(exc),
-            headers={"Retry-After": str(exc.retry_after_seconds)},
-        ) from exc
+        raise _fail(429, str(exc), retry_after=exc.retry_after_seconds) from exc
     except IdentityDependencyError as exc:
-        raise HTTPException(status_code=503, detail="身份服务不可用") from exc
+        raise _fail(503, "身份服务不可用") from exc
     return _issue_response(issue, request)
 
 
@@ -222,10 +225,11 @@ async def csrf(request: Request) -> Response:
     service = require_identity(request)
     try:
         value = await service.csrf_for_refresh(_refresh_cookie(request))
-    except InvalidCredentials as exc:
-        raise HTTPException(status_code=401, detail="刷新令牌无效或已失效") from exc
+    except (InvalidCredentials, InvalidAccessToken) as exc:
+        # 账号被禁用等账号级失效也归到 401，不能变成未映射的 500
+        raise _fail(401, "刷新令牌无效或已失效") from exc
     except IdentityDependencyError as exc:
-        raise HTTPException(status_code=503, detail="身份服务不可用") from exc
+        raise _fail(503, "身份服务不可用") from exc
     return Response(
         content=CsrfResponse(csrf_token=value).model_dump_json(),
         media_type="application/json",
@@ -243,17 +247,13 @@ async def refresh(request: Request) -> Response:
             _refresh_cookie(request), _require_csrf(request), client_ip_for(request)
         )
     except InvalidCsrf as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except InvalidCredentials as exc:
-        raise HTTPException(status_code=401, detail="刷新令牌无效或已失效") from exc
+        raise _fail(403, str(exc)) from exc
+    except (InvalidCredentials, InvalidAccessToken) as exc:
+        raise _fail(401, "刷新令牌无效或已失效") from exc
     except RateLimited as exc:
-        raise HTTPException(
-            status_code=429,
-            detail=str(exc),
-            headers={"Retry-After": str(exc.retry_after_seconds)},
-        ) from exc
+        raise _fail(429, str(exc), retry_after=exc.retry_after_seconds) from exc
     except IdentityDependencyError as exc:
-        raise HTTPException(status_code=503, detail="身份服务不可用") from exc
+        raise _fail(503, "身份服务不可用") from exc
     return _issue_response(issue, request)
 
 
@@ -265,11 +265,11 @@ async def logout(request: Request) -> Response:
     try:
         await service.logout(_refresh_cookie(request), _require_csrf(request))
     except InvalidCsrf as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except InvalidCredentials as exc:
-        raise HTTPException(status_code=401, detail="刷新令牌无效或已失效") from exc
+        raise _fail(403, str(exc)) from exc
+    except (InvalidCredentials, InvalidAccessToken) as exc:
+        raise _fail(401, "刷新令牌无效或已失效") from exc
     except IdentityDependencyError as exc:
-        raise HTTPException(status_code=503, detail="身份服务不可用") from exc
+        raise _fail(503, "身份服务不可用") from exc
 
     response = Response(status_code=204, headers=dict(NO_STORE))
     _clear_refresh_cookie(response, request)
@@ -285,9 +285,9 @@ async def me(
     try:
         view = await service.get_me(principal)
     except InvalidAccessToken as exc:
-        raise HTTPException(status_code=401, detail="访问令牌无效或已失效") from exc
+        raise _fail(401, "访问令牌无效或已失效") from exc
     except IdentityDependencyError as exc:
-        raise HTTPException(status_code=503, detail="身份服务不可用") from exc
+        raise _fail(503, "身份服务不可用") from exc
     return Response(
         content=MeResponse(**_user_view(view)).model_dump_json(),
         media_type="application/json",

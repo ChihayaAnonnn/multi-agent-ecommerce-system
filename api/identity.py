@@ -9,7 +9,9 @@ from __future__ import annotations
 import ipaddress
 
 from fastapi import Depends, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from api.runtime import get_runtime
@@ -114,6 +116,10 @@ async def require_principal(
         raise HTTPException(status_code=503, detail="身份服务不可用") from exc
 
 
+# 认证响应（含错误响应）一律禁止缓存。
+NO_STORE = {"Cache-Control": "no-store"}
+
+
 def configure_cors(app, settings) -> None:
     """为认证域配置 CORS：只允许明确配置的来源，绝不使用 `*`。
 
@@ -126,3 +132,31 @@ def configure_cors(app, settings) -> None:
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", CSRF_HEADER_NAME],
     )
+
+
+def install_validation_error_handler(app) -> None:
+    """改写校验错误响应：不回显提交内容，且禁止缓存。
+
+    pydantic 的 422 默认把 `input` 原样回显，提交超长或格式错误的密码时
+    响应体里就会出现明文密码（还可能被上游日志留存）。这里只保留定位信息。
+    """
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error(request: Request, exc: RequestValidationError):
+        detail = [
+            {
+                "type": error.get("type"),
+                "loc": [str(part) for part in error.get("loc", ())],
+                "msg": error.get("msg"),
+            }
+            for error in exc.errors()
+        ]
+        return JSONResponse(
+            status_code=422, content={"detail": detail}, headers=dict(NO_STORE)
+        )
+
+
+def configure_identity_http(app, settings) -> None:
+    """装配认证域的 HTTP 行为：CORS 白名单与不回显提交内容的校验错误。"""
+    configure_cors(app, settings)
+    install_validation_error_handler(app)
