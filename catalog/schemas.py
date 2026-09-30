@@ -227,3 +227,10 @@ class ProductPage(BaseModel):
 
     items: list[ProductSummaryView] = Field(default_factory=list)
     next_cursor: str | None = None
+
+
+class SaleFactView(BaseModel):
+    """同事务锁定的可售商品与 SKU；不包含价格、库存。"""
+    product: ProductView
+    sku: SKUDetailView
+    category_attributes: list[AttributeView] = Field(default_factory=list)

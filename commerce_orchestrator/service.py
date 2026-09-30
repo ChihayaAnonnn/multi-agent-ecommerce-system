@@ -14,9 +14,7 @@ from models.commerce import TurnRequest, TurnResponse
 from db.base import new_id
 
 
-def request_hash(data: dict) -> str:
-    return hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False, separators=(',',':')).encode()).hexdigest()
-
+from commerce_orchestrator.utils import request_hash
 
 class CommerceOrchestrator:
     def __init__(self, sessions: ShoppingSessionService, facts: CommerceFactsReader, catalog: CatalogService, scan_limit: int = 200):
@@ -37,6 +35,7 @@ class CommerceOrchestrator:
         current = current.apply(parse_intent(normalized.message, current))
         if turn.constraints:
             current = current.apply(IntentUpdate.model_validate(turn.constraints.model_dump(exclude_unset=True)))
+        claim = claim.model_copy(update={'state':current.model_dump(mode='json')})
         intent = route(normalized.message, turn)
         response = TurnResponse(request_id=new_id(), session_id=session_id, turn_id=turn.turn_id,
             intent=intent, status='clarify', constraints=current)
@@ -47,6 +46,18 @@ class CommerceOrchestrator:
             elif intent == 'cart_read' and self.cart is not None:
                 response.cart = (await self.cart.get_cart(principal)).model_dump(mode='json')
                 response.status = 'cart_updated'
+            elif intent == 'cart_mutation' and self.cart is not None:
+                kind = 'remove' if any(w in normalized.message for w in ['移除','删除']) else 'set_quantity' if '改成' in normalized.message else 'add'
+                if not turn.selected_sku_id or (kind != 'remove' and turn.quantity is None):
+                    response.question = '请选择具体规格并明确数量。'
+                elif turn.expected_cart_version is None:
+                    response.question = '请先读取购物车版本后再生成提案。'
+                else:
+                    target = {'sku_id':turn.selected_sku_id}
+                    if kind != 'remove':
+                        target['quantity'] = turn.quantity
+                    response.proposed_action = (await self.cart.propose_action(principal,session_id,kind,target,turn.expected_cart_version,claim)).model_dump(mode='json')
+                    response.status = 'confirm_action'
             elif intent in {'cart_read','cart_mutation','checkout'}:
                 response.status = 'unavailable'; response.errors = [{'code':'capability_unavailable'}]
             elif intent == 'compare':

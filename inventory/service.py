@@ -110,6 +110,23 @@ class InventoryService:
             )
         return result
 
+    async def lock_availability(self, db: AsyncSession, sku_ids: list[str]) -> dict[str, AvailabilityView]:
+        """按 SKU/库位顺序锁余额，在调用方事务内汇总，不提交。"""
+        if not sku_ids:
+            return {}
+        rows = list(await db.scalars(select(InventoryBalance).where(InventoryBalance.sku_id.in_(sku_ids))
+            .order_by(InventoryBalance.sku_id, InventoryBalance.location_id).with_for_update()))
+        result = {}
+        now = utcnow()
+        for sku_id in sku_ids:
+            balances = [row for row in rows if row.sku_id == sku_id]
+            quantity = sum(row.on_hand - row.reserved for row in balances) if balances else None
+            result[sku_id] = AvailabilityView(sku_id=sku_id,
+                status='unknown' if quantity is None else 'available' if quantity > 0 else 'out_of_stock',
+                available_quantity=quantity, version=max((row.version for row in balances), default=None),
+                read_at=now, locations=[to_balance_view(row) for row in balances])
+        return result
+
     # ---------- 建档 ----------
 
     async def create_balance(

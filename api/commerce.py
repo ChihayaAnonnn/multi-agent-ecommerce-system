@@ -67,3 +67,10 @@ def carts(request: Request):
 async def get_cart(session_id: str, principal: Principal=Depends(require_principal), session_service=Depends(sessions), cart_service=Depends(carts)):
     await invoke(session_service.get_owned(session_id,principal))
     return await invoke(cart_service.get_cart(principal))
+
+from models.commerce import ConfirmationRequest
+
+
+@router.post('/sessions/{session_id}/actions/{action_id}/confirm')
+async def confirm_action(session_id: str, action_id: str, body: ConfirmationRequest, principal: Principal=Depends(require_principal), service=Depends(carts)):
+    return await invoke(service.confirm(principal,session_id,action_id,body.approved,body.idempotency_key))

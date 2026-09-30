@@ -97,6 +97,16 @@ class PricingService:
         except SQLAlchemyError as exc:
             raise PricingDependencyError("价格查询失败") from exc
 
+    async def lock_prices(self, db: AsyncSession, sku_ids: list[str]) -> dict[str, PriceView]:
+        """在调用方事务内锁定 CNY 现价，不提交。"""
+        if not sku_ids:
+            return {}
+        rows = await db.scalars(select(SKUPrice).where(SKUPrice.sku_id.in_(sku_ids),
+            SKUPrice.currency == CURRENCY).order_by(SKUPrice.sku_id).with_for_update())
+        now = utcnow()
+        return {row.sku_id: PriceView(sku_id=row.sku_id, currency=row.currency,
+            amount_minor=row.amount_minor, version=row.version, effective_at=row.effective_at, read_at=now) for row in rows}
+
     async def has_current_prices(self, sku_ids: list[str]) -> bool:
         """目录上架使用的只读边界：每个 SKU 都必须有现行 CNY 价格。
 

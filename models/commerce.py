@@ -45,3 +45,8 @@ class TurnResponse(BaseModel):
 
 class CompareRequest(CommerceInput):
     product_ids: list[str] = Field(min_length=2, max_length=3)
+
+
+class ConfirmationRequest(CommerceInput):
+    approved: bool = Field(strict=True)
+    idempotency_key: str = Field(min_length=1,max_length=64)

@@ -30,6 +30,7 @@ from catalog.models import (
     SKUOptionValue,
 )
 from catalog.schemas import (
+    SaleFactView,
     AttributeInput,
     AttributeView,
     CategoryInput,
@@ -426,6 +427,21 @@ class CatalogService:
             return {sku.id: SKUDetailView(**SKUView.model_validate(sku).model_dump(),
                 product_status=cast(ProductStatus, status), selected_values=selected.get(sku.id, []))
                 for sku, status in rows}
+
+    async def lock_sale_facts(self, db: AsyncSession, sku_ids: list[str]) -> dict[str, SaleFactView]:
+        """锁定本领域商品/SKU 行；不提交、不写其他领域表。"""
+        if not sku_ids:
+            return {}
+        rows = list(await db.execute(select(Product, SKU).join(SKU, SKU.product_id == Product.id)
+            .where(SKU.id.in_(sku_ids)).order_by(Product.id, SKU.id).with_for_update()))
+        selected = await self._load_selected_values(db, [sku.id for _, sku in rows])
+        attributes = list(await db.scalars(select(CategoryAttribute).where(CategoryAttribute.category_id.in_(
+            list({p.category_id for p, _ in rows}))).order_by(CategoryAttribute.code)))
+        return {sku.id: SaleFactView(product=ProductView.model_validate(product),
+            category_attributes=[AttributeView.model_validate(a) for a in attributes if a.category_id == product.category_id],
+            sku=SKUDetailView(**SKUView.model_validate(sku).model_dump(),
+                product_status=cast(ProductStatus, product.status), selected_values=selected.get(sku.id, [])))
+            for product, sku in rows}
 
     async def search(
         self,
