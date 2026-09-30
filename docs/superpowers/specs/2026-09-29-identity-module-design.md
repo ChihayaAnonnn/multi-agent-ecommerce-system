@@ -2,7 +2,9 @@
 
 日期：2026-09-29
 
-状态：评审稿
+状态：已实现（2026-09-30）
+
+实现范围：`identity/`、`api/auth.py`、`api/identity.py`、Alembic `0004_identity` 迁移与 `scripts/reset_demo_password.py`；第 7、8 节记录实现后的图示与选型理由，其中标注「实现补充」的行为是实施阶段为消除竞态而收紧的。购物会话、购物车归属与宿主交接仍属后续设计，不在本稿实现范围内。
 
 关联设计：[电商 Agent MVP 架构与交易交接设计](2026-09-29-commerce-agent-mvp-design.md)。本稿定义 `identity/` 如何产生和验证可信主体；购物会话、购物车归属及宿主交接仍以关联设计为准。
 
