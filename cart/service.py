@@ -218,8 +218,12 @@ class CartService:
         action.confirmation_request_hash=request_hash({'action_id':action.id,'approved':approved})
         action.result_json=result
 
-    async def confirm(self, principal: Principal, session_id: str, action_id: str, approved: bool, idempotency_key: str) -> 'CartConfirmationView':
+    async def confirm(self, principal: Principal, session_id: str, action_id: str, approved: bool, idempotency_key: str,source_turn: TurnClaim | None=None) -> 'CartConfirmationView':
         async with self.factory() as db, db.begin():
+            if source_turn is not None:
+                if source_turn.session_id!=session_id or source_turn.principal_key!=principal.principal_key:
+                    raise CommerceError('turn_lease_lost',409)
+                await self.sessions.assert_current_turn(db,source_turn)
             cart,action=await self.locked_action(db,principal,session_id,action_id)
             replay=await self.confirmation_replay(db,principal,action,approved,idempotency_key)
             if replay is not None:

@@ -46,3 +46,43 @@ def test_foreign_chat_action_is_404(migrated_mysql_database):
         assert after.status=='cart_updated'
         assert not (await cart.get_cart(a)).items
     asyncio.run(scenario())
+
+
+def test_stale_chat_claim_cannot_confirm_cart_or_checkout(migrated_mysql_database):
+    import pytest
+    from datetime import timedelta
+    from sqlalchemy import update,select,func
+    from shopping_session.models import CommerceSession
+    from shopping_session.service import CommerceError
+    from checkout.models import CheckoutHandoff
+    from checkout.service import CheckoutService
+    from checkout.gateway import DemoHostCheckoutGateway
+    from db.base import utcnow
+    class Host(DemoHostCheckoutGateway):
+        calls=0
+        async def create_handoff(self,*args):
+            self.calls+=1
+            return await super().create_handoff(*args)
+    async def scenario():
+        factory,sessions,cart,a,_,s,view,_,_,skus=await setup(migrated_mysql_database)
+        service=CommerceOrchestrator(sessions,cart.facts,cart.facts.catalog);service.cart=cart
+        host=Host();service.checkout=CheckoutService(factory,sessions,cart,host)
+        async def reject_stale(action,phrase,key):
+            claim=await sessions.claim_turn(s.session_id,a,key,key)
+            async with factory() as db:
+                await db.execute(update(CommerceSession).where(CommerceSession.id==s.session_id).values(turn_lease_expires_at=utcnow()-timedelta(seconds=1)));await db.commit()
+            replacement=await sessions.claim_turn(s.session_id,a,key,key)
+            with pytest.raises(CommerceError,match='turn_lease_lost'):
+                await service.chat_confirmation(a,claim,TurnRequest(turn_id=key,message=phrase,respond_to_action_id=action,idempotency_key=key))
+            assert (await cart.get_action(a,s.session_id,action)).status=='pending'
+            await sessions.release_turn(replacement)
+        action=await cart.propose_action(a,s.session_id,'add',{'sku_id':skus[0].id,'quantity':1},view.version)
+        await reject_stale(action.action_id,'确认加购','old-cart')
+        assert (await cart.get_cart(a)).version==1 and not (await cart.get_cart(a)).items
+        await cart.confirm(a,s.session_id,action.action_id,True,'button')
+        preview=await service.checkout.preview(a,s.session_id,2)
+        await reject_stale(preview.action_id,'确认结账','old-checkout')
+        assert host.calls==0
+        async with factory() as db:
+            assert await db.scalar(select(func.count()).select_from(CheckoutHandoff))==0
+    asyncio.run(scenario())

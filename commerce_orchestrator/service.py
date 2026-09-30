@@ -48,7 +48,7 @@ class CommerceOrchestrator:
         if action.kind=='checkout_handoff':
             if self.checkout is None:
                 response.status='unavailable';response.errors=[{'code':'checkout_unavailable'}];return response
-            result=await self.checkout.confirm_handoff(principal,claim.session_id,action.id,approved,turn.idempotency_key)
+            result=await self.checkout.confirm_handoff(principal,claim.session_id,action.id,approved,turn.idempotency_key,source_turn=claim)
             response.handoff=result.model_dump(mode='json')
             response.status='handoff' if result.status=='handoff' else 'confirm_action' if result.preview else 'clarify' if result.status=='declined' else 'unavailable'
             if result.preview:
@@ -56,12 +56,14 @@ class CommerceOrchestrator:
             if result.error_code:
                 response.errors=[{'code':result.error_code}]
         else:
-            result=await self.cart.confirm(principal,claim.session_id,action.id,approved,turn.idempotency_key)
+            result=await self.cart.confirm(principal,claim.session_id,action.id,approved,turn.idempotency_key,source_turn=claim)
             response.cart=result.cart.model_dump(mode='json') if result.cart else None
             response.proposed_action=result.proposed_action.model_dump(mode='json') if result.proposed_action else None
             response.status='cart_updated' if result.status=='cart_updated' else 'confirm_action' if result.proposed_action else 'clarify'
             if result.error_code:
                 response.errors=[{'code':result.error_code}]
+        if result.status=='declined':
+            response.action_result='declined'
         response.question=None if approved else '已取消，购物车未修改。'
         return response
 
