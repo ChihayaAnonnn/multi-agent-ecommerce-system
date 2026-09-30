@@ -373,90 +373,59 @@ class CatalogService:
     # ---------- 读取 ----------
 
     async def get_product(self, product_id: str) -> ProductDetailView:
-        """商品详情，含真实 SKU 组合、购买规格、媒体与类目属性定义。
+        result = await self.get_products([product_id])
+        if product_id not in result:
+            raise CatalogNotFoundError(f"商品不存在: {product_id}")
+        return result[product_id]
 
-        已归档商品同样返回，由 `status` 显式区分；停用 SKU 也会出现在 `skus` 中，
-        调用方按 `status == "active"` 判断可售候选。
-        """
+    async def get_products(self, product_ids: list[str]) -> dict[str, ProductDetailView]:
+        """批量加载完整详情；SQL 查询数不随商品数量增加。"""
+        if not product_ids:
+            return {}
         async with self._session_factory() as session:
-            product = await session.get(Product, product_id)
-            if product is None:
-                raise CatalogNotFoundError(f"商品不存在: {product_id}")
-
-            category = await self._require_category(session, product.category_id)
-            attributes = list(
-                await session.scalars(
-                    select(CategoryAttribute)
-                    .where(CategoryAttribute.category_id == product.category_id)
-                    .order_by(CategoryAttribute.code)
-                )
-            )
-            options = list(
-                await session.scalars(
-                    select(ProductOption)
-                    .where(ProductOption.product_id == product_id)
-                    .order_by(ProductOption.sort_order, ProductOption.id)
-                )
-            )
-            option_values = await self._load_option_values(session, [o.id for o in options])
-            skus = list(
-                await session.scalars(
-                    select(SKU)
-                    .where(SKU.product_id == product_id)
-                    .order_by(SKU.sku_code)
-                )
-            )
+            products = list(await session.scalars(select(Product).where(Product.id.in_(product_ids))))
+            ids = [p.id for p in products]
+            category_ids = list({p.category_id for p in products})
+            categories = {c.id: c for c in await session.scalars(select(Category).where(Category.id.in_(category_ids)))}
+            attributes = list(await session.scalars(select(CategoryAttribute).where(
+                CategoryAttribute.category_id.in_(category_ids)).order_by(CategoryAttribute.code)))
+            options = list(await session.scalars(select(ProductOption).where(
+                ProductOption.product_id.in_(ids)).order_by(ProductOption.sort_order, ProductOption.id)))
+            values = await self._load_option_values(session, [o.id for o in options])
+            skus = list(await session.scalars(select(SKU).where(SKU.product_id.in_(ids)).order_by(SKU.sku_code)))
             selected = await self._load_selected_values(session, [s.id for s in skus])
-            media = list(
-                await session.scalars(
-                    select(ProductMedia)
-                    .where(ProductMedia.product_id == product_id)
-                    .order_by(ProductMedia.sort_order, ProductMedia.id)
-                )
-            )
-
-            return ProductDetailView(
-                **ProductView.model_validate(product).model_dump(),
-                category=CategoryRefView.model_validate(category),
-                category_attributes=[
-                    AttributeView.model_validate(item) for item in attributes
-                ],
-                options=[
-                    OptionDetailView(
-                        **OptionView.model_validate(option).model_dump(),
-                        values=[
-                            OptionValueView.model_validate(value)
-                            for value in option_values.get(option.id, [])
-                        ],
-                    )
-                    for option in options
-                ],
-                skus=[
-                    SKUDetailView(
-                        **SKUView.model_validate(sku).model_dump(),
-                        product_status=cast(ProductStatus, product.status),
-                        selected_values=selected.get(sku.id, []),
-                    )
-                    for sku in skus
-                ],
-                media=[MediaView.model_validate(item) for item in media],
-            )
+            media = list(await session.scalars(select(ProductMedia).where(
+                ProductMedia.product_id.in_(ids)).order_by(ProductMedia.sort_order, ProductMedia.id)))
+            return {p.id: ProductDetailView(
+                **ProductView.model_validate(p).model_dump(),
+                category=CategoryRefView.model_validate(categories[p.category_id]),
+                category_attributes=[AttributeView.model_validate(a) for a in attributes if a.category_id == p.category_id],
+                options=[OptionDetailView(**OptionView.model_validate(o).model_dump(),
+                    values=[OptionValueView.model_validate(v) for v in values.get(o.id, [])])
+                    for o in options if o.product_id == p.id],
+                skus=[SKUDetailView(**SKUView.model_validate(sku).model_dump(),
+                    product_status=cast(ProductStatus, p.status), selected_values=selected.get(sku.id, []))
+                    for sku in skus if sku.product_id == p.id],
+                media=[MediaView.model_validate(m) for m in media if m.product_id == p.id],
+            ) for p in products}
 
     async def get_sku(self, sku_id: str) -> SKUDetailView:
-        """单个 SKU 及其确定的选项组合；SKU 停用与商品未上架都显式返回。"""
+        result = await self.get_skus([sku_id])
+        if sku_id not in result:
+            raise CatalogNotFoundError(f"SKU 不存在: {sku_id}")
+        return result[sku_id]
+
+    async def get_skus(self, sku_ids: list[str]) -> dict[str, SKUDetailView]:
+        """批量返回真实 SKU 组合与所属商品状态；缺失 ID 不生成占位商品。"""
+        if not sku_ids:
+            return {}
         async with self._session_factory() as session:
-            sku = await session.get(SKU, sku_id)
-            if sku is None:
-                raise CatalogNotFoundError(f"SKU 不存在: {sku_id}")
-            product = await session.get(Product, sku.product_id)
-            if product is None:
-                raise CatalogNotFoundError(f"商品不存在: {sku.product_id}")
-            selected = await self._load_selected_values(session, [sku.id])
-            return SKUDetailView(
-                **SKUView.model_validate(sku).model_dump(),
-                product_status=cast(ProductStatus, product.status),
-                selected_values=selected.get(sku.id, []),
-            )
+            rows = list(await session.execute(select(SKU, Product.status).join(
+                Product, Product.id == SKU.product_id).where(SKU.id.in_(sku_ids))))
+            selected = await self._load_selected_values(session, [sku.id for sku, _ in rows])
+            return {sku.id: SKUDetailView(**SKUView.model_validate(sku).model_dump(),
+                product_status=cast(ProductStatus, status), selected_values=selected.get(sku.id, []))
+                for sku, status in rows}
 
     async def search(
         self,
