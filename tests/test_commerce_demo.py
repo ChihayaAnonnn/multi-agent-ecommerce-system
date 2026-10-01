@@ -78,3 +78,26 @@ def test_guest_auto_login_refresh_and_resource_isolation(migrated_mysql_database
         finally:
             await runtime.redis.aclose()
     asyncio.run(scenario())
+
+
+def test_react_static_routes_do_not_shadow_api(tmp_path, identity_key_files):
+    (tmp_path/'assets').mkdir()
+    (tmp_path/'index.html').write_text('<html>React storefront</html>')
+    (tmp_path/'assets'/'app-test.js').write_text('console.log("storefront")')
+    async def scenario():
+        app=FastAPI()
+        configure_commerce_demo(app,identity_settings(identity_key_files,commerce_demo_enabled=True),build_dir=tmp_path)
+        async with AsyncClient(transport=ASGITransport(app),base_url='https://test') as c:
+            page=await c.get('/demo/commerce');assert 'React storefront' in page.text
+            assert 'no-store' in page.headers['cache-control']
+            asset=await c.get('/demo/commerce/assets/app-test.js')
+            assert asset.status_code==200 and 'javascript' in asset.headers['content-type']
+            assert (await c.get('/demo/commerce/assets/missing.js')).status_code==404
+            assert (await c.get('/demo/commerce/products/test-id')).status_code==200
+            assert (await c.get('/demo/commerce/not-a-route')).status_code==404
+            assert '模拟交接' in (await c.get('/demo/commerce/handoffs/test-id')).text
+        app=FastAPI()
+        configure_commerce_demo(app,identity_settings(identity_key_files,commerce_demo_enabled=True,identity_environment='production'),build_dir=tmp_path)
+        async with AsyncClient(transport=ASGITransport(app),base_url='https://test') as c:
+            assert (await c.get('/demo/commerce')).status_code==404
+    asyncio.run(scenario())

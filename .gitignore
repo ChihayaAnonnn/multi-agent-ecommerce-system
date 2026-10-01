@@ -45,3 +45,7 @@ docker-compose.override.yml
 /data/.hf_cache/
 /data/.venv/
 /data/import_state/
+/frontend/node_modules/
+/frontend/dist/
+/frontend/playwright-report/
+/frontend/test-results/

@@ -4,6 +4,7 @@ import secrets
 from uuid import uuid4
 from fastapi import Request, Response
 from fastapi.responses import FileResponse,HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from api.auth import RegisterRequest, LoginRequest, register, login
 from identity.types import DEMO_ENVIRONMENTS
 
@@ -12,13 +13,25 @@ DEMO_HEADERS={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
     'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' https:; frame-ancestors 'none'; base-uri 'self'"}
 
 
-def configure_commerce_demo(app,settings) -> None:
+def configure_commerce_demo(app,settings, *, build_dir: Path | None = None) -> None:
     if not getattr(settings,'commerce_demo_enabled',False) or settings.identity_environment not in DEMO_ENVIRONMENTS:
         return
 
+    built = build_dir or DEMO_DIR.parent / 'frontend' / 'dist'
+    react_page = built / 'index.html'
+    if react_page.is_file() and (built / 'assets').is_dir():
+        app.mount('/demo/commerce/assets', StaticFiles(directory=built / 'assets'), name='commerce-assets')
+
+    @app.get('/demo/commerce/products/{product_id}',include_in_schema=False)
+    async def commerce_product(product_id: str):
+        if not react_page.is_file():
+            from fastapi import HTTPException
+            raise HTTPException(404)
+        return FileResponse(react_page,headers=DEMO_HEADERS)
+
     @app.get('/demo/commerce',include_in_schema=False)
     async def commerce_demo():
-        return FileResponse(DEMO_DIR/'commerce.html',headers=DEMO_HEADERS)
+        return FileResponse(react_page if react_page.is_file() else DEMO_DIR/'commerce.html',headers=DEMO_HEADERS)
 
     @app.get('/demo/commerce.js',include_in_schema=False)
     async def commerce_js():
