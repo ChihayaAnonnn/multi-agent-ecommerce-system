@@ -50,14 +50,21 @@ export type Candidate = {
 };
 export type Proposal = {
   action_id: string;
-  kind: string;
+  kind?: string;
   summary?: {
     name: string;
+    sku_id: string;
     unit_amount_minor: number;
     final_quantity: number;
     sku_options?: { display_value: string }[];
   };
-  items?: { name: string; unit_amount_minor: number; quantity: number }[];
+  items?: {
+    name: string;
+    sku_id: string;
+    sku_options?: { display_value: string }[];
+    unit_amount_minor: number;
+    quantity: number;
+  }[];
   current_subtotal?: number;
 };
 export type Cart = {
@@ -66,6 +73,7 @@ export type Cart = {
   items: {
     sku_id: string;
     product_name: string;
+    sku_options?: { display_value: string }[];
     quantity: number;
     quote?: { price: Price | null; purchasable: boolean; reason: string };
   }[];

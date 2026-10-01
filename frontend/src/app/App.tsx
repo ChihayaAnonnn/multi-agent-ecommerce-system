@@ -1,7 +1,7 @@
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { AnimatedPresence } from "../components/AnimatedPresence";
 import { panelMotion } from "./motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMatch, useNavigate } from "react-router-dom";
 import {
   ShoppingBag,
@@ -51,8 +51,10 @@ export default function App() {
   const openPanel = (next: "history" | "cart") => {
     if (detail) navigate("/demo/commerce");
     setPanel(next);
-    if (next === "cart") void session.loadCart();
   };
+  useEffect(() => {
+    if (panel === "cart" && session.ready) void session.loadCart();
+  }, [panel, session.ready]);
   const quoteReference = (r: Reference) => {
     closePanel();
     setChatOpen(true);
@@ -212,7 +214,9 @@ export default function App() {
         ) : (
           <CartPanel
             cart={session.cart}
-            sessionId={session.sessionId}
+            loading={session.cartLoading}
+            error={session.cartError}
+            onRetry={() => void session.loadCart()}
             onChat={() => {
               closePanel();
               setChatOpen(true);

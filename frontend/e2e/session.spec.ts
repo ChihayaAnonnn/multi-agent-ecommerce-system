@@ -113,4 +113,12 @@ test("browsed product proposal, lost confirmation response, idempotent retry and
   await input.press("Enter");
   await expect(page.getByRole("log")).toContainText("这是模拟交接");
   await expect(page.getByRole("link", { name: "查看交接结果" })).toBeVisible();
+  await page.getByRole("button", { name: "新建对话", exact: true }).click();
+  await page
+    .getByRole("button", { name: "购物袋", exact: false })
+    .first()
+    .click();
+  const bag = page.getByRole("dialog", { name: "购物袋" });
+  await expect(bag).toContainText(first.name);
+  await expect(bag).not.toContainText("购物袋还是空的。");
 });

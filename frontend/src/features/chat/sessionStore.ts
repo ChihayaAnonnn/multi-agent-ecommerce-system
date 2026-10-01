@@ -22,6 +22,8 @@ type State = {
   candidates: Candidate[] | null;
   pendingAction: Proposal | null;
   cart: Cart | null;
+  cartLoading: boolean;
+  cartError: string;
   expired: boolean;
 };
 export class ShoppingSessionStore {
@@ -40,6 +42,8 @@ export class ShoppingSessionStore {
     candidates: null,
     pendingAction: null,
     cart: null,
+    cartLoading: false,
+    cartError: "",
     expired: false,
   };
   constructor(client: ApiClient = apiClient) {
@@ -87,14 +91,25 @@ export class ShoppingSessionStore {
       })();
     return this.startPromise;
   }
+  private interruptPending() {
+    for (const message of this.state.messages) {
+      if (message.pending) {
+        message.pending = false;
+        message.error = "这条消息尚未收到结果，可以重试。";
+      }
+    }
+    this.persist();
+  }
   newSession = () => {
+    this.interruptPending();
     this.epoch++;
     this.update({
       sessionId: null,
       messages: [],
       candidates: null,
       pendingAction: null,
-      cart: null,
+      cartLoading: false,
+      cartError: "",
       expired: false,
       error: "",
       busy: false,
@@ -103,6 +118,7 @@ export class ShoppingSessionStore {
   async selectHistory(id: string) {
     const history = this.state.histories.find((h) => h.id === id);
     if (!history) return;
+    this.interruptPending();
     const epoch = ++this.epoch;
     this.update({ busy: true, error: "" });
     try {
@@ -120,14 +136,12 @@ export class ShoppingSessionStore {
     }
     if (epoch !== this.epoch) return;
     let candidates: Candidate[] | null = null,
-      pendingAction: Proposal | null = null,
-      cart: Cart | null = null;
+      pendingAction: Proposal | null = null;
     for (const m of history.messages) {
       const r = m.response;
       if (!r) continue;
       if (r.status === "shortlist") candidates = r.items || [];
       if (r.proposed_action) pendingAction = r.proposed_action;
-      if (r.cart) cart = r.cart;
       if (
         r.status === "cart_updated" ||
         r.status === "handoff" ||
@@ -140,7 +154,8 @@ export class ShoppingSessionStore {
       messages: history.messages,
       candidates,
       pendingAction,
-      cart,
+      cartLoading: false,
+      cartError: "",
       expired: !!history.expired,
       busy: false,
     });
@@ -174,7 +189,8 @@ export class ShoppingSessionStore {
       body.selected_sku_id = refs[0].sku_id;
       if (/加入|加购/.test(text)) {
         body.message = "加入购物车：" + text;
-        body.quantity = 1;
+        const quantity = text.match(/(-?\d+(?:\.\d+)?)\s*(?:件|个|副)/);
+        body.quantity = quantity ? Number(quantity[1]) : 1;
       }
     }
     return body;
@@ -302,15 +318,27 @@ export class ShoppingSessionStore {
     }
   }
   async loadCart() {
-    if (!this.state.sessionId) return;
+    if (!this.state.ready || this.state.cartLoading) return;
     const epoch = this.epoch;
+    this.update({ cartLoading: true, cartError: "" });
     try {
+      // 购物袋属于用户；没有聊天会话时创建只用于领域读取的会话。
+      const sessionId =
+        this.state.sessionId ||
+        (
+          await this.client.request<{ session_id: string }>(
+            "/api/v1/commerce/sessions",
+            post({}),
+          )
+        ).session_id;
+      if (epoch !== this.epoch) return;
       const cart = await this.client.request<Cart>(
-        `/api/v1/commerce/sessions/${encodeURIComponent(this.state.sessionId)}/cart`,
+        `/api/v1/commerce/sessions/${encodeURIComponent(sessionId)}/cart`,
       );
-      if (epoch === this.epoch) this.update({ cart });
+      if (epoch === this.epoch) this.update({ cart, cartLoading: false });
     } catch (e) {
-      if (epoch === this.epoch) this.update({ error: (e as Error).message });
+      if (epoch === this.epoch)
+        this.update({ cartError: (e as Error).message, cartLoading: false });
     }
   }
   confirmAction = (approved: boolean) =>

@@ -1,5 +1,5 @@
 import type { TurnResponse } from "../../api/contracts";
-import { money } from "../../api/format";
+import { money, skuLabel } from "../../api/format";
 import styles from "./ChatPanel.module.css";
 export function responseText(r: TurnResponse) {
   return (
@@ -36,10 +36,24 @@ export function ActionSummary({ response: r }: { response: TurnResponse }) {
       ))}
       {action && (
         <div className={styles.action}>
-          <span className={styles.actionLabel}>待你确认</span>
+          <span className={styles.actionLabel}>
+            待你确认 ·{" "}
+            {(
+              {
+                add: "加入购物袋",
+                set_quantity: "修改数量",
+                remove: "移除商品",
+                checkout_handoff: "结账交接",
+              } as Record<string, string>
+            )[action.kind || (action.items ? "checkout_handoff" : "")] ||
+              action.kind}
+          </span>
           {action.summary && (
             <>
               <p>{action.summary.name}</p>
+              <small>
+                {skuLabel(action.summary.sku_options, action.summary.sku_id)}
+              </small>
               <p>
                 {money(action.summary.unit_amount_minor)} ×{" "}
                 {action.summary.final_quantity}
@@ -49,6 +63,8 @@ export function ActionSummary({ response: r }: { response: TurnResponse }) {
           {action.items?.map((item, i) => (
             <p key={i}>
               {item.name}
+              <br />
+              <small>{skuLabel(item.sku_options, item.sku_id)}</small>
               <br />
               {money(item.unit_amount_minor)} × {item.quantity}
             </p>

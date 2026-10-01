@@ -14,3 +14,11 @@ export const stockLabel = (reason: string) =>
     sku_inactive: "规格已停用",
     product_not_active: "商品已下架",
   })[reason] || "";
+
+export const skuLabel = (
+  options: { display_value: string }[] | undefined,
+  skuId: string,
+) =>
+  options?.length
+    ? options.map((v) => v.display_value).join(" · ")
+    : `规格 ${skuId}`;

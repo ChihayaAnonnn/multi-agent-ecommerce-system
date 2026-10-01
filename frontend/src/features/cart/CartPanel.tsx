@@ -1,23 +1,38 @@
 import type { Cart } from "../../api/contracts";
-import { money, stockLabel } from "../../api/format";
+import { money, stockLabel, skuLabel } from "../../api/format";
 import { ShoppingBag } from "lucide-react";
 export function CartPanel({
   cart,
-  sessionId,
+  loading = false,
+  error = "",
+  onRetry,
   onChat,
 }: {
   cart: Cart | null;
-  sessionId: string | null;
+  sessionId?: string | null;
+  loading?: boolean;
+  error?: string;
+  onRetry?: () => void;
   onChat: () => void;
 }) {
-  if (!cart?.items.length)
+  if (loading) return <p role="status">正在读取购物袋…</p>;
+  const failure = error && (
+    <div role="alert">
+      <p>{error}</p>
+      <button className="primary-button" onClick={onRetry}>
+        重试读取
+      </button>
+    </div>
+  );
+  if (!cart && error) return <>{failure}</>;
+  if (!cart) return <p role="status">购物袋尚未读取。</p>;
+  if (!cart.items.length)
     return (
       <div className="cart-empty">
+        {failure}
         <ShoppingBag size={30} strokeWidth={1} />
         <h2>留给喜欢的东西。</h2>
-        <p>
-          {sessionId ? "购物袋还是空的。" : "和助手聊聊，找到适合你的商品。"}
-        </p>
+        <p>购物袋还是空的。</p>
         <button className="primary-button" onClick={onChat}>
           继续挑选
         </button>
@@ -25,9 +40,11 @@ export function CartPanel({
     );
   return (
     <div className="cart-panel">
+      {failure}
       {cart.items.map((item) => (
         <div className="cart-row" key={item.sku_id}>
           <p>{item.product_name}</p>
+          <small>{skuLabel(item.sku_options, item.sku_id)}</small>
           <span>
             {money(item.quote?.price?.amount_minor)} × {item.quantity}
           </span>
