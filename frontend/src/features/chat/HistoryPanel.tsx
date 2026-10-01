@@ -1,0 +1,3 @@
+import { Plus,MessageCircle } from 'lucide-react';
+import type { History } from '../../api/contracts';
+export function HistoryPanel({histories,current,onSelect,onNew}:{histories:History[];current:string|null;onSelect:(id:string)=>void;onNew:()=>void}){return <div className="history-panel"><button className="primary-button" onClick={onNew}><Plus size={16}/>新建对话</button>{!histories.length&&<p className="muted">对话会保存在这里。</p>}<nav aria-label="历史对话">{histories.map(h=><button key={h.id} aria-current={current===h.id?'true':undefined} onClick={()=>onSelect(h.id)}><MessageCircle size={16}/><span>{h.title}</span>{h.expired&&<small>已过期</small>}</button>)}</nav></div>;}
