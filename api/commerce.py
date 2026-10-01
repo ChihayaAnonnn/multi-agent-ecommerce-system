@@ -116,3 +116,31 @@ async def record_event(body: EventRequest,response: Response,principal: Principa
     if not receipt.accepted:
         response.status_code=503
     return receipt
+
+# 展厅显式商品引用：返回服务端事实后记录展示来源，绝不接受自报价格或可售状态。
+from models.commerce import ProductContextRequest
+from api.runtime import require_catalog, require_pricing, require_inventory
+from api.catalog import catalog_http_error
+from catalog.service import CatalogService, CatalogError
+from pricing.service import PricingService
+from inventory.service import InventoryService
+from commerce_orchestrator.facts import CommerceFactsReader
+
+@router.post('/sessions/{session_id}/product-context')
+async def product_context(session_id: str, body: ProductContextRequest,
+    principal: Principal=Depends(require_principal), session_service: ShoppingSessionService=Depends(sessions),
+    catalog: CatalogService=Depends(require_catalog), pricing: PricingService=Depends(require_pricing),
+    inventory: InventoryService=Depends(require_inventory)):
+    async def resolve_context():
+        await session_service.get_owned(session_id,principal)
+        try:
+            product=await catalog.get_product(body.product_id)
+        except CatalogError as exc:
+            raise catalog_http_error(exc) from exc
+        sku=next((s for s in product.skus if s.id==body.sku_id and s.status=='active'),None)
+        if product.status!='active' or sku is None:
+            raise CommerceError('invalid_product_reference',422)
+        quote=(await CommerceFactsReader(catalog,pricing,inventory).quote_many([sku.id]))[sku.id]
+        await session_service.record_seen(session_id,principal,[product.id],[sku.id])
+        return {'product_id':product.id,'sku_id':sku.id,'quote':quote}
+    return await invoke(resolve_context())

@@ -70,3 +70,7 @@ class EventRequest(CommerceInput):
     request_id: str=Field(min_length=1,max_length=64)
     kind: EventKind
     payload: EventPayload=Field(default_factory=EventPayload)
+
+class ProductContextRequest(CommerceInput):
+    product_id: str = Field(min_length=1,max_length=36)
+    sku_id: str = Field(min_length=1,max_length=36)
