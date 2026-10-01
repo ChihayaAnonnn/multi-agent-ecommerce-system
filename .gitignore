@@ -39,3 +39,9 @@ docker-compose.override.yml
 
 # Local implementation and demo verification artifacts
 .superpowers/
+
+# Product dataset downloads and Hugging Face cache
+/data/amazon_reviews_2023/
+/data/.hf_cache/
+/data/.venv/
+/data/import_state/

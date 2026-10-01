@@ -1,29 +1,51 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>购物准备 · 内部演示</title>
-<style>
-:root{font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172b28;background:#f3f6f3}*{box-sizing:border-box}body{margin:0}main{max-width:1160px;margin:auto;padding:32px 24px 64px}header{display:flex;justify-content:space-between;align-items:center;gap:24px}h1{font-size:30px;margin:3px 0}h2{font-size:19px;margin:0 0 15px}h3{font-size:16px;margin:0 0 8px}.eyebrow{font-size:12px;letter-spacing:2px;color:#52766a}.muted{color:#687a74;font-size:13px}.flow{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0;color:#58766b;font-size:13px}.flow span{background:#e5eee7;padding:5px 12px;border-radius:20px}.panel{background:#fff;border:1px solid #dce6df;border-radius:16px;padding:23px;margin-bottom:20px;box-shadow:0 4px 12px #19392c05}.layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);gap:22px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.card{border:1px solid #dce6df;border-radius:12px;padding:17px;background:#fbfdfb;overflow-wrap:anywhere}.price{font-size:24px;font-weight:650;color:#1d6450}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.stack{display:flex;gap:12px;flex-wrap:wrap}.stack label{flex:1;min-width:130px}label{display:block;font-size:13px;margin:10px 0}input,select,textarea{font:inherit;padding:9px 11px;border:1px solid #bfcfc4;border-radius:8px;background:#fff;max-width:100%;width:100%}input[type=checkbox]{width:auto}textarea{resize:vertical;min-height:84px}button{font:inherit;font-size:14px;font-weight:600;border:0;border-radius:8px;padding:10px 16px;background:#23664f;color:white;cursor:pointer}button.secondary{background:#e7eee9;color:#254e3c}button.danger{background:#f5e8e3;color:#8b4533}button:disabled{opacity:.48;cursor:default}button:hover:not(:disabled){filter:brightness(.94)}.badge{display:inline-block;border-radius:5px;font-size:12px;background:#e0eee6;color:#316047;padding:3px 8px}.warning{background:#fff3db;color:#896116}.message{padding:13px 18px;border-radius:10px;background:#eaf1eb;margin:0 0 20px;overflow-wrap:anywhere}.message.error{background:#fff0e6;color:#804224}.small{font-size:12px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;text-align:left;border-bottom:1px solid #e7ece9;vertical-align:top}.table-wrap{overflow:auto}.line{padding:13px 0;border-bottom:1px solid #e7ece9}.line input{width:76px}.total{font-size:20px;font-weight:600;padding:15px 0}.qty{width:80px!important}.hidden,[hidden]{display:none!important}a{color:#23664f}.selected{border-color:#23664f}.boundary{background:#f1f5f1;padding:12px;border-radius:8px;font-size:12px;color:#536b5b}#event-note{margin-top:14px}.loading{opacity:.75}footer{color:#728478;font-size:12px;margin-top:12px}@media(max-width:850px){.layout{grid-template-columns:1fr}.grid{grid-template-columns:1fr}header{align-items:flex-start}main{padding:22px 16px}.flow{gap:6px}}
-</style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>购物助手</title>
+<link rel="stylesheet" href="/demo/commerce.css">
 <script src="/demo/commerce.js" defer></script>
 </head>
-<body><main>
-<header><div><div class="eyebrow">COMMERCE / INTERNAL DEMO</div><h1>把需求变成购物准备</h1><p class="muted">使用真实目录、现价与库存。每次改车都由你确认。</p></div><div><span class="badge warning">内部演示</span><p class="small muted">不创建订单，不收款。</p></div></header>
-<nav class="flow" aria-label="购物准备流程"><span>1 需求输入</span><span>2 候选</span><span>3 比较</span><span>4 规格</span><span>5 确认</span><span>6 购物车</span><span>7 交接</span></nav>
-<div id="notice" class="message" role="status" aria-live="polite">请先登录演示账号。</div><button id="retry" class="secondary" hidden>重试刚才的请求</button>
-<section id="auth" class="panel"><h2>登录演示账号</h2><p class="muted">演示注册不验证邮箱归属；请使用专用演示邮箱和密码。密码须为 15–128 个字符；先注册成功，再点击登录。</p><form id="login-form"><div class="stack"><label>邮箱<input id="email" type="email" autocomplete="username" required maxlength="320"></label><label>密码<input id="password" type="password" autocomplete="current-password" required minlength="15" maxlength="128"></label></div><div class="row"><button type="submit">登录</button><button id="register" type="button" class="secondary">注册演示账号</button></div></form></section>
-<div id="workspace" hidden><div class="row" style="margin-bottom:18px"><span id="account" class="muted"></span><button id="new-session" class="secondary">新建购物会话</button><button id="logout" class="secondary">退出登录</button></div>
-<div class="layout"><div>
-<section class="panel"><h2>1 · 与购物 Agent 对话</h2><form id="shop-form"><label>聊聊你的购物需求<textarea id="message" placeholder="例如：预算2000元，用于日常通勤，希望便携。"></textarea></label><button type="submit">发送</button></form><p class="muted small">直接描述想买什么、用途、预算和偏好，也可以通过聊天调整需求。</p></section>
-<section class="panel"><h2>2 · 候选商品</h2><div id="candidates" class="grid"><p class="muted">表达需求后，在这里查看最多三款候选。</p></div><p id="scan-note" class="muted small"></p><button id="compare" class="secondary" disabled>比较勾选的 2–3 款商品</button></section>
-<section id="comparison-panel" class="panel" hidden><h2>3 · 同类比较</h2><div id="comparison" class="table-wrap"></div></section>
-<section id="sku-panel" class="panel" hidden><h2>4 · 选择实际规格</h2><div id="sku-options" class="stack"></div><div id="selection" class="boundary" style="margin:14px 0"></div><div class="row"><label>数量<input id="quantity" class="qty" type="number" min="1" max="10" value="1" step="1"></label><button id="propose" disabled>生成加购提案</button></div></section>
-<section id="action-panel" class="panel" hidden><h2>5 · 请核对并明确确认</h2><div id="action-summary"></div><p class="boundary">请核对商品、规格、数量与价格。确认时会重新核验现价和库存。</p><div class="row"><button id="approve">确认</button><button id="decline" class="secondary">取消</button></div><p class="muted small">也可以在需求输入中输入“确认加购”“确认修改”“确认移除”“确认结账”或“取消”，并发送以回应当前操作卡。</p></section>
-</div><aside>
-<section class="panel"><div class="row" style="justify-content:space-between"><h2>6 · 我的购物车</h2><button id="refresh-cart" class="secondary">刷新</button></div><div id="cart"><p class="muted">购物车为空。</p></div><p class="boundary">这里只显示商品小计。运费、税费、优惠及最终应付以宿主结账为准；加购不预留库存。</p><button id="checkout" disabled>重新核验并预览结账交接</button></section>
-<section id="handoff-panel" class="panel" hidden><h2>7 · 宿主交接</h2><div id="handoff"></div></section>
-<div id="event-note" class="small muted" aria-live="polite"></div>
-</aside></div></div>
-<footer>内部购物准备演示。真实用户上线还需正式账号归属验证、可信宿主结账契约与正式限购政策。</footer>
-</main></body></html>
+<body>
+<div id="shell" class="shell">
+  <aside id="sidebar" class="sidebar" aria-label="会话记录">
+    <div class="sidebar-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">购</span><span>购物助手</span></div>
+      <button id="new-session" class="new-chat" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>新建对话
+      </button>
+      <div class="history-heading">会话记录</div>
+      <nav id="history" class="history" aria-label="历史对话"><p class="history-empty">对话会保存在这里</p></nav>
+      <p class="sidebar-note">从一句需求开始。</p>
+    </div>
+  </aside>
+  <main id="conversation" class="conversation empty">
+    <header class="topbar">
+      <button id="toggle-sidebar" class="icon-button" aria-label="收起会话记录" aria-controls="sidebar" aria-expanded="true" title="收起会话记录">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>
+      </button>
+      <span class="page-title">购物助手</span>
+    </header>
+    <div class="chat-stage">
+      <div id="welcome" class="welcome"><h1>今天想买什么？</h1></div>
+      <div id="messages" class="messages" role="log" aria-label="对话内容" aria-live="polite" aria-relevant="additions text"></div>
+      <div class="composer-zone">
+        <form id="shop-form" class="composer">
+          <label for="message" class="visually-hidden">输入购物需求</label>
+          <textarea id="message" rows="1" maxlength="2000" placeholder="描述你的购物需求…" disabled></textarea>
+          <div class="composer-bottom">
+            <span id="status" class="composer-status" role="status">正在准备对话…</span>
+            <button id="send" class="send-button" type="submit" aria-label="发送消息" title="发送消息" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+            </button>
+          </div>
+        </form>
+        <p id="notice" class="notice" role="status" aria-live="polite"></p>
+        <p class="composer-note">购物操作会先与你确认。</p>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

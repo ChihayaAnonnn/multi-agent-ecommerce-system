@@ -1,6 +1,10 @@
 """仅显式非生产环境挂载内部同源演示页。"""
 from pathlib import Path
+import secrets
+from uuid import uuid4
+from fastapi import Request, Response
 from fastapi.responses import FileResponse,HTMLResponse
+from api.auth import RegisterRequest, LoginRequest, register, login
 from identity.types import DEMO_ENVIRONMENTS
 
 DEMO_DIR=Path(__file__).resolve().parents[1]/'demo'
@@ -19,6 +23,19 @@ def configure_commerce_demo(app,settings) -> None:
     @app.get('/demo/commerce.js',include_in_schema=False)
     async def commerce_js():
         return FileResponse(DEMO_DIR/'commerce.js',media_type='text/javascript',headers=DEMO_HEADERS)
+
+    @app.get('/demo/commerce.css',include_in_schema=False)
+    async def commerce_css() -> FileResponse:
+        return FileResponse(DEMO_DIR/'commerce.css',media_type='text/css',headers=DEMO_HEADERS)
+
+    @app.post('/demo/commerce/guest',include_in_schema=False)
+    async def commerce_guest(request: Request) -> Response:
+        # 仅演示入口自动注册独立账号，复用来源校验、限流、Cookie 和正式鉴权。
+        # 临时凭据不返回给浏览器，也不保存到页面或日志。
+        email = f'guest-{uuid4().hex}@commerce-demo.invalid'
+        password = secrets.token_urlsafe(32)
+        await register(RegisterRequest(email=email, password=password), request, Response())
+        return await login(LoginRequest(email=email, password=password), request)
 
     @app.get('/demo/commerce/handoffs/{handoff_id}',include_in_schema=False)
     async def demo_destination(handoff_id: str):

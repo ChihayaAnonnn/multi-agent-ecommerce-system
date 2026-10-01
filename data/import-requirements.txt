@@ -1,0 +1,2 @@
+# 在项目应用环境 .venv 中安装，应用依赖由根目录 requirements.txt 提供。
+tqdm>=4.67,<5
