@@ -13,7 +13,7 @@ npm --prefix frontend run build
 
 构建输出到忽略的 `frontend/dist/`。显式启用非生产演示配置后，FastAPI 在 `/demo/commerce` 提供 React 页面；详情路径 `/demo/commerce/products/<product_id>` 支持刷新。构建尚不存在时回退到原生聊天演示页。运行中的进程需要加载本分支的后端路由；仅复制前端构建不能提供新 API。
 
-本次隔离实施区：`.worktrees/commerce-storefront`，分支 `feat/commerce-storefront`。本机临时 Node 位于 `/tmp/commerce-node/bin`，尚未加入全局 PATH；该临时目录在系统清理后可能消失。当前机器执行上述命令可以加前缀：
+实施已合并回主目录的 `python` 分支；在项目根目录运行以下命令。本机临时 Node 位于 `/tmp/commerce-node/bin`，尚未加入全局 PATH；该临时目录在系统清理后可能消失。当前机器执行上述命令可以加前缀：
 
 ```bash
 PATH=/tmp/commerce-node/bin:$PATH npm --prefix frontend run build
@@ -21,9 +21,9 @@ PATH=/tmp/commerce-node/bin:$PATH npm --prefix frontend run build
 
 ## 本机预览与开发
 
-本次验收预览：<https://localhost:18444/demo/commerce>。既有 18443 服务保留。预览使用演示数据库 `commerce_mvp_demo_20260930`，无重新导入或重置商品；浏览器验收产生的访客会话/购物袋是独立演示账号数据。
+主目录运行的本次验收预览：<https://localhost:18444/demo/commerce>。既有 18443 服务保留。预览使用演示数据库 `commerce_mvp_demo_20260930`，无重新导入或重置商品；浏览器验收产生的访客会话/购物袋是独立演示账号数据。
 
-当前进程由实施区忽略的 `.superpowers/storefront_preview.py` 装配，用于本机验收，使用既有本地 TLS 和身份演示密钥，日志在 `.superpowers/preview.log`。它不是生产启动方式。重复启动前先检查端口，不要删除数据库、清空 Redis 或覆盖用户密钥。
+当前进程由主目录忽略的 `.superpowers/storefront_preview.py` 装配，用于本机验收，使用既有本地 TLS 和身份演示密钥，日志在 `.superpowers/preview.log`。它不是生产启动方式。重复启动前先检查端口，不要删除数据库、清空 Redis 或覆盖用户密钥。
 
 正式本地装配沿用 `main.py` 和 `config/settings.py`：设置 `ECOM_COMMERCE_DEMO_ENABLED=true`、`ECOM_IDENTITY_DEMO_MODE=true`、非生产 `ECOM_IDENTITY_ENVIRONMENT`，以及所选数据库、Redis、身份签名密钥和可信来源。HTTPS 的示例启动如下，密钥文件必须自行准备：
 
@@ -86,5 +86,5 @@ MySQL/Redis 回归必须配置隔离测试库与独立 Redis，不能指向演�
 - 隔离 MySQL/Redis 完整后端测试：190 项通过。
 - 前端单元/组件测试：25 项通过，类型检查与生产构建通过。
 - 真实 Chrome：6 项端到端测试通过，包含真实目录分页、详情刷新/引用、会话恢复、断网、动画、图片失效、加购提案、确认响应丢失后的幂等重试、模拟结账及新建对话后的购物袋连续性。
-- 1280×800、1440×960、1920×1080 截图及详情截图位于实施区忽略的 `.superpowers/`；抽查可见图片成功加载，无页面 JavaScript 错误。
+- 1280×800、1440×960、1920×1080 截图及详情截图位于主目录忽略的 `.superpowers/`；抽查可见图片成功加载，无页面 JavaScript 错误。
 - 未验证真实 LLM 自由文本选品；未执行真实付款。
