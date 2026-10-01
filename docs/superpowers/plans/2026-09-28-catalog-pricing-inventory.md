@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-28-catalog-pricing-inventory-design.md`
 
-**Status:** 待实施计划评审
+**Status:** 已实施；原计划清单未同步勾选。`0001`–`0003` 迁移、`catalog/`、`pricing/`、`inventory/` 与只读 API 已落地；2026-09-30 专项回归 `45 passed`、零跳过。MVP 新增的批量事实和属性硬过滤见 `2026-09-30-commerce-agent-mvp.md` 任务 1。
 
 ## Global Constraints
 
