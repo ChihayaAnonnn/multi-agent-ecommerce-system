@@ -1,3 +1,4 @@
+from api.storefront import router as storefront_router
 """FastAPI application setup and route registration."""
 
 from __future__ import annotations
@@ -61,6 +62,7 @@ for router in (
     experiments_router,
     metrics_router,
     catalog_router,
+    storefront_router,
     commerce_read_router,
     commerce_router,
     auth_router,
