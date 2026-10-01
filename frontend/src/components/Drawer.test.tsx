@@ -8,3 +8,8 @@ test('escape closes panel and restores trigger focus',async()=>{
  await waitFor(()=>expect(screen.getByRole('dialog')).toBeVisible());fireEvent.keyDown(document,{key:'Escape'});
  await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument());expect(trigger).toHaveFocus();
 });
+test('closed panel does not leave a modal or block trigger',()=>{
+ const {rerender}=render(<Drawer open={true} onClose={()=>{}} title="详情"><button>操作</button></Drawer>);
+ rerender(<Drawer open={false} onClose={()=>{}} title="详情"><button>操作</button></Drawer>);
+ expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
