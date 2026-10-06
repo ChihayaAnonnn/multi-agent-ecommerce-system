@@ -511,7 +511,7 @@ def test_grouped_imports_and_public_entries():
 
 **Interfaces:** 最终 C1–C6 均带 ecom 前缀；`ecom.main.create_app() -> FastAPI`；源码 factory 入口按设计 §6.3，不要求 pip install .。
 
-- [ ] **Step 1：写缺配置/工作目录/metadata 失败测试。** `test_factory_routes_match_original_contract`、`test_factory_lifespan_closes_owned_resources`、`test_import_does_not_build_runtime_or_call_llm`、`test_demo_path_is_independent_of_route_depth`、`test_registered_metadata_matches_pre_move`；用本地依赖桩和 monkeypatch 隔离环境，不触发真实模型。
+- [x] **Step 1：写缺配置/工作目录/metadata 失败测试。** `test_factory_routes_match_original_contract`、`test_factory_lifespan_closes_owned_resources`、`test_import_does_not_build_runtime_or_call_llm`、`test_demo_path_is_independent_of_route_depth`、`test_registered_metadata_matches_pre_move`；用本地依赖桩和 monkeypatch 隔离环境，不触发真实模型。
 
 ```python
 def test_factory_has_health_route():
@@ -520,11 +520,11 @@ def test_factory_has_health_route():
     assert 'get' in app.openapi()['paths']['/health']
 ```
 
-- [ ] **Step 2：Run `python -m pytest tests/test_packaged_entrypoints.py -q`，Expected：ecom 工厂尚未存在。**
-- [ ] **Step 3：连同入口一次切换命名空间。** 完整迁 import，config 设置值/前缀不改；create_app 注册路由/lifespan，Runtime 不在 import 时创建，lifespan 完成资源装配及关闭。删除 sys.path.insert，demo 位置由组合根按 `Path(__file__).resolve()` 的仓库根配置；路由不猜深度。Docker CMD 使用 `python -m uvicorn ecom.main:create_app --factory --host 0.0.0.0 --port 8000`，源码部署要求从仓库根启动；不宣称未安装的包能从任意 cwd 被导入。
-- [ ] **Step 4：切目标契约并更新 Alembic。** pyproject root_packages=[ecom]，移除阶段配置；按设计目标构建 protected + 全模块对直接内部访问 + AST/legacy 检查。migrations/env 更新八模块注册与唯一 Base，alembic.ini 的工具 prepend_sys_path 可保留；迁移历史和 schema 不变。测试与脚本所有 get_settings 的 import 同步。
-- [ ] **Step 5：验证 factory、真实迁移和合同。** Run `lint-imports --config pyproject.toml --no-cache`；Run `python -m pytest tests/test_packaged_entrypoints.py tests/test_layering.py tests/test_layering_rules.py tests/test_layering_baseline.py tests/test_catalog_mysql.py -q`；Run `python -m alembic heads`（Expected：仍一个 `0008_commerce_events` 头）；在测试库通过测试夹具执行新库 upgrade/旧版本 upgrade/downgrade 与无意外 metadata diff。启动 smoke test 用禁用模型的配置，`GET /health` 为原形状，未配置数据库端点仍原 503。
-- [ ] **Step 6：审核回滚包。** 回滚需同时恢复导入、Docker/Alembic/静态/契约；不做数据回迁。建议标题 `refactor: consolidate backend under ecom package root`。
+- [x] **Step 2：Run `python -m pytest tests/test_packaged_entrypoints.py -q`，Expected：ecom 工厂尚未存在。**
+- [x] **Step 3：连同入口一次切换命名空间。** 完整迁 import，config 设置值/前缀不改；create_app 注册路由/lifespan，Runtime 不在 import 时创建，lifespan 完成资源装配及关闭。删除 sys.path.insert，demo 位置由组合根按 `Path(__file__).resolve()` 的仓库根配置；路由不猜深度。Docker CMD 使用 `python -m uvicorn ecom.main:create_app --factory --host 0.0.0.0 --port 8000`，源码部署要求从仓库根启动；不宣称未安装的包能从任意 cwd 被导入。
+- [x] **Step 4：切目标契约并更新 Alembic。** pyproject root_packages=[ecom]，移除阶段配置；按设计目标构建 protected + 全模块对直接内部访问 + AST/legacy 检查。migrations/env 更新八模块注册与唯一 Base，alembic.ini 的工具 prepend_sys_path 可保留；迁移历史和 schema 不变。测试与脚本所有 get_settings 的 import 同步。
+- [x] **Step 5：验证 factory、真实迁移和合同。** Run `lint-imports --config pyproject.toml --no-cache`；Run `python -m pytest tests/test_packaged_entrypoints.py tests/test_layering.py tests/test_layering_rules.py tests/test_layering_baseline.py tests/test_catalog_mysql.py -q`；Run `python -m alembic heads`（Expected：仍一个 `0008_commerce_events` 头）；在测试库通过测试夹具执行新库 upgrade/旧版本 upgrade/downgrade 与无意外 metadata diff。启动 smoke test 用禁用模型的配置，`GET /health` 为原形状，未配置数据库端点仍原 503。
+- [x] **Step 6：审核回滚包。** 回滚需同时恢复导入、Docker/Alembic/静态/契约；不做数据回迁。建议标题 `refactor: consolidate backend under ecom package root`。（已完成：提交 `3939f15`。偏差：`root_packages=["ecom"]` 后 `data`/`scripts` 不再作为导入方被 import-linter 分析，改为由 AST 检查器覆盖；探针验证 `shared -> tools.amazon` 仍报 BROKEN。）
 
 ### Task 16：tests 按依赖分类、离线工具与 CI 完整收尾
 
@@ -532,7 +532,7 @@ def test_factory_has_health_route():
 
 **Interfaces:** 架构/报告接口签名不变，只改 tests.support 归属；`python -m tools.amazon.download_amazon_metadata --help`、`python -m tools.amazon.import_amazon_metadata --help`、`python -m tools.reset_demo_password --help`，不删除已有下载数据。
 
-- [ ] **Step 1：写收集/入口失败测试。** `tests/test_test_layout_contract.py::test_every_original_node_has_a_mapped_successor` 比较 Task 1 manifest 与新的显式路径映射；`test_tool_help_does_not_access_network_or_database` 子进程 --help；`test_fixture_scope_and_root_paths_survive_move` 固定根 conftest 的 REPO_ROOT。
+- [x] **Step 1：写收集/入口失败测试。** `tests/test_test_layout_contract.py::test_every_original_node_has_a_mapped_successor` 比较 Task 1 manifest 与新的显式路径映射；`test_tool_help_does_not_access_network_or_database` 子进程 --help；`test_fixture_scope_and_root_paths_survive_move` 固定根 conftest 的 REPO_ROOT。
 
 ```python
 def test_fixture_root_does_not_change():
@@ -543,11 +543,11 @@ def test_fixture_root_does_not_change():
 
 同时添加新 unit/integration import 的断言制造迁移前红灯；单独这条兼容断言不必失败。
 
-- [ ] **Step 2：Run `python -m pytest tests/test_test_layout_contract.py -q`，Expected：新布局/工具尚未存在，原 root oracle 仍成立。**
-- [ ] **Step 3：按 fixture 真实依赖分类并移动测试辅助。** 混合文件如 identity_rate_limit 拆纯桩与 Redis 用例，不删除任何测试；不迁根 conftest，不复制夹具。原测试间的 setup/seed 辅助从 test_* 文件提到 support，签名用具名结构替换前述 tuple 的改动需与消费者同提交。更新 AST 文件到角色映射与 linter pytest wrapper 的 root parents[2]。报告 CLI 同步改为 `python -m tests.support.layering_reports`，CI 的 lint 基线/路径映射同步，不重生成基线掩盖新告警。
-- [ ] **Step 4：迁工具代码/文档但不动数据。** 执行前记录 data 中代码、README 与数据目录清单；仅移动明确源码/说明/独立 requirements，不下载 27 GB 数据、不导入真实库。默认缓存/输出目录保持原 data 位置并由显式 repo_root 计算，不能因 __file__ 深度变化悄悄改变；旧 README/CLI 若需兼容则薄入口只委托同一实现，记录删除条件。
-- [ ] **Step 5：Run `python -m pytest tests/ --collect-only -q --layering-artifacts=.artifacts/layering/final`，再跑三类 CI、报告比较与 `node tests/run_demo_contracts.cjs`；运行三个 tools --help 子进程。Expected：旧节点映射无丢失、集成零跳过、JS 合同通过、--help 无网络/DB副作用。** Node runner 仍使用仓库根，demo JS 测试保持原入口；前端无需改动，但执行现有 typecheck/test 作为无回归佐证时不安装新框架。
-- [ ] **Step 6：完成结构阶段报告并审核。** `docs/superpowers/verification/2026-10-06-layering-structure.md` 对照设计 P1–P5、8 项评审问题、所有 D 决策状态和回滚清单，不宣称 R/L 已完成。建议标题 `refactor: organize backend tests and offline tools`。
+- [x] **Step 2：Run `python -m pytest tests/test_test_layout_contract.py -q`，Expected：新布局/工具尚未存在，原 root oracle 仍成立。**
+- [x] **Step 3：按 fixture 真实依赖分类并移动测试辅助。** 混合文件如 identity_rate_limit 拆纯桩与 Redis 用例，不删除任何测试；不迁根 conftest，不复制夹具。原测试间的 setup/seed 辅助从 test_* 文件提到 support，签名用具名结构替换前述 tuple 的改动需与消费者同提交。更新 AST 文件到角色映射与 linter pytest wrapper 的 root parents[2]。报告 CLI 同步改为 `python -m tests.support.layering_reports`，CI 的 lint 基线/路径映射同步，不重生成基线掩盖新告警。
+- [x] **Step 4：迁工具代码/文档但不动数据。** 执行前记录 data 中代码、README 与数据目录清单；仅移动明确源码/说明/独立 requirements，不下载 27 GB 数据、不导入真实库。默认缓存/输出目录保持原 data 位置并由显式 repo_root 计算，不能因 __file__ 深度变化悄悄改变；旧 README/CLI 若需兼容则薄入口只委托同一实现，记录删除条件。
+- [x] **Step 5：Run `python -m pytest tests/ --collect-only -q --layering-artifacts=.artifacts/layering/final`，再跑三类 CI、报告比较与 `node tests/run_demo_contracts.cjs`；运行三个 tools --help 子进程。Expected：旧节点映射无丢失、集成零跳过、JS 合同通过、--help 无网络/DB副作用。** Node runner 仍使用仓库根，demo JS 测试保持原入口；前端无需改动，但执行现有 typecheck/test 作为无回归佐证时不安装新框架。
+- [x] **Step 6：完成结构阶段报告并审核。**（已完成：提交 `69a5d6f`。偏差：契约测试放在 `tests/unit/` 而非仓库根，避免与「按依赖分目录」自相矛盾。） `docs/superpowers/verification/2026-10-06-layering-structure.md` 对照设计 P1–P5、8 项评审问题、所有 D 决策状态和回滚清单，不宣称 R/L 已完成。建议标题 `refactor: organize backend tests and offline tools`。
 
 ### Task 17：独立 R 提交——统一可购买性规则
 
