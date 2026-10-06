@@ -79,7 +79,12 @@ def test_legacy_routes_are_still_registered():
 
 
 def test_grouped_top_level_layout_is_complete():
-    """顶层分组目录齐备，且旧的平铺包已不存在。"""
+    """顶层分组目录齐备，且旧的平铺包不再有源文件。
+
+    断言看的是残留的 `.py` 源文件而不是目录是否存在：切换分支或合并后，
+    旧包目录常因遗留 `__pycache__/` 而继续存在，那是构建缓存而非代码。
+    真出现旧源文件（覆盖不完整、手工复制遗漏）仍会被这条抓住。
+    """
     expected = {'api', 'application', 'infra', 'kernel', 'legacy', 'modules', 'shared'}
     present = {
         p.name for p in ROOT.iterdir()
@@ -90,4 +95,10 @@ def test_grouped_top_level_layout_is_complete():
                  'identity', 'shopping_session', 'commerce_events', 'sale_facts',
                  'commerce_orchestrator', 'storefront', 'agents', 'orchestrator',
                  'services', 'infrastructure', 'db', 'models'):
-        assert not (ROOT / gone).exists(), f'旧平铺包 {gone}/ 仍然存在'
+        directory = ROOT / gone
+        if not directory.exists():
+            continue
+        leftovers = sorted(
+            str(path.relative_to(ROOT)) for path in directory.rglob('*.py')
+        )
+        assert leftovers == [], f'旧平铺包仍有源文件: {leftovers}'
