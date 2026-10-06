@@ -265,11 +265,14 @@ def test_missing_database_preserves_health_and_503():
     from ecom.api.routes.health import router as health_router
 
     async def scenario():
-        runtime = await runtime_module.create_runtime(Settings(
+        settings = Settings(
             _env_file=None, database_url='', llm_api_key='',
             identity_allowed_origins='', identity_trusted_proxy_networks='',
-        ))
+        )
+        runtime = await runtime_module.create_runtime(settings)
         app = FastAPI()
+        # 与组合根一致：应用实例持有配置，路由（含 /health）从这里取。
+        app.state.settings = settings
         app.state.runtime = runtime
         for router in [health_router, catalog_router, auth_router]:
             app.include_router(router)
@@ -315,10 +318,12 @@ def test_lifespan_awaits_runtime_and_closes_on_failure(
     from ecom import main
 
     app = FastAPI()
+    app.state.settings = runtime_case.settings
     closed = []
     runtime = ResourceSpy('runtime', closed)
 
-    async def create():
+    async def create(settings=None):
+        assert settings is runtime_case.settings, '必须转发应用实例的配置'
         assert not hasattr(app.state, 'runtime')
         await asyncio.sleep(0)
         return runtime

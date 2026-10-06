@@ -106,6 +106,7 @@ def build_app(runtime, settings: Settings) -> FastAPI:
         protected_router,
     ):
         app.include_router(router)
+    app.state.settings = settings
     app.state.runtime = runtime
     return app
 

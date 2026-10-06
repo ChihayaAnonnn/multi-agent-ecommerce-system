@@ -233,6 +233,15 @@ def get_runtime(request: Request) -> ApiRuntime:
     return request.app.state.runtime
 
 
+def get_app_settings(request: Request) -> Settings:
+    """当前应用实例的配置。
+
+    只由组合根在 `create_app()` 写入 `app.state.settings`；路由必须读这一份，
+    不得回退 `ecom.config.get_settings()`，否则注入配置与全局配置会分裂。
+    """
+    return request.app.state.settings
+
+
 def _require(service: Any, runtime: ApiRuntime, name: str) -> Any:
     if service is None:
         detail = runtime.catalog_error or f"{name}服务未配置"

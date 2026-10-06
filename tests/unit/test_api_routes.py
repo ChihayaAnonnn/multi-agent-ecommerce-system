@@ -43,6 +43,7 @@ def build_test_app():
     from ecom.api.routes.legacy_experiments import router as experiments_router
     from ecom.api.routes.legacy_recommendations import router as recommendations_router
     from ecom.api.routes.metrics import router as metrics_router
+    from ecom.config import Settings
 
     app = FastAPI()
     for router in (
@@ -54,6 +55,8 @@ def build_test_app():
         quote_router,
     ):
         app.include_router(router)
+    # 与组合根一致：/health 只读应用实例上的配置，不再回退全局 get_settings()。
+    app.state.settings = Settings(_env_file=None, llm_model="test-model")
     app.state.runtime = SimpleNamespace(
         ab_engine=ABTestEngine(),
         metrics_collector=MetricsCollector(),
@@ -116,8 +119,7 @@ def test_experiment_outcome_and_health_routes_keep_contract():
 
     health = request(app, "GET", "/health")
     assert health.status_code == 200
-    assert health.json()["status"] == "healthy"
-    assert "model" in health.json()
+    assert health.json() == {"status": "healthy", "model": "test-model"}
 
 
 def test_main_app_registers_all_existing_routes():

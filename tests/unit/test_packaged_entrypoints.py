@@ -70,13 +70,15 @@ class _StubRuntime:
 
 
 def test_factory_lifespan_closes_owned_resources(monkeypatch):
-    """Runtime 只在 lifespan 中创建，且正常与异常退出都必须关闭。"""
+    """Runtime 只在 lifespan 中创建，用工厂那份 Settings 构造，且退出必须关闭。"""
     import ecom.main as main_module
 
     runtimes: list[_StubRuntime] = []
+    forwarded: list[Settings | None] = []
     graph = object()
 
-    async def fake_create_runtime() -> _StubRuntime:
+    async def fake_create_runtime(settings: Settings | None = None) -> _StubRuntime:
+        forwarded.append(settings)
         runtime = _StubRuntime()
         runtimes.append(runtime)
         return runtime
@@ -85,7 +87,8 @@ def test_factory_lifespan_closes_owned_resources(monkeypatch):
     monkeypatch.setattr(main_module, "build_recommendation_graph", lambda: graph)
     monkeypatch.setattr(main_module, "get_settings", isolated_settings)
 
-    app = main_module.create_app(settings=isolated_settings())
+    settings = isolated_settings()
+    app = main_module.create_app(settings=settings)
     assert not hasattr(app.state, "runtime"), "工厂阶段不得创建 Runtime"
 
     async def normal_exit() -> None:
@@ -97,8 +100,11 @@ def test_factory_lifespan_closes_owned_resources(monkeypatch):
         assert runtime.closed is True
 
     asyncio.run(normal_exit())
+    # 必须是同一个实例：等值的另一份（例如全局配置）在这里就暴露了。
+    assert len(forwarded) == 1 and forwarded[0] is settings
 
-    failing = main_module.create_app(settings=isolated_settings())
+    failing_settings = isolated_settings()
+    failing = main_module.create_app(settings=failing_settings)
 
     async def failing_exit() -> None:
         with pytest.raises(RuntimeError, match="boom"):
@@ -108,6 +114,80 @@ def test_factory_lifespan_closes_owned_resources(monkeypatch):
 
     asyncio.run(failing_exit())
     assert len(runtimes) == 2
+    assert forwarded[1] is failing_settings
+
+
+def test_injected_settings_are_the_only_configuration_source(monkeypatch):
+    """工厂注入的 Settings 必须同时管住 Runtime、刷新 Cookie 与 `/health`。
+
+    环境（全局）配置刻意取另一套值：任何一处回退 `get_settings()` 都会读到
+    ambient 值而断言失败；这里不把全局配置改成注入值来掩盖分裂。
+    """
+    from httpx import ASGITransport, AsyncClient
+
+    import ecom.api.deps as deps_module
+    import ecom.api.routes.health as health_module
+    import ecom.main as main_module
+
+    def ambient_settings() -> Settings:
+        return Settings(
+            _env_file=None, database_url="", llm_api_key="",
+            identity_environment="production", commerce_demo_enabled=False,
+            llm_model="ambient-model",
+            identity_allowed_origins="https://ambient.example",
+            identity_session_ttl_seconds=111,
+        )
+
+    injected = Settings(
+        _env_file=None, database_url="", llm_api_key="",
+        identity_environment="production", commerce_demo_enabled=False,
+        llm_model="injected-model",
+        identity_allowed_origins="https://injected.example",
+        identity_session_ttl_seconds=222,
+    )
+    monkeypatch.setattr(deps_module, "get_settings", ambient_settings)
+    monkeypatch.setattr(main_module, "get_settings", ambient_settings)
+
+    app = main_module.create_app(settings=injected)
+
+    async def scenario() -> None:
+        async with app.router.lifespan_context(app):
+            runtime = app.state.runtime
+            # 注入的认证域配置同时决定 CORS、来源校验与刷新 Cookie 的 TTL。
+            assert runtime.identity_config.allowed_origins == (
+                "https://injected.example",
+            )
+            assert runtime.identity_config.session_ttl_seconds == 222
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="https://test"
+            ) as client:
+                health = await client.get("/health")
+                assert health.json() == {
+                    "status": "healthy", "model": "injected-model",
+                }
+                # 工厂放行的来源必须与认证域判定同源：分裂时这里是 403。
+                login = await client.post(
+                    "/api/v1/auth/login",
+                    json={
+                        "email": "synthetic@example.test",
+                        "password": "synthetic-password",
+                    },
+                    headers={"Origin": "https://injected.example"},
+                )
+                assert login.status_code == 503, login.text
+                preflight = await client.options(
+                    "/api/v1/auth/login",
+                    headers={
+                        "Origin": "https://injected.example",
+                        "Access-Control-Request-Method": "POST",
+                    },
+                )
+                assert preflight.headers["access-control-allow-origin"] == (
+                    "https://injected.example"
+                )
+
+    asyncio.run(scenario())
+    assert not hasattr(health_module, "get_settings"), "健康检查不得读取全局配置"
 
 
 # 在干净解释器里隔离外部副作用：
@@ -156,7 +236,7 @@ socket.create_connection = _forbid
 import ecom.api.deps as deps
 
 
-async def _forbidden_runtime():
+async def _forbidden_runtime(*args, **kwargs):
     raise AssertionError('only lifespan may build the Runtime')
 
 
@@ -176,6 +256,9 @@ settings = Settings(
 )
 application = main_module.create_app(settings=settings)
 assert not hasattr(application.state, 'runtime'), 'factory must not build Runtime'
+assert application.state.settings is settings, (
+    'factory must publish its Settings on app.state'
+)
 assert 'get' in application.openapi()['paths']['/health']
 
 
