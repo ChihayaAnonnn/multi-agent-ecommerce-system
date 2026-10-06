@@ -28,6 +28,18 @@ source_modules = ["ecom.application", "ecom.modules.cart", "ecom.modules.catalog
 forbidden_modules = ["ecom.api"]
 
 [[tool.importlinter.contracts]]
+name = "业务模块不得依赖应用层"
+type = "forbidden"
+source_modules = ["ecom.modules.cart", "ecom.modules.catalog", "ecom.modules.checkout", "ecom.modules.events", "ecom.modules.identity", "ecom.modules.inventory", "ecom.modules.pricing", "ecom.modules.sale_facts", "ecom.modules.sessions"]
+forbidden_modules = ["ecom.application"]
+
+[[tool.importlinter.contracts]]
+name = "基础设施不得依赖接口层"
+type = "forbidden"
+source_modules = ["ecom.infra"]
+forbidden_modules = ["ecom.api"]
+
+[[tool.importlinter.contracts]]
 name = "shared 不得依赖配置或业务包"
 type = "forbidden"
 source_modules = ["ecom.shared"]
@@ -93,7 +105,7 @@ forbidden_modules = ["ecom.application.shopping.graph", "ecom.infra.llm"]
 name = "模块与应用不得间接依赖具体基础设施或旧栈"
 type = "forbidden"
 source_modules = ["ecom.application", "ecom.application.shopping", "ecom.application.shopping.actions", "ecom.application.shopping.compare", "ecom.application.shopping.contracts", "ecom.application.shopping.discovery", "ecom.application.shopping.facts", "ecom.application.shopping.graph", "ecom.application.shopping.guards", "ecom.application.shopping.intent", "ecom.application.shopping.nodes", "ecom.application.shopping.orchestrator", "ecom.application.shopping.ports", "ecom.application.shopping.schemas", "ecom.application.shopping.state", "ecom.application.storefront", "ecom.application.storefront.schemas", "ecom.application.storefront.service", "ecom.modules", "ecom.modules.cart", "ecom.modules.cart.models", "ecom.modules.cart.schemas", "ecom.modules.cart.service", "ecom.modules.catalog", "ecom.modules.catalog.models", "ecom.modules.catalog.ports", "ecom.modules.catalog.schemas", "ecom.modules.catalog.seed", "ecom.modules.catalog.service", "ecom.modules.checkout", "ecom.modules.checkout.models", "ecom.modules.checkout.ports", "ecom.modules.checkout.schemas", "ecom.modules.checkout.service", "ecom.modules.events", "ecom.modules.events.models", "ecom.modules.events.schemas", "ecom.modules.events.service", "ecom.modules.identity", "ecom.modules.identity.csrf", "ecom.modules.identity.models", "ecom.modules.identity.passwords", "ecom.modules.identity.rate_limit", "ecom.modules.identity.service", "ecom.modules.identity.tokens", "ecom.modules.identity.types", "ecom.modules.inventory", "ecom.modules.inventory.models", "ecom.modules.inventory.schemas", "ecom.modules.inventory.seed", "ecom.modules.inventory.service", "ecom.modules.pricing", "ecom.modules.pricing.models", "ecom.modules.pricing.schemas", "ecom.modules.pricing.seed", "ecom.modules.pricing.service", "ecom.modules.sale_facts", "ecom.modules.sale_facts.service", "ecom.modules.sessions", "ecom.modules.sessions.models", "ecom.modules.sessions.schemas", "ecom.modules.sessions.service"]
-forbidden_modules = ["ecom.config", "ecom.infra.checkout_gateway", "ecom.infra.db", "ecom.infra.llm", "ecom.legacy"]
+forbidden_modules = ["ecom.config", "ecom.infra", "ecom.legacy"]
 
 [[tool.importlinter.contracts]]
 name = "ecom.modules.cart 不得直接访问外部 ORM"
@@ -581,7 +593,7 @@ allow_indirect_imports = true
 [[tool.importlinter.contracts]]
 name = "具体适配器仅组合根与精确兼容入口可以直接导入"
 type = "protected"
-protected_modules = ["ecom.infra.checkout_gateway", "ecom.infra.db", "ecom.infra.llm", "ecom.legacy.infrastructure"]
+protected_modules = ["ecom.infra", "ecom.legacy.infrastructure"]
 allowed_importers = ["ecom.api.deps", "ecom.main"]
 ignore_imports = ["tools.amazon.import_amazon_metadata -> ecom.infra.db", "tools.reset_demo_password -> ecom.infra.db"]
 unmatched_ignore_imports_alerting = "none"

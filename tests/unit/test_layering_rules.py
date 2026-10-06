@@ -99,6 +99,9 @@ def test_indirect_model_use_is_allowed_but_direct_use_is_not(layout_case):
     ('shared.time', 'import config', 'config'),
     ('modules.inventory.service', 'import legacy', 'legacy'),
     ('api.routes.catalog', 'import legacy', 'legacy'),
+    ('modules.inventory.service', 'import application.shopping.orchestrator',
+     'application.shopping.orchestrator'),
+    ('infra.checkout_gateway', 'import api.routes.catalog', 'api.routes.catalog'),
     ('modules.inventory.service', 'import modules.catalog.service as service\n'
      'getattr(service, "_private")', 'dynamic'),
     ('kernel.quotes', 'open("anything")', 'I/O'),
@@ -478,12 +481,86 @@ def test_packaged_layout_enforces_external_and_adapter_boundaries(packaged_case)
                for issue in checker(packaged_case, 'packaged'))
 
 
+def test_packaged_layout_protects_adapter_package_root(packaged_case):
+    """`from ecom.infra import Client` 这类包根导入不能绕过适配器保护。"""
+    checker = rules().check_import_boundaries
+    write_module(packaged_case, 'ecom.api.routes.health',
+                 'from ecom.infra import Client\n')
+    issues = checker(packaged_case, 'packaged')
+    assert any('concrete adapter ecom.infra' in issue for issue in issues), issues
+    write_module(packaged_case, 'ecom.api.routes.health', '')
+    # 组合根（ecom/api/deps.py）仍允许直接导入适配器。
+    write_module(packaged_case, 'ecom.api.deps',
+                 'from ecom.infra import Client\n'
+                 'import ecom.infra.checkout_gateway as gateway\n')
+    assert checker(packaged_case, 'packaged') == []
+    write_module(packaged_case, 'ecom.api.deps',
+                 'import ecom.infra.checkout_gateway as gateway\n')
+
+
+def test_packaged_layout_flags_legacy_adapter_prefix_from_tools(packaged_case):
+    """深层前缀（ecom.legacy.infrastructure）必须整段匹配，不能只比顶层根。"""
+    checker = rules().check_import_boundaries
+    write_module(packaged_case, 'ecom.legacy.infrastructure.mysql_client', '')
+    write_module(packaged_case, 'tools.reset_demo_password',
+                 'from ecom.legacy.infrastructure import mysql_client\n')
+    issues = checker(packaged_case, 'packaged')
+    assert any('concrete adapter ecom.legacy.infrastructure.mysql_client' in issue
+               for issue in issues), issues
+    write_module(packaged_case, 'tools.reset_demo_password', '')
+    # 适配器子树内部互用仍然合法。
+    write_module(packaged_case, 'ecom.legacy.infrastructure.mysql_client',
+                 'from ecom.legacy.infrastructure import redis_client\n')
+    assert checker(packaged_case, 'packaged') == []
+    write_module(packaged_case, 'ecom.legacy.infrastructure.mysql_client', '')
+
+
+def test_packaged_layout_allows_inward_dependencies(packaged_case):
+    """合法方向不能误报：application→modules、infra→config/kernel。"""
+    checker = rules().check_import_boundaries
+    write_module(packaged_case, 'ecom.application.shopping.orchestrator',
+                 'from ecom.modules.catalog.service import CatalogService\n')
+    write_module(packaged_case, 'ecom.infra.db',
+                 'import ecom.config\n'
+                 'import ecom.kernel.quotes\n')
+    assert checker(packaged_case, 'packaged') == []
+    write_module(packaged_case, 'ecom.application.shopping.orchestrator', '')
+    write_module(packaged_case, 'ecom.infra.db', '')
+
+
 @pytest.mark.parametrize('layout', ['unknown', ''])
 def test_absent_or_unknown_layout_fails_closed(layout_case, layout):
     with pytest.raises(ValueError):
         rules().generate_import_contracts(layout_case, layout)
     with pytest.raises(ValueError):
         rules().check_import_boundaries(layout_case, layout)
+
+
+def test_original_layout_keeps_its_own_tool_exceptions(tmp_path):
+    """例外表必须与登记清单同属一个时期：original 的离线工具在 scripts/data。"""
+    for name, source in {
+        'db.session': '',
+        'catalog.models': 'class Product: pass\n',
+        'scripts.reset_demo_password':
+            'from db.session import create_session_factory\n',
+        'data.import_amazon_metadata': 'from catalog.models import Product\n',
+    }.items():
+        write_module(tmp_path, name, source)
+    assert rules().check_import_boundaries(tmp_path, 'original') == []
+    # 搬迁后的 tools.* 不属于这两个时期，必须作为未登记模块报出来。
+    write_module(tmp_path, 'tools.reset_demo_password',
+                 'from db.session import create_session_factory\n')
+    assert any('unregistered module: tools.reset_demo_password' in item
+               for item in rules().check_import_boundaries(tmp_path, 'original'))
+
+
+def test_grouped_layout_keeps_its_own_tool_exceptions(tmp_path):
+    for name, source in {
+        'infra.db': '',
+        'scripts.reset_demo_password': 'from infra.db import create_session_factory\n',
+    }.items():
+        write_module(tmp_path, name, source)
+    assert rules().check_import_boundaries(tmp_path, 'grouped') == []
 
 
 def test_original_layout_remains_reproducible(tmp_path):

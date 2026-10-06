@@ -103,6 +103,29 @@ class LayoutTables:
     def protected(self) -> frozenset[str]:
         return self.adapters | self.adapter_prefixes
 
+    def adapter_root(self, module: str) -> str | None:
+        """包含该模块的适配器登记项（登记项本身或其祖先），无则返回 None。"""
+        candidates = sorted(self.adapters | self.adapter_prefixes,
+                            key=len, reverse=True)
+        for name in candidates:
+            if module == name or module.startswith(name + '.'):
+                return name
+        return None
+
+    def is_adapter(self, module: str) -> bool:
+        """具体适配器判定：登记项本身或它在点分意义上的子树。
+
+        前缀不能只比较顶层根（`module.split('.')[0]`）：`ecom.legacy.infrastructure`
+        这类深层前缀永远不等于 `ecom`，搬迁后会把越界导入静默放行。包根式登记
+        （如 `ecom.infra`）同样要覆盖其子树，否则改由包根保护后会丢掉精确例外。
+        """
+        return self.adapter_root(module) is not None
+
+    def is_adapter_internal(self, source: str, target: str) -> bool:
+        """同一适配器子树内部的互用：protected 契约本就允许，AST 必须一致。"""
+        root = self.adapter_root(target)
+        return root is not None and self.adapter_root(source) == root
+
     def role(self, module: str) -> str:
         if module in self.composition:
             return 'composition'
@@ -165,14 +188,16 @@ ORIGINAL_EXACT_EDGES = {
     ('catalog.legacy_adapter', 'models.schemas'),
     ('api.commerce', 'models.commerce'),
     ('api.recommendations', 'models.schemas'),
-    ('tools.reset_demo_password', 'db.session'),
-    ('tools.reset_demo_password', 'identity.passwords'),
-    ('tools.amazon.import_amazon_metadata', 'catalog.models'),
-    ('tools.amazon.import_amazon_metadata', 'catalog.seed'),
-    ('tools.amazon.import_amazon_metadata', 'inventory.models'),
-    ('tools.amazon.import_amazon_metadata', 'inventory.seed'),
-    ('tools.amazon.import_amazon_metadata', 'pricing.seed'),
-    ('tools.amazon.import_amazon_metadata', 'db.session'),
+    # 例外必须与登记清单同属一个时期：original 布局的离线工具仍在
+    # 顶层 `scripts/` 与 `data/`，写成 `tools.*` 会同时误拒历史导入。
+    ('scripts.reset_demo_password', 'db.session'),
+    ('scripts.reset_demo_password', 'identity.passwords'),
+    ('data.import_amazon_metadata', 'catalog.models'),
+    ('data.import_amazon_metadata', 'catalog.seed'),
+    ('data.import_amazon_metadata', 'inventory.models'),
+    ('data.import_amazon_metadata', 'inventory.seed'),
+    ('data.import_amazon_metadata', 'pricing.seed'),
+    ('data.import_amazon_metadata', 'db.session'),
 } | {('migrations.env', f'{module}.models') for module in ORIGINAL_BUSINESS}
 ORIGINAL_KERNEL_SCHEMAS = {'catalog.schemas', 'pricing.schemas', 'inventory.schemas'}
 ORIGINAL_KERNEL_EDGES = {
@@ -233,14 +258,15 @@ GROUPED_EXACT_EDGES = {
     ('legacy.catalog_adapter', 'legacy.models.schemas'),
     ('api.routes.commerce', 'api.contracts.commerce'),
     ('api.routes.legacy_recommendations', 'legacy.models.schemas'),
-    ('tools.reset_demo_password', 'infra.db'),
-    ('tools.reset_demo_password', 'modules.identity.passwords'),
-    ('tools.amazon.import_amazon_metadata', 'modules.catalog.models'),
-    ('tools.amazon.import_amazon_metadata', 'modules.catalog.seed'),
-    ('tools.amazon.import_amazon_metadata', 'modules.inventory.models'),
-    ('tools.amazon.import_amazon_metadata', 'modules.inventory.seed'),
-    ('tools.amazon.import_amazon_metadata', 'modules.pricing.seed'),
-    ('tools.amazon.import_amazon_metadata', 'infra.db'),
+    # 同 original：grouped 时期的离线工具仍在 `scripts/` 与 `data/`。
+    ('scripts.reset_demo_password', 'infra.db'),
+    ('scripts.reset_demo_password', 'modules.identity.passwords'),
+    ('data.import_amazon_metadata', 'modules.catalog.models'),
+    ('data.import_amazon_metadata', 'modules.catalog.seed'),
+    ('data.import_amazon_metadata', 'modules.inventory.models'),
+    ('data.import_amazon_metadata', 'modules.inventory.seed'),
+    ('data.import_amazon_metadata', 'modules.pricing.seed'),
+    ('data.import_amazon_metadata', 'infra.db'),
 } | {('migrations.env', f'{module}.models') for module in GROUPED_BUSINESS}
 GROUPED_KERNEL_SCHEMAS = {
     'modules.catalog.schemas', 'modules.inventory.schemas', 'modules.pricing.schemas',
@@ -352,7 +378,9 @@ PACKAGED_BUSINESS = {
 }
 PACKAGED_LEGACY = {'ecom.legacy'}
 PACKAGED_APPLICATION = {'ecom.application'}
-PACKAGED_ADAPTERS = {'ecom.infra.checkout_gateway', 'ecom.infra.db', 'ecom.infra.llm'}
+# 保护整个 `ecom.infra` 前缀（含包级 `__init__.py`）：只登记叶子会让
+# `from ecom.infra import Client` 这类包根导入绕过适配器保护。
+PACKAGED_ADAPTERS = {'ecom.infra'}
 # package_root 之外仍受契约约束的顶层命名空间包；`ecom` 本身不能作为
 # forbidden 目标，分组根包由 layer_roots 展开。
 PACKAGED_LAYER_ROOTS = frozenset({
@@ -697,6 +725,11 @@ def _contracts(modules: dict[str, Path | None],
 
     add('业务与应用能力不得依赖 HTTP 层',
         tables.business | tables.application, [tables.group_root('api')])
+    # 通用方向：不能只靠 cart/checkout/sessions/facts 的专项规则覆盖个别模块。
+    add('业务模块不得依赖应用层',
+        sorted(tables.business), [tables.group_root('application')])
+    add('基础设施不得依赖接口层',
+        [tables.group_root('infra')], [tables.group_root('api')])
     add('shared 不得依赖配置或业务包', [tables.group_root('shared')],
         sorted(group_roots - {tables.group_root('shared')}))
     add('kernel 只允许基础 schemas 与 shared', [tables.group_root('kernel')],
@@ -747,9 +780,10 @@ def _contracts(modules: dict[str, Path | None],
             'allowed_importers': sorted(
                 tables.allowed_importers & modules.keys()
             ),
+            # 例外按适配器判定（含前缀），否则包根式保护会丢掉精确工具例外。
             'ignore_imports': [f'{source} -> {target}'
                                for source, target in sorted(tables.exact_edges)
-                               if target in protected and source in modules],
+                               if tables.is_adapter(target) and source in modules],
             'unmatched_ignore_imports_alerting': 'none',
         })
     return contracts
@@ -885,7 +919,8 @@ def check_import_boundaries(root: Path, layout: str) -> list[str]:
                 if _boundary(source, tables) != _boundary(origin, tables):
                     issues.append(f'{source}:{line}: ORM re-export '
                                   f'{origin}.{original_symbol}')
-            if origin in tables.adapters and source not in tables.composition:
+            if (tables.is_adapter(origin) and source not in tables.composition
+                    and not tables.is_adapter_internal(source, origin)):
                 issues.append(f'{source}:{line}: adapter re-export {origin}')
 
     for item in imports:
@@ -908,7 +943,7 @@ def check_import_boundaries(root: Path, layout: str) -> list[str]:
             continue
         if role in {'api', 'infra'} and tables.role(target) == 'legacy':
             issues.append(f'{source}:{item.line}: forbidden legacy dependency {target}')
-        if target in tables.adapters or target_root in tables.adapter_prefixes:
+        if tables.is_adapter(target) and not tables.is_adapter_internal(source, target):
             if source not in tables.composition and role != 'infra':
                 issues.append(f'{source}:{item.line}: concrete adapter {target}')
         target_package = _owner(target, tables.business)
@@ -965,7 +1000,7 @@ def check_import_boundaries(root: Path, layout: str) -> list[str]:
     } if '.' in module else dependencies for module, dependencies in graph.items()}
     for source in runtime_graph:
         role = tables.role(source)
-        if role not in {'business', 'application', 'kernel', 'shared'}:
+        if role not in {'business', 'application', 'kernel', 'shared', 'infra'}:
             continue
         visited = {source}
         pending = [source]
@@ -990,6 +1025,12 @@ def check_import_boundaries(root: Path, layout: str) -> list[str]:
                     forbidden = target not in tables.kernel_schemas and (
                         target not in tables.kernel_packages
                     )
+                if role == 'business' and target_role == 'application':
+                    forbidden = True
+                if role == 'infra':
+                    # 适配器只禁反向依赖 API：`ecom/infra/llm.py` 合法依赖
+                    # config 与 kernel，不能套用业务模块的禁止集合。
+                    forbidden = target_role == 'api'
                 if forbidden:
                     issues.append(f'{source}: forbidden indirect dependency {target}')
     return sorted(set(issues))
