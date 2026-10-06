@@ -70,6 +70,69 @@ def test_every_original_node_has_a_mapped_successor():
     assert [node_id for node_id in mapped if node_id not in current] == []
 
 
+PHASE_ONE = FIXTURES / "phase-one"
+PHASE_ONE_EXCEPTIONS = PHASE_ONE / "exceptions.json"
+
+
+def phase_one_results(path: Path) -> dict[str, str]:
+    """按 node_id 属性读回阶段一 JUnit 的执行结果。"""
+    from xml.etree import ElementTree
+
+    outcomes = {}
+    for case in ElementTree.parse(path).iter("testcase"):
+        properties = {
+            prop.get("name"): prop.get("value")
+            for prop in case.findall("./properties/property")
+        }
+        node_id = properties.get("node_id")
+        assert node_id, "阶段一 results.xml 缺少 node_id 属性"
+        outcome = "passed"
+        for tag in ("error", "failure", "skipped"):
+            if case.find(tag) is not None:
+                outcome = tag
+        outcomes[node_id] = outcome
+    return outcomes
+
+
+def test_phase_one_nodes_survive_with_recorded_evidence():
+    """第一阶段 714 节点必须全部映射到当前收集结果，单射且逐条有据。
+
+    原始证据（manifest 与 results.xml）与例外清单都在 phase-one/ 下：
+    未映射的节点必须与已登记例外完全一致，既不能多出未登记的丢失，
+    也不允许例外清单里留着已经恢复映射的陈旧条目。
+    """
+    from tests.support.layering_reports import mapped_node_id
+
+    path_map = json.loads(PATH_MAP.read_text(encoding="utf-8"))
+    manifest = [
+        item["node_id"] for item in
+        json.loads((PHASE_ONE / "manifest.json").read_text(encoding="utf-8"))["tests"]
+    ]
+    results = phase_one_results(PHASE_ONE / "results.xml")
+    exceptions = json.loads(PHASE_ONE_EXCEPTIONS.read_text(encoding="utf-8"))
+    # 证据自洽：清单与执行结果是同一批 node，且当时全部通过。
+    assert set(manifest) == set(results), "阶段一 manifest 与 results 不是同一批节点"
+    assert [node for node, outcome in results.items() if outcome != "passed"] == []
+    assert all(reason.strip() for reason in exceptions.values()), "例外必须写明理由"
+
+    current = set(collect())
+    targets, unresolved = [], []
+    for node_id in manifest:
+        try:
+            target = mapped_node_id(node_id, path_map)
+        except ValueError:
+            unresolved.append(node_id)
+            continue
+        targets.append(target)
+        if target not in current:
+            unresolved.append(node_id)
+    assert sorted(unresolved) == sorted(exceptions), (
+        "未映射节点与已登记例外不一致（多出未登记或例外已失效）"
+    )
+    assert len(set(targets)) == len(targets), "路径映射把两个原 node 合并到同一位置"
+    assert len(targets) == len(manifest)
+
+
 def test_marker_shards_stay_mutually_exclusive_and_complete():
     shards_by_name = shards()
     for name, node_ids in shards_by_name.items():

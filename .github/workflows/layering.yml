@@ -139,3 +139,12 @@ jobs:
           --unit .artifacts/layering/unit
           --mysql .artifacts/layering/mysql
           --redis .artifacts/layering/redis
+      # 阶段一 714 节点证据只含清单与执行结果，不含合同文件。
+      - run: >-
+          python -m tests.support.layering_reports compare-ci
+          --baseline tests/fixtures/layering/phase-one
+          --path-map tests/fixtures/layering/path-map.json
+          --no-contracts
+          --unit .artifacts/layering/unit
+          --mysql .artifacts/layering/mysql
+          --redis .artifacts/layering/redis

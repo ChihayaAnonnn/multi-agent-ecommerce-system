@@ -165,12 +165,20 @@ def compare_results(
 
 
 def compare_ci_results(
-    baseline_dir: Path, report_dirs: list[Path], path_map: dict[str, str]
+    baseline_dir: Path, report_dirs: list[Path], path_map: dict[str, str],
+    *, contracts: bool = True,
 ) -> list[str]:
-    """三类 CI 报告必须共同保留已验证全通过基线的全部测试身份。"""
+    """三类 CI 报告必须共同保留已验证全通过基线的全部测试身份。
+
+    `contracts=False` 供只保存清单与执行证据的基线目录使用（例如阶段一
+    714 节点证据）：这类目录刻意不含合同文件，不能拿当前合同冒充原始证据。
+    """
     original_ids = _manifest(baseline_dir)
-    baseline_ids = {mapped_node_id(node_id, path_map) for node_id in original_ids}
-    if len(baseline_ids) != len(original_ids):
+    exceptions = documented_exceptions(baseline_dir)
+    baseline_ids = {
+        mapped_node_id(node_id, path_map) for node_id in original_ids - exceptions
+    }
+    if len(baseline_ids) != len(original_ids - exceptions):
         raise ValueError("path mapping collapses baseline node IDs")
     baseline = {node_id: ("passed", "") for node_id in baseline_ids}
     current_ids = set()
@@ -185,8 +193,22 @@ def compare_ci_results(
         current_ids.update(manifest)
         current.update(results)
     issues += _compare_test_results(baseline_ids, current_ids, baseline, current, {})
-    issues += _compare_contracts(baseline_dir, report_dirs[0], {})
+    if contracts:
+        issues += _compare_contracts(baseline_dir, report_dirs[0], {})
     return issues
+
+
+def documented_exceptions(baseline_dir: Path) -> set[str]:
+    """基线目录自带的逐条例外（例如阶段一布局断言变化），必须写明理由。"""
+    path = baseline_dir / "exceptions.json"
+    if not path.exists():
+        return set()
+    exceptions = json.loads(path.read_text(encoding="utf-8"))
+    if not all(
+        isinstance(reason, str) and reason.strip() for reason in exceptions.values()
+    ):
+        raise ValueError("baseline exceptions require a reason")
+    return set(exceptions)
 
 
 def assert_zero_skips(report_path: Path) -> None:
@@ -274,6 +296,10 @@ def main() -> int:
     for category in ("unit", "mysql", "redis"):
         compare.add_argument(f"--{category}", type=Path, required=True)
     compare.add_argument("--path-map", type=Path)
+    compare.add_argument(
+        "--no-contracts", action="store_true",
+        help="基线目录只含清单与执行证据时跳过合同比较",
+    )
     args = parser.parse_args()
     try:
         if args.command == "zero-skips":
@@ -283,7 +309,8 @@ def main() -> int:
         if args.command == "compare-ci":
             path_map = json.loads(args.path_map.read_text()) if args.path_map else {}
             issues = compare_ci_results(
-                args.baseline, [args.unit, args.mysql, args.redis], path_map
+                args.baseline, [args.unit, args.mysql, args.redis], path_map,
+                contracts=not args.no_contracts,
             )
             for issue in issues:
                 print(issue)

@@ -1,0 +1,4 @@
+{
+  "tests/test_layering_rules.py::test_absent_or_unknown_layout_fails_closed[grouped]": "布局断言变化：参数集由「其他布局名 + unknown」收敛为「unknown + 空串」，该例与 [packaged] 合并为当前的空串用例（见 NOTES.md）",
+  "tests/test_layering_rules.py::test_absent_or_unknown_layout_fails_closed[packaged]": "布局断言变化：参数集由「其他布局名 + unknown」收敛为「unknown + 空串」，该例与 [grouped] 合并为当前的空串用例（见 NOTES.md）"
+}

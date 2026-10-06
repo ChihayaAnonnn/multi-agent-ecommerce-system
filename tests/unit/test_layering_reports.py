@@ -151,6 +151,32 @@ def test_lint_different_source_is_new_violation():
     )
 
 
+def test_ci_compare_uses_documented_baseline_exceptions(tmp_path):
+    """基线目录自带的例外只对写明的 node 生效，且必须带理由。"""
+    baseline, current = tmp_path / "baseline", tmp_path / "current"
+    write_report(baseline, [("tests/test_old.py::test_one", "passed", "")])
+    write_report(current, [("tests/test_old.py::test_two", "passed", "")])
+    tools = report_tools()
+    issues = tools.compare_ci_results(baseline, [current], {}, contracts=False)
+    assert any("missing" in issue and "test_one" in issue for issue in issues)
+    (baseline / "exceptions.json").write_text(
+        json.dumps({"tests/test_old.py::test_one": "参数集收敛，已合并为另一用例"}),
+        encoding="utf-8",
+    )
+    assert tools.compare_ci_results(baseline, [current], {}, contracts=False) == []
+
+
+def test_ci_compare_rejects_reasonless_exceptions(tmp_path):
+    baseline, current = tmp_path / "baseline", tmp_path / "current"
+    write_report(baseline, [("tests/test_old.py::test_one", "passed", "")])
+    write_report(current, [("tests/test_old.py::test_one", "passed", "")])
+    (baseline / "exceptions.json").write_text(
+        json.dumps({"tests/test_old.py::test_one": "   "}), encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="reason"):
+        report_tools().compare_ci_results(baseline, [current], {}, contracts=False)
+
+
 def test_split_file_shares_one_baseline_allowance():
     """一拆二时，同一告警在两个目标各出现一次 => 其中一条是新增。"""
     baseline = [lint_entry("legacy/one.py", "long source")]

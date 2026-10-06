@@ -1,0 +1,3247 @@
+{
+  "tests": [
+    {
+      "node_id": "tests/test_ab_test.py::test_consistent_assignment",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_ab_test.py::test_distribution",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_ab_test.py::test_thompson_sampling",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_ab_test.py::test_custom_experiment",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_ab_test.py::test_metrics_recording",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_api_routes.py::test_recommendation_route_returns_product_and_records_agent_metric",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_api_routes.py::test_graph_route_keeps_its_response_shape",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_api_routes.py::test_experiment_outcome_and_health_routes_keep_contract",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_api_routes.py::test_main_app_registers_all_existing_routes",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_auth_api.py::test_auth_flow_and_cookie_flags",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_auth_api.py::test_origin_csrf_cors_and_missing_dependencies",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_auth_api.py::test_register_rejects_unusable_login_names_and_short_passwords",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_auth_api.py::test_forwarded_ip_only_from_trusted_proxy",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_auth_api.py::test_principal_dependency_isolation",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_auth_api.py::test_disabled_account_is_401_not_500",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_auth_api.py::test_validation_errors_do_not_echo_submitted_values",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_actions_mysql.py::test_lease_takeover_blocks_proposal_and_confirmation",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_actions_mysql.py::test_direct_api_checks_session_without_source_turn",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_actions_mysql.py::test_same_principal_sessions_share_cart_version",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_actions_mysql.py::test_committed_confirmation_retries_once",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_actions_mysql.py::test_source_replay_and_version_conflict_precede_seen_check",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_actions_mysql.py::test_action_reads_do_not_lock_session_for_update",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_api.py::test_cart_requires_bearer",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_confirmation_api.py::test_confirm_requires_bearer",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_confirmation_api.py::test_turn_proposes_and_button_confirms_once",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_confirmation_mysql.py::test_propose_requires_seen_sku_and_explicit_confirmation",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_confirmation_mysql.py::test_confirm_rechecks_and_is_idempotent",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_confirmation_mysql.py::test_internal_stock_version_change_and_cart_conflict",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_confirmation_mysql.py::test_confirmation_dependency_failure_rolls_back",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_confirmation_mysql.py::test_seen_sku_still_must_match_current_hard_constraints",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_mysql.py::test_cart_migration_and_unique_owner",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_mysql.py::test_cart_read_uses_current_facts",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_dto_fields[CartLineSnapshot-fields0]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_dto_fields[CartSnapshot-fields1]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_dto_fields[PendingActionRecord-fields2]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_dto_fields[ActionProposalCommand-fields3]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[ShoppingSessionService-lock_owned_session]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[ShoppingSessionService-has_seen_sku]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[ShoppingSessionService-assert_current_turn]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[CartService-lock_cart_snapshot]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[CartService-lock_pending_action]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[CartService-find_action_owner]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[CartService-propose_action_in_transaction]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[CartService-confirm_in_transaction]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[CartService-find_source_action_in_transaction]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[CartService-create_pending_action_in_transaction]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[CartService-confirmation_replay_in_transaction]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[CartService-resolve_action_in_transaction]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_transaction_public_methods_are_typed[CartService-invalidate_action_in_transaction]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transaction_api.py::test_pure_quote_snapshot_is_typed_json",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_public_snapshot_contains_no_orm",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_proposal_rolls_back_with_outer_transaction",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_confirmation_rolls_back_with_outer_transaction",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_seen_check_is_in_callers_transaction",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_single_cart_and_single_pending_per_session",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_transaction_operations_reject_foreign_owner[owner]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_transaction_operations_reject_foreign_owner[lock]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_transaction_operations_reject_foreign_owner[resolve]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_transaction_operations_reject_foreign_owner[invalidate]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_transaction_operations_reject_foreign_owner[session]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_source_record_replay_and_conflict_priority",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_create_resolve_invalidate_and_replay_records",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_nested_snapshot_mutation_does_not_pollute_orm_or_save[payload]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_nested_snapshot_mutation_does_not_pollute_orm_or_save[summary]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_nested_snapshot_mutation_does_not_pollute_orm_or_save[result]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_nested_snapshot_mutation_does_not_pollute_orm_or_save[line]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_nested_snapshot_mutation_does_not_pollute_orm_or_save[state]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_cart_transactions_mysql.py::test_confirmation_result_does_not_alias_unchanged_line",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_catalog_migration_constraints",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_product_without_options_uses_default_signature",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_only_created_combinations_exist",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_duplicate_codes_and_combinations_are_rejected",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_sku_rejects_values_outside_its_product_options",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_adding_option_to_active_product_is_rejected",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_activation_refuses_incomplete_combinations",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_concurrent_option_add_and_activation_keep_combinations_complete",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_activation_requires_sku_and_price",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_activation_and_archive_reject_stale_version",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_archive_keeps_product_and_sku_rows",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_category_parent_cycle_is_rejected",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_product_attributes_are_validated_against_category_definitions",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_media_rejects_sku_from_another_product",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_product_detail_returns_real_sku_combinations",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_single_reads_distinguish_inactive_sku_and_archived_product",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_search_returns_only_active_products_with_stable_cursor",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_mysql.py::test_search_rejects_oversized_limit_invalid_cursor_and_unknown_category",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_missing_sku_maps_to_module_not_found[PricingService-PricingNotFoundError]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_missing_sku_maps_to_module_not_found[InventoryService-InventoryNotFoundError]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_existence_check_reuses_callers_session[PricingService]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_existence_check_reuses_callers_session[InventoryService]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_catalog_reader_constructs_without_pricing",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_catalog_reader_only_reads_callers_session[False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_catalog_reader_only_reads_callers_session[True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_sku_reader_is_required[PricingService]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_sku_reader_is_required[InventoryService]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_price_reader_compatibility_alias_is_same_object",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_catalog_reader_observes_uncommitted_caller_transaction",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_stage_enforces_catalog_model_ownership[False-pricing]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_stage_enforces_catalog_model_ownership[False-inventory]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_stage_enforces_catalog_model_ownership[True-pricing]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_catalog_sku_port.py::test_stage_enforces_catalog_model_ownership[True-inventory]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_checkout_actions_mysql.py::test_handoff_source_lease_checked_before_preparing",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_actions_mysql.py::test_network_runs_after_prepare_commit",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_actions_mysql.py::test_same_key_retry_after_response_loss_reuses_ready_result",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_actions_mysql.py::test_handoff_lookup_rejects_other_session_or_principal",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_actions_mysql.py::test_preview_and_direct_api_enforce_session_owner",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_actions_mysql.py::test_retry_recovers_same_id_and_no_post_network_lease_check",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_actions_mysql.py::test_checkout_no_longer_coordinates_session_or_turn",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_checkout_actions_mysql.py::test_reconfirmation_and_decline_replay_do_not_call_host",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_actions_mysql.py::test_preview_rejects_stale_or_mismatched_source",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_api.py::test_checkout_routes_require_bearer",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_checkout_mysql.py::test_preview_rejects_empty_or_unbuyable_cart",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_mysql.py::test_handoff_rechecks_and_recovers_timeout",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_mysql.py::test_no_host_is_503_in_production",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_mysql.py::test_preview_source_fence_reuses_only_pending_action",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_mysql.py::test_invalid_destination_never_becomes_ready",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_mysql.py::test_checkout_migration_roundtrip",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_mysql.py::test_slow_host_has_deadline_and_no_database_lock",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_preparing_and_action_consumption_roll_back_together",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_checkout_returns_no_cart_orm",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_destination_call_requires_no_open_transaction",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_retry_keeps_handoff_id",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_transaction_methods_use_only_callers_session",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_finalization_rolls_back_and_does_not_overwrite_ready",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_expired_handoff_does_not_retry_or_become_ready",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_get_owned_uses_action_session_and_principal",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_handoff_attempt_nested_json_does_not_alias_orm[False]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_handoff_attempt_nested_json_does_not_alias_orm[True]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_checkout_preview_and_reconfirmation_replay_json_are_isolated",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_checkout_transaction_public_methods_are_typed[preview_in_transaction]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_checkout_transaction_public_methods_are_typed[prepare_handoff_in_transaction]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_checkout_transaction_public_methods_are_typed[request_destination]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_checkout_transaction_public_methods_are_typed[finalize_handoff_in_transaction]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_checkout_transaction_public_methods_are_typed[get_owned_in_transaction]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_checkout_transaction_api.py::test_gateway_port_preserves_alias_identity",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_auth_api.py::test_sessions_require_bearer_and_reject_self_reported_seen",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_auth_api.py::test_real_accounts_are_isolated_after_refresh",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_chat_confirmation.py::test_chat_confirm_uses_same_command_as_button",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_chat_confirmation.py::test_foreign_chat_action_is_404",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_chat_confirmation.py::test_stale_chat_claim_cannot_confirm_cart_or_checkout",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_demo.py::test_demo_has_only_chat_input_and_collapsible_history",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_demo.py::test_guest_entry_is_unavailable_outside_explicit_demo",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_demo.py::test_guest_auto_login_refresh_and_resource_isolation",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_demo.py::test_react_static_routes_do_not_shadow_api",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_discovery.py::test_explicit_budget_overrides_previous_constraint",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_e2e.py::test_commerce_migration_full_roundtrip",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_e2e.py::test_two_category_purchase_preparation",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_e2e.py::test_demo_is_never_mounted_in_production",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_events_mysql.py::test_event_dedupe_and_failure_is_non_blocking",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_facts.py::test_quote_many_never_promotes_unknown_to_purchasable",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_facts.py::test_quote_dependency_failure_is_not_empty[catalog]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_facts.py::test_quote_dependency_failure_is_not_empty[pricing]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_facts.py::test_quote_dependency_failure_is_not_empty[inventory]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_facts_mysql.py::test_batch_details_have_constant_sql_count",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_facts_mysql.py::test_scan_hard_filters_and_limit",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_facts_mysql.py::test_real_quote_statuses_and_two_categories",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_graph.py::test_graph_routes_only_to_intended_branch[\\u4e70\\u4e1c\\u897f-shortlist]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_graph.py::test_graph_routes_only_to_intended_branch[\\u770b\\u8d2d\\u7269\\u8f66-cart_updated]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_graph.py::test_graph_routes_only_to_intended_branch[\\u52a0\\u5165\\u8d2d\\u7269\\u8f66-confirm_action]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_graph.py::test_graph_routes_only_to_intended_branch[\\u7ed3\\u8d26-confirm_action]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_graph.py::test_graph_routes_only_to_intended_branch[\\u67e5\\u8ba2\\u5355-unsupported]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_graph.py::test_graph_routes_only_to_intended_branch[\\u552e\\u540e\\u9000\\u6b3e-unsupported]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_graph.py::test_graph_routes_only_to_intended_branch[\\u6bd4\\u8f83-compare]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_graph.py::test_graph_routes_only_to_intended_branch[-clarify]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_graph.py::test_graph_uses_only_requoted_facts_and_no_empty_fallback",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_model.py::test_model_cannot_invent_or_expand_candidate_ids[output0]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_model.py::test_model_cannot_invent_or_expand_candidate_ids[output1]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_model.py::test_model_cannot_invent_or_expand_candidate_ids[output2]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_model.py::test_model_cannot_invent_or_expand_candidate_ids[output3]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_model.py::test_model_cannot_change_explicit_hard_constraints",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_model.py::test_model_timeout_and_missing_key_fall_back",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_read_api.py::test_single_sku_quote_keeps_inventory_error_priority",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_read_api.py::test_single_sku_quote_keeps_independent_source_order",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_read_api.py::test_list_and_detail_expose_product_sku_hierarchy",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_read_api.py::test_read_endpoints_return_503_when_database_is_not_configured",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_commerce_read_api.py::test_timestamps_carry_utc_designator",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_read_api.py::test_quote_reports_exact_minor_amount_and_purchasable_state",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_read_api.py::test_quote_requires_active_product",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_read_api.py::test_quote_distinguishes_missing_price_zero_stock_unknown_stock_and_failure",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_read_api.py::test_quote_marks_inactive_sku_unpurchasable",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_read_api.py::test_legacy_adapter_converts_minor_units_to_display_price",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_turns_mysql.py::test_turn_merges_explicit_constraints_and_replays",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_turns_mysql.py::test_application_rejects_invalid_historical_response[status]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_turns_mysql.py::test_application_rejects_invalid_historical_response[session_id]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_turns_mysql.py::test_application_rejects_invalid_historical_response[turn_id]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_commerce_turns_mysql.py::test_seen_ids_must_come_from_server_response",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_download_amazon_metadata.py::test_default_download_is_only_six_metadata_files",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_download_amazon_metadata.py::test_dry_run_never_downloads_or_writes_manifest",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_download_amazon_metadata.py::test_success_records_revision_and_rerun_reuses_it",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_download_amazon_metadata.py::test_failed_download_keeps_manifest_for_resume",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_download_amazon_metadata.py::test_invalid_category_rejected",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_download_amazon_metadata.py::test_missing_upstream_file_stops_before_download",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_download_amazon_metadata.py::test_wrong_file_size_does_not_mark_complete",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_download_amazon_metadata.py::test_insufficient_disk_space_stops_before_download",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_commerce_error_does_not_carry_http_status",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[not_found-404]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[session_expired-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[idempotency_conflict-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[turn_processing-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[turn_lease_lost-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[cart_version_conflict-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[action_already_resolved-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[action_expired-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[invalid_completion-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[invalid_action-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[invalid_quantity-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[constraints_mismatch-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[insufficient_stock-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[invalid_confirmation-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[invalid_comparison-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[not_seen-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[comparison_category_mismatch-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[invalid_product_reference-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[invalid_event_input-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[sku_not_found-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[sku_inactive-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[product_not_active-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[price_missing-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[stock_unknown-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[out_of_stock-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_commerce_errors_preserve_status_and_detail[checkout_unavailable-503]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_turn_processing_keeps_retryable_detail",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_codes_cover_raise_sites_and_dynamic_quote_reasons",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[not_found-404]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[session_expired-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[idempotency_conflict-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[turn_processing-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[turn_lease_lost-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[cart_version_conflict-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[action_already_resolved-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[action_expired-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[invalid_completion-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[invalid_action-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[invalid_quantity-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[constraints_mismatch-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[insufficient_stock-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[invalid_confirmation-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[invalid_comparison-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[not_seen-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[comparison_category_mismatch-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[invalid_product_reference-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[invalid_event_input-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[sku_not_found-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[sku_inactive-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[product_not_active-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[price_missing-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[stock_unknown-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[out_of_stock-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_registered_errors_preserve_actual_http_response[checkout_unavailable-503]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_business_errors_share_fieldless_domain_base[CommerceError]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_business_errors_share_fieldless_domain_base[CatalogError]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_business_errors_share_fieldless_domain_base[IdentityError]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_business_errors_share_fieldless_domain_base[PricingError]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_business_errors_share_fieldless_domain_base[InventoryError]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_business_errors_share_fieldless_domain_base[PasswordPolicyError]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_password_policy_error_preserves_value_error_compatibility",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_password_policy_public_export_is_same_object",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_auth_imports_password_policy_from_public_service",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_catalog_errors_keep_string_details[CatalogNotFoundError-404]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_catalog_errors_keep_string_details[CatalogConflictError-409]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_catalog_errors_keep_string_details[CatalogValidationError-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_catalog_errors_keep_string_details[CatalogError-422]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_identity_http_configuration_belongs_to_api",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_http_list_parsing_is_not_settings_business_behavior",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_trusted_network_validation_remains_fail_closed",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_dependency_errors_keep_safe_commerce_details[error0]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_dependency_errors_keep_safe_commerce_details[error1]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_unknown_domain_error_keeps_internal_error_policy[error0]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_unknown_domain_error_keeps_internal_error_policy[error1]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_error_mapping_contracts.py::test_identity_error_response_side_effects_are_preserved",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_core.py::test_password_hash_is_argon2id_and_salted",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_core.py::test_password_hash_verifies_against_hash_of_other_salt",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_core.py::test_password_hash_rejects_corrupted_encoded_value",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_core.py::test_password_policy",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_core.py::test_principal_key_is_stable_and_issuer_scoped",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_core.py::test_access_claims_and_tampering",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_core.py::test_key_rotation_accepts_old_public_key_only_until_expiry",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_core.py::test_missing_key_config_fails_closed",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_core.py::test_csrf_is_session_bound",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_core.py::test_codec_rejects_broken_or_mismatched_keys",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_core.py::test_load_token_codec_rejects_mismatched_key_files",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_identity_migration_constraints",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_only_one_active_refresh_token_per_session",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_token_hash_columns_store_only_digests",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_email_uniqueness_after_normalization",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_demo_register_and_login",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_concurrent_equivalent_email_registration_creates_one_user",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_bad_credentials_are_indistinguishable",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_demo_mode_gate",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_verify_rechecks_user_and_session",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_refresh_rotation_and_replay",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_concurrent_refresh_has_one_winner",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_csrf_bound_to_session",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_logout_revokes_access_immediately",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_controlled_reset_revokes_all_sessions",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_reset_denied_in_production",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_reset_script_takes_no_password_argument_and_hides_secrets",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_login_redis_release_failure_does_not_leave_session",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_login_after_password_change_does_not_create_session",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_login_and_reset_race_leaves_no_usable_session",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_logout_locks_session_before_token",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_refresh_and_logout_concurrently_do_not_deadlock",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_mysql.py::test_concurrent_logins_stop_at_the_email_limit",
+      "markers": [
+        "mysql",
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_rate_limit.py::test_redis_limits_and_failure",
+      "markers": [
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_rate_limit.py::test_concurrent_logins_cannot_exceed_the_limit",
+      "markers": [
+        "redis"
+      ]
+    },
+    {
+      "node_id": "tests/test_identity_rate_limit.py::test_redis_failure_fails_closed",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_import_amazon_metadata.py::test_simulation_is_reproducible_and_covers_stock_states",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_import_amazon_metadata.py::test_normalization_preserves_source_and_marks_simulation",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_import_amazon_metadata.py::test_batch_import_is_atomic_and_repeat_keeps_business_changes",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_import_amazon_metadata.py::test_resume_then_expand_limit_and_unknown_stock",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_import_amazon_metadata.py::test_dry_run_never_opens_database_or_writes_checkpoint",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_import_amazon_metadata.py::test_unknown_stock_and_late_failure_rollback",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_import_amazon_metadata.py::test_commit_before_checkpoint_failure_is_safe_to_replay",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_import_amazon_metadata.py::test_database_lock_rejects_second_importer",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_infrastructure_clients.py::RedisClientTests::test_connect_ping_and_close",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_infrastructure_clients.py::MySQLClientTests::test_ping_and_dispose",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_infrastructure_clients.py::MySQLClientTests::test_rejects_non_mysql_url",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_infrastructure_clients.py::MilvusClientTests::test_ping_and_close",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_inventory_mysql.py::test_inventory_migration_adds_tables_and_seeds_default_location",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_inventory_mysql.py::test_adjust_from_zero_balance_records_movement",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_inventory_mysql.py::test_insufficient_stock_is_rejected_without_movement",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_inventory_mysql.py::test_concurrent_outbound_never_oversells",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_inventory_mysql.py::test_idempotency_key_replays_once_and_conflicts_on_other_payloads",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_inventory_mysql.py::test_idempotent_replay_is_marked_and_never_reapplies",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_inventory_mysql.py::test_availability_distinguishes_unknown_zero_and_aggregates_locations",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_inventory_mysql.py::test_replay_marker_belongs_to_adjustment_not_to_availability",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_inventory_mysql.py::test_availability_raises_dependency_error_on_backend_failure",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_inventory_mysql.py::test_default_location_is_seeded_exactly_once",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_turn_contract_is_same_object_and_same_json",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_graph_hints_resolve_real_contracts",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[None-None-None-sku_not_found]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku1-None-None-sku_inactive]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku2-None-None-product_not_active]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku3-None-None-price_missing]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku4-price4-stock4-price_missing]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku5-price5-None-stock_unknown]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku6-price6-stock6-stock_unknown]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku7-price7-stock7-out_of_stock]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku8-price8-stock8-out_of_stock]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku9-price9-stock9-out_of_stock]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku10-price10-stock10-out_of_stock]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku11-price11-stock11-purchasable]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_reason_priority_includes_negative_stock[sku12-price12-stock12-purchasable]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_legacy_quote_paths_keep_existing_differences[USD-available-1-price_missing-purchasable-purchasable]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_legacy_quote_paths_keep_existing_differences[CNY-available--1-out_of_stock-purchasable-purchasable]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_legacy_quote_paths_keep_existing_differences[CNY-out_of_stock-1-out_of_stock-out_of_stock-purchasable]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_legacy_quote_paths_keep_existing_differences[CNY-unknown-1-stock_unknown-stock_unknown-stock_unknown]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_legacy_quote_paths_keep_existing_differences[CNY-available-0-out_of_stock-out_of_stock-out_of_stock]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_legacy_rule_public_imports_are_callable",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_api_rule_preserves_reason_priority[sku0-None-None-sku_inactive]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_api_rule_preserves_reason_priority[sku1-None-None-product_not_active]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_api_rule_preserves_reason_priority[sku2-None-None-price_missing]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_api_rule_preserves_reason_priority[sku3-price3-None-stock_unknown]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_api_rule_preserves_reason_priority[sku4-price4-stock4-stock_unknown]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_api_rule_preserves_reason_priority[sku5-price5-stock5-out_of_stock]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_api_rule_preserves_reason_priority[sku6-price6-stock6-purchasable]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_cart_rule_preserves_reason_priority[None-None-None-sku_not_found]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_cart_rule_preserves_reason_priority[sale1-None-None-sku_inactive]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_cart_rule_preserves_reason_priority[sale2-None-None-product_not_active]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_cart_rule_preserves_reason_priority[sale3-None-None-price_missing]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_cart_rule_preserves_reason_priority[sale4-price4-None-stock_unknown]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_cart_rule_preserves_reason_priority[sale5-price5-stock5-stock_unknown]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_cart_rule_preserves_reason_priority[sale6-price6-stock6-out_of_stock]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_public_legacy_cart_rule_preserves_reason_priority[sale7-price7-stock7-purchasable]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_legacy_cart_uses_sale_product_status_when_sources_conflict[draft-active-product_not_active-purchasable]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_legacy_cart_uses_sale_product_status_when_sources_conflict[active-draft-purchasable-product_not_active]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_api_legacy_helper_delegates_to_shared_pure_evaluator",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_cart_legacy_helper_delegates_to_shared_pure_evaluator",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_product_constraints_preserve_attribute_types[True-True-explicit-True-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_product_constraints_preserve_attribute_types[True-1-explicit-True-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_product_constraints_preserve_attribute_types[1-True-explicit-True-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_product_constraints_preserve_attribute_types[1-1.0-explicit-True-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_product_constraints_preserve_attribute_types[red-red-session-True-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_product_constraints_preserve_attribute_types[red-blue-explicit-True-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_product_constraints_preserve_attribute_types[red-blue-inferred-False-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_product_constraints_preserve_attribute_types[red-red-explicit-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_product_constraints_preserve_attribute_types[None-red-explicit-True-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_budget_equality_and_price_tolerance_match_baseline[100-price0-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_budget_equality_and_price_tolerance_match_baseline[100-price1-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_budget_equality_and_price_tolerance_match_baseline[None-price2-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_budget_equality_and_price_tolerance_match_baseline[None-None-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_budget_equality_and_price_tolerance_match_baseline[0-price4-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_budget_equality_and_price_tolerance_match_baseline[100-price5-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_amount_zero_and_utc_json_match_baseline",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_contract_import_orders_resolve_without_placeholders[modules0]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_contract_import_orders_resolve_without_placeholders[modules1]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_contract_import_orders_resolve_without_placeholders[modules2]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_contract_import_orders_resolve_without_placeholders[modules3]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_kernel_stage_rejects_dependencies_outside_schema_whitelist[config-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_kernel_stage_rejects_dependencies_outside_schema_whitelist[config-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_kernel_stage_rejects_dependencies_outside_schema_whitelist[cart-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_kernel_stage_rejects_dependencies_outside_schema_whitelist[cart-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_kernel_stage_rejects_dependencies_outside_schema_whitelist[catalog.service-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_kernel_stage_rejects_dependencies_outside_schema_whitelist[catalog.service-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_base_schema_stage_rejects_reverse_kernel_dependency[catalog]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_base_schema_stage_rejects_reverse_kernel_dependency[pricing]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_kernel_contracts.py::test_base_schema_stage_rejects_reverse_kernel_dependency[inventory]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_stage_import_contracts",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_composition_contract_rejects_concrete_dependencies[checkout.service-checkout.gateway]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_composition_contract_rejects_concrete_dependencies[commerce_orchestrator.ports-commerce_orchestrator.llm_adapter]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_composition_contract_rejects_concrete_dependencies[commerce_orchestrator.guards-commerce_orchestrator.llm_adapter]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_composition_contract_rejects_concrete_dependencies[commerce_orchestrator.service-commerce_orchestrator.graph]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_composition_contract_rejects_concrete_dependencies[commerce_orchestrator.service-commerce_orchestrator.llm_adapter]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_stage_wrapper_rejects_missing_configuration",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_stage_wrapper_rejects_missing_cli",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_shared_contract_rejects_business_dependencies[config-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_shared_contract_rejects_business_dependencies[config-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_shared_contract_rejects_business_dependencies[cart-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_shared_contract_rejects_business_dependencies[cart-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_sessions_contract_rejects_application_dependencies[commerce_orchestrator-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_sessions_contract_rejects_application_dependencies[commerce_orchestrator-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_sessions_contract_rejects_application_dependencies[models.commerce-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_sessions_contract_rejects_application_dependencies[models.commerce-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_business_facts_contract_rejects_application_dependencies[cart-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_business_facts_contract_rejects_application_dependencies[cart-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_business_facts_contract_rejects_application_dependencies[storefront-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_business_facts_contract_rejects_application_dependencies[storefront-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_business_facts_contract_rejects_application_dependencies[sale_facts-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_business_facts_contract_rejects_application_dependencies[sale_facts-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_checkout_contract_rejects_only_direct_cart_models[False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_checkout_contract_rejects_only_direct_cart_models[True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_checkout_contract_rejects_session_or_application[False-shopping_session]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_checkout_contract_rejects_session_or_application[False-commerce_orchestrator]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_checkout_contract_rejects_session_or_application[True-shopping_session]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering.py::test_checkout_contract_rejects_session_or_application[True-commerce_orchestrator]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_baseline.py::test_routes_and_openapi_match_baseline",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_baseline.py::test_metadata_signature_matches_baseline",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_baseline.py::test_missing_configuration_responses_match_baseline",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_baseline.py::test_desktop_demo_contract_runner",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_equal_skip_count_does_not_hide_missing_test",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_zero_skip_gate_rejects_skip",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_zero_skip_gate_accepts_executed_tests",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_zero_skip_gate_rejects_empty_report",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_path_mapping_preserves_parametrized_node_ids",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_result_and_skip_reason_changes_are_rejected[skipped-no redis]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_result_and_skip_reason_changes_are_rejected[failure-bad]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_allowed_change_requires_approval_and_reason",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_manifest_catches_unexecuted_test",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_contract_difference_is_reported",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_added_lint_occurrence_is_not_hidden",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_lint_path_mapping_ignores_moved_line_numbers",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_lint_different_source_is_new_violation",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_fixture_classification_uses_closure_not_filename",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_raw_ruff_records_compare_source_text",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_lint_normalization_does_not_store_source_secrets",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_lint_cli_distinguishes_gate_and_tool_errors[clean-0]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_lint_cli_distinguishes_gate_and_tool_errors[added-1]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_lint_cli_distinguishes_gate_and_tool_errors[broken-2]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_require_gate_checks_only_selected_categories",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_require_fixtures_never_use_development_fallback[mysql]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_require_fixtures_never_use_development_fallback[redis]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_added_passing_test_is_allowed",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_added_nonpassing_test_is_rejected[skipped]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_added_nonpassing_test_is_rejected[failure]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_added_nonpassing_test_is_rejected[error]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_improved_result_is_allowed[skipped]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_improved_result_is_allowed[failure]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_improved_result_is_allowed[error]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_ci_merge_detects_original_test_missing_from_all_jobs",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_ci_merge_compares_disjoint_jobs_with_full_baseline",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_reports.py::test_ci_merge_rejects_overlapping_job_selections",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_indirect_model_use_is_allowed_but_direct_use_is_not",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-from catalog.service import Product-Product]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-from catalog.service import _private-_private]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-import catalog.service as service\\nservice.Product-Product]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-from catalog import Product-catalog]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-from catalog.service import *-*]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[kernel.quotes-import catalog.service-catalog.service]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[commerce_orchestrator.service-import api.catalog-api.catalog]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[api.catalog-import checkout.gateway-checkout.gateway]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-from catalog import models-catalog.models]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[api.catalog-from . import runtime\\nfrom .runtime import gateway-gateway]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[api.catalog-from . import runtime\\nruntime.gateway-checkout.gateway]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[commerce_orchestrator.service-from ..api import catalog-relative]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-def run():\\n    import catalog.models-catalog.models]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-from typing import TYPE_CHECKING\\nif TYPE_CHECKING:\\n    import catalog.models-catalog.models]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-__import__(\"catalog.models\")-dynamic]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-import importlib as loader\\nloader.import_module(\"catalog.models\")-dynamic]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-from importlib import import_module as load\\nload(\"catalog.models\")-dynamic]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-loader = __import__\\nloader(\"catalog.models\")-dynamic]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-import fastapi-fastapi]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[kernel.quotes-import sqlalchemy-sqlalchemy]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[shared.time-import config-config]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-import agents-agents]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[api.catalog-import agents-agents]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[inventory.service-import catalog.service as service\\ngetattr(service, \"_private\")-dynamic]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_rejects_import_bypasses[kernel.quotes-open(\"anything\")-I/O]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_public_all_cannot_reexport_orm[from catalog.models import Product\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_public_all_cannot_reexport_orm[from catalog.models import Product as PublicProduct\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_public_all_cannot_reexport_orm[import catalog.models as models\\nPublicProduct = models.Product\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_annotated_public_alias_cannot_reexport_orm[from catalog.models import Product\\nPublicProduct: type = Product\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_annotated_public_alias_cannot_reexport_orm[import catalog.models as models\\nmodel_alias: object = models\\nPublicProduct: type = model_alias.Product\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_module_alias_preserves_private_and_reflection_boundaries[alias._private()\\n-private symbol catalog.service._private-alias = service\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_module_alias_preserves_private_and_reflection_boundaries[alias._private()\\n-private symbol catalog.service._private-alias: object = service\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_module_alias_preserves_private_and_reflection_boundaries[alias._private()\\n-private symbol catalog.service._private-first: object = service\\nalias = first\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_module_alias_preserves_private_and_reflection_boundaries[getattr(alias, \"_private\")\\n-dynamic module access-alias = service\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_module_alias_preserves_private_and_reflection_boundaries[getattr(alias, \"_private\")\\n-dynamic module access-alias: object = service\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_module_alias_preserves_private_and_reflection_boundaries[getattr(alias, \"_private\")\\n-dynamic module access-first: object = service\\nalias = first\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_public_dto_value_alias_remains_legal[]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_public_dto_value_alias_remains_legal[: type]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_module_alias_allows_public_service_access[alias = service\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_module_alias_allows_public_service_access[alias: object = service\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_module_alias_allows_public_service_access[first: object = service\\nalias = first\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_later_assignment_cannot_erase_earlier_module_access[service._private()\\n-private symbol catalog.service._private-]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_later_assignment_cannot_erase_earlier_module_access[service._private()\\n-private symbol catalog.service._private-: type]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_later_assignment_cannot_erase_earlier_module_access[getattr(service, \"_private\")\\n-dynamic module access-]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_later_assignment_cannot_erase_earlier_module_access[getattr(service, \"_private\")\\n-dynamic module access-: type]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_function_alias_history_survives_later_assignment[alias._private()-private symbol catalog.service._private-]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_function_alias_history_survives_later_assignment[alias._private()-private symbol catalog.service._private-: type]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_function_alias_history_survives_later_assignment[getattr(alias, \"_private\")-dynamic module access-]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_function_alias_history_survives_later_assignment[getattr(alias, \"_private\")-dynamic module access-: type]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_public_access_then_public_rebinding_is_legal[]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_public_access_then_public_rebinding_is_legal[: type]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-getattr-{target}, \"_private\", None--{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-getattr-{target}, \"_private\", None-read_member = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-getattr-{target}, \"_private\", None-read_member: object = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-getattr-{target}, \"_private\", None-first: object = {function}\\nread_member = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-getattr-{target}, \"_private\", None-from builtins import {function} as read_member\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-getattr-{target}, \"_private\", None-import builtins as builtin\\n-builtin.{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-getattr-{target}, \"_private\", None-import builtins as builtin\\nmodule_alias: object = builtin\\nfirst = module_alias.{function}\\nread_member: object = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-setattr-{target}, \"_private\", None--{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-setattr-{target}, \"_private\", None-read_member = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-setattr-{target}, \"_private\", None-read_member: object = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-setattr-{target}, \"_private\", None-first: object = {function}\\nread_member = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-setattr-{target}, \"_private\", None-from builtins import {function} as read_member\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-setattr-{target}, \"_private\", None-import builtins as builtin\\n-builtin.{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-setattr-{target}, \"_private\", None-import builtins as builtin\\nmodule_alias: object = builtin\\nfirst = module_alias.{function}\\nread_member: object = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-vars-{target}--{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-vars-{target}-read_member = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-vars-{target}-read_member: object = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-vars-{target}-first: object = {function}\\nread_member = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-vars-{target}-from builtins import {function} as read_member\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-vars-{target}-import builtins as builtin\\n-builtin.{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[True-vars-{target}-import builtins as builtin\\nmodule_alias: object = builtin\\nfirst = module_alias.{function}\\nread_member: object = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-getattr-{target}, \"_private\", None--{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-getattr-{target}, \"_private\", None-read_member = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-getattr-{target}, \"_private\", None-read_member: object = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-getattr-{target}, \"_private\", None-first: object = {function}\\nread_member = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-getattr-{target}, \"_private\", None-from builtins import {function} as read_member\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-getattr-{target}, \"_private\", None-import builtins as builtin\\n-builtin.{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-getattr-{target}, \"_private\", None-import builtins as builtin\\nmodule_alias: object = builtin\\nfirst = module_alias.{function}\\nread_member: object = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-setattr-{target}, \"_private\", None--{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-setattr-{target}, \"_private\", None-read_member = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-setattr-{target}, \"_private\", None-read_member: object = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-setattr-{target}, \"_private\", None-first: object = {function}\\nread_member = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-setattr-{target}, \"_private\", None-from builtins import {function} as read_member\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-setattr-{target}, \"_private\", None-import builtins as builtin\\n-builtin.{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-setattr-{target}, \"_private\", None-import builtins as builtin\\nmodule_alias: object = builtin\\nfirst = module_alias.{function}\\nread_member: object = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-vars-{target}--{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-vars-{target}-read_member = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-vars-{target}-read_member: object = {function}\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-vars-{target}-first: object = {function}\\nread_member = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-vars-{target}-from builtins import {function} as read_member\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-vars-{target}-import builtins as builtin\\n-builtin.{function}]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_identity_preserves_module_boundary[False-vars-{target}-import builtins as builtin\\nmodule_alias: object = builtin\\nfirst = module_alias.{function}\\nread_member: object = first\\n-read_member]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_history_survives_later_assignment[getattr-service, \"_private\", None]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_history_survives_later_assignment[setattr-service, \"_private\", None]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_reflection_callable_history_survives_later_assignment[vars-service]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_package_reexport_cannot_hide_orm",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_upper_forbidden_checks_indirect_dependencies",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_dynamic_aliases_cannot_hide_imports[from importlib import import_module as load\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_dynamic_aliases_cannot_hide_imports[import importlib\\ngetattr(importlib, \"import_module\")(\"catalog.models\")\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_dynamic_aliases_cannot_hide_imports[from builtins import __import__ as load\\nload(\"catalog.models\")\\n]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_public_alias_cannot_hide_private_symbol",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_package_initializer_cannot_hide_indirect_adapter",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_legal_kernel_schema_cannot_hide_upper_dependency",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_import_runs_parent_initializer_dependencies",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_base_schema_parent_cannot_hide_kernel_dependency",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_new_unregistered_modules_fail_checker_and_generator[new_business.service]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_new_unregistered_modules_fail_checker_and_generator[catalog.unregistered]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_missing_project_target_fails",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_complete_project_inventory_rejects_missing_roots",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_generated_inventory_includes_namespace_parents",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_precise_adapter_exception_does_not_allow_other_consumers[api.catalog]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_precise_adapter_exception_does_not_allow_other_consumers[inventory.service]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_composition_root_can_import_registered_adapter",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_generated_contracts_execute_real_cli",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_original_repository_passes_ast_and_has_current_generated_contracts",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_absent_or_unknown_layout_fails_closed[grouped]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_absent_or_unknown_layout_fails_closed[packaged]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_layering_rules.py::test_absent_or_unknown_layout_fails_closed[unknown]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_pricing_mysql.py::test_pricing_migration_adds_tables_and_downgrades",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_pricing_mysql.py::test_yuan_decimal_conversion_and_read_back",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_pricing_mysql.py::test_rejects_float_negative_and_imprecise_amounts",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_pricing_mysql.py::test_non_cny_price_is_not_treated_as_current",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_pricing_mysql.py::test_missing_price_is_not_backfilled",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_pricing_mysql.py::test_version_mismatch_does_not_write_history",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_pricing_mysql.py::test_concurrent_writes_with_same_old_version_only_one_wins",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_pricing_mysql.py::test_unknown_sku_does_not_write_price",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_pricing_mysql.py::test_catalog_activation_uses_real_pricing_service",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_runtime_uses_one_actions_cart_checkout_and_model",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_graph_compiles_once_before_first_request",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_owned_resources_close_once_on_shutdown",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_owned_resources_close_once_on_failure[graph]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_owned_resources_close_once_on_failure[identity]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_injected_resources_are_not_closed",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_injected_model_must_also_rerank",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_injected_model_must_parse_intent",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_unexpected_database_value_error_is_not_configuration_failure",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_final_runtime_construction_failure_closes_owned_resources",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_close_failure_still_disposes_engine_once",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_missing_database_preserves_health_and_503",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_known_identity_configuration_error_keeps_commerce",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_lifespan_awaits_runtime_and_closes_on_failure[body]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_lifespan_awaits_runtime_and_closes_on_failure[legacy_graph]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_database_resources_expose_engine_and_legacy_factory",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[internal-/demo/commerce/handoffs/00000000-0000-0000-0000-000000000000-True-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[internal-/demo/commerce/handoffs/00000000-0000-0000-0000-000000000000-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[internal-//host/checkout/-True-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-https://shop.test/checkout/one-False-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-https://shop.test:443/checkout/one-False-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-http://shop.test/checkout/one-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-https://other.test/checkout/one-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-https://shop.test:444/checkout/one-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-https://user@shop.test/checkout/one-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-https://shop.test/checkout/one?query=yes-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-https://shop.test/checkout/one#fragment-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-https://shop.test/other/one-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-https://shop.test/checkout/%2e-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-https://shop.test/checkout/../one-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_runtime_composition.py::test_destination_validation_is_business_owned[https-https://shop.test/checkout/\\\\one-False-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_locked_reader_uses_one_session_and_order",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_unlocked_reader_preserves_order_and_deduplicates",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_locked_reader_preserves_source_input_and_result_order",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_unlocked_empty_input_does_not_read_sources",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_locked_empty_input_keeps_legacy_source_calls",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_explicit_dependency_errors_are_translated[catalog-CatalogError-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_explicit_dependency_errors_are_translated[catalog-CatalogError-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_explicit_dependency_errors_are_translated[pricing-PricingDependencyError-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_explicit_dependency_errors_are_translated[pricing-PricingDependencyError-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_explicit_dependency_errors_are_translated[inventory-InventoryDependencyError-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_explicit_dependency_errors_are_translated[inventory-InventoryDependencyError-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_explicit_dependency_errors_are_translated[catalog-OperationalError-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_explicit_dependency_errors_are_translated[catalog-OperationalError-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_programming_errors_propagate[catalog-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_programming_errors_propagate[catalog-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_programming_errors_propagate[pricing-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_programming_errors_propagate[pricing-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_programming_errors_propagate[inventory-False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_programming_errors_propagate[inventory-True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_locked_quotes_keep_legacy_rule_differences[USD-available-3-price_missing]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_locked_quotes_keep_legacy_rule_differences[CNY-available--1-out_of_stock]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_locked_quotes_keep_legacy_rule_differences[CNY-out_of_stock-3-out_of_stock]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_locked_quotes_use_sale_product_status_authority",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_application_reader_delegates_quotes",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_cart_locking_delegates_without_source_access",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_dependency_error_compatibility_alias_is_same_object",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_sale_facts.py::test_locked_reader_keeps_real_mysql_transaction",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shared_primitives.py::test_base_alias_has_single_metadata",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_shared_primitives.py::test_principal_key_is_unchanged[issuer-a-u-1-62106752c3e96e0f6d49a7444cee3f464c9d1c292c9ea387be38459dacee2e91]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_shared_primitives.py::test_principal_key_is_unchanged[\\u53d1\\u884c\\u65b9-\\u7528\\u6237\\u7532-7762b0c7afc0d1e4489fc2630c96f33837304c028b16b793aaabd14a56bba45b]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_shared_primitives.py::test_principal_key_is_unchanged[ab-c-67dae6ce0789132ca1065f359089af6753470afce4976ffc82b276587d63d868]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_shared_primitives.py::test_principal_key_is_unchanged[a-bc-f8e02bff910a4aa5c66d78004a7deeeb59cc6290ca9b2e3006db427c66d42f8f]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_shared_primitives.py::test_principal_key_is_unchanged[--4e7c740c308df7eeae89e12635162c3caaf03c47118a0d682ce7319a660b13ca]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_shared_primitives.py::test_unicode_hash_and_order_are_unchanged",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_shared_primitives.py::test_utc_round_trip_is_unchanged",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_shared_primitives.py::test_new_id_remains_uuid4_and_same_alias",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_shared_primitives.py::test_domain_error_is_a_fieldless_exception_base",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_session_migration_and_ownership",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_completion_envelope_must_match_payload_and_claim[session_id-envelope]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_completion_envelope_must_match_payload_and_claim[session_id-payload]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_completion_envelope_must_match_payload_and_claim[session_id-claim]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_completion_envelope_must_match_payload_and_claim[turn_id-envelope]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_completion_envelope_must_match_payload_and_claim[turn_id-payload]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_completion_envelope_must_match_payload_and_claim[turn_id-claim]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_existing_json_replays_without_wrapper_change",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_non_json_completion_does_not_save[invalid0-response]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_non_json_completion_does_not_save[invalid0-state]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_non_json_completion_does_not_save[invalid1-response]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_non_json_completion_does_not_save[invalid1-state]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_non_json_completion_does_not_save[nan-response]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_non_json_completion_does_not_save[nan-state]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_non_json_completion_does_not_save[invalid3-response]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_non_json_completion_does_not_save[invalid3-state]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_bytes_key_completion_does_not_save[False-response]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_bytes_key_completion_does_not_save[False-state]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_bytes_key_completion_does_not_save[True-response]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_bytes_key_completion_does_not_save[True-state]",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_turn_claim_persists_and_recovers",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_shopping_session_mysql.py::test_concurrent_claims_have_one_effective_lease",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_card_uses_first_active_sku",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_resolve_preserves_order_and_reports_missing",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_missing_facts_remain_explicit[ok-purchasable]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_missing_facts_remain_explicit[no-price-price_missing]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_missing_facts_remain_explicit[unknown-stock_unknown]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_missing_facts_remain_explicit[zero-out_of_stock]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_missing_facts_remain_explicit[None-sku_missing]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_batch_read_count_is_bounded[1]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_batch_read_count_is_bounded[24]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_batch_read_count_is_bounded[100]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_dependency_failure_is_not_empty_results",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront.py::test_real_batch_queries_do_not_grow_with_product_count",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_storefront_api.py::test_storefront_api_validation_and_dependency_errors",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_storefront_context.py::test_context_reads_authoritative_facts_and_is_scoped",
+      "markers": [
+        "mysql"
+      ]
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_invalid_status_is_not_a_valid_turn_response",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_invalid_response_before_save[False]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_invalid_response_before_save[True]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_wrong_response_owner_before_save[session_id]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_wrong_response_owner_before_save[turn_id]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_non_json_response_before_save",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_nested_model_before_save",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_raw_graph_non_json_before_dto[errors-invalid0]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_raw_graph_non_json_before_dto[request_id-r]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_accepts_raw_graph_json_with_known_constraints",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_mutated_non_json_replay",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_envelope_rejects_raw_bytes_key[False-TurnCompletion-response]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_envelope_rejects_raw_bytes_key[False-TurnCompletion-state]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_envelope_rejects_raw_bytes_key[False-TurnReplay-response]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_envelope_rejects_raw_bytes_key[True-TurnCompletion-response]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_envelope_rejects_raw_bytes_key[True-TurnCompletion-state]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_envelope_rejects_raw_bytes_key[True-TurnReplay-response]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_replay_with_mutated_bytes_key",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_replay_envelope_with_wrong_owner[session_id]",
+      "markers": []
+    },
+    {
+      "node_id": "tests/test_turn_payload_validation.py::test_application_rejects_replay_envelope_with_wrong_owner[turn_id]",
+      "markers": []
+    }
+  ]
+}
