@@ -1,8 +1,10 @@
 """会话是跨轮事实源；租约阻止旧执行者提交。"""
 from datetime import datetime
-from sqlalchemy import CHAR, String, Integer, JSON, ForeignKey, Index, CheckConstraint
+
+from sqlalchemy import CHAR, JSON, CheckConstraint, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
-from db.base import Base, TimestampMixin, DATETIME6
+
+from shared.db import DATETIME6, Base, TimestampMixin
 
 
 class CommerceSession(TimestampMixin, Base):

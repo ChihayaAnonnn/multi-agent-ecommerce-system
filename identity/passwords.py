@@ -10,6 +10,8 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from argon2.low_level import Type
 
+from shared.errors import DomainError
+
 # 演示密码策略：只要长度，不强制字符组合，允许空格与 Unicode。
 MIN_PASSWORD_LENGTH = 15
 MAX_PASSWORD_LENGTH = 128
@@ -27,7 +29,7 @@ PASSWORD_HASHER = PasswordHasher(
 )
 
 
-class PasswordPolicyError(ValueError):
+class PasswordPolicyError(ValueError, DomainError):
     """密码不符合演示版策略；消息只说明长度要求，不回显密码。"""
 
 

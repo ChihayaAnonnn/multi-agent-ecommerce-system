@@ -1,8 +1,20 @@
 """一主体一车、一会话一待决动作；数据库约束覆盖多进程。"""
 from datetime import datetime
-from sqlalchemy import CHAR, String, Integer, BigInteger, JSON, ForeignKey, UniqueConstraint, CheckConstraint, Computed
+
+from sqlalchemy import (
+    CHAR,
+    JSON,
+    BigInteger,
+    CheckConstraint,
+    Computed,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
-from db.base import Base, TimestampMixin, DATETIME6
+
+from shared.db import DATETIME6, Base, TimestampMixin
 
 
 class Cart(TimestampMixin, Base):

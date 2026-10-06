@@ -1,8 +1,10 @@
 """事件只保存有限属性，不存凭证或完整聊天。"""
 from datetime import datetime
-from sqlalchemy import CHAR,String,JSON,ForeignKey,Index
-from sqlalchemy.orm import Mapped,mapped_column
-from db.base import Base,DATETIME6
+
+from sqlalchemy import CHAR, JSON, ForeignKey, Index, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from shared.db import DATETIME6, Base
 
 
 class CommerceEvent(Base):

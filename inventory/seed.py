@@ -1,8 +1,10 @@
 """库存模块持有的离线初始化写入口；未知库存不创建余额。"""
 from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.base import utcnow, new_id
+
 from inventory.models import DEFAULT_LOCATION_ID, InventoryBalance, InventoryMovement
+from shared.ids import new_id
+from shared.time import utcnow
 
 
 async def insert_seed_inventory(db: AsyncSession, rows: list[dict]) -> None:

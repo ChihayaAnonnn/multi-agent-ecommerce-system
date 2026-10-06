@@ -16,10 +16,14 @@ from datetime import timedelta
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from db.base import new_id, utcnow
 from identity.csrf import CsrfSigner
 from identity.models import DEMO_SOURCE, AuthSession, IdentityUser, RefreshToken
-from identity.passwords import hash_password, validate_password, verify_password
+from identity.passwords import (
+    PasswordPolicyError,
+    hash_password,
+    validate_password,
+    verify_password,
+)
 from identity.rate_limit import RedisRateLimiter
 from identity.tokens import TokenCodec
 from identity.types import (
@@ -33,11 +37,12 @@ from identity.types import (
     InvalidCredentials,
     InvalidCsrf,
     InvalidEmail,
-    Principal,
     UnknownAccount,
     UserView,
-    make_principal,
 )
+from shared.ids import new_id
+from shared.principal import Principal, make_principal
+from shared.time import utcnow
 
 # 刷新令牌至少 256 位随机；只保存 SHA-256 十六进制摘要。
 REFRESH_TOKEN_BYTES = 32
@@ -560,3 +565,17 @@ class IdentityService:
 
     def principal_for(self, user_id: str) -> Principal:
         return make_principal(self._tokens.issuer, user_id)
+
+
+__all__ = [
+    'DEFAULT_SESSION_TTL_SECONDS',
+    'IdentityService',
+    'MAX_EMAIL_LENGTH',
+    'PasswordPolicyError',
+    'Principal',
+    'REFRESH_TOKEN_BYTES',
+    'hash_refresh_token',
+    'make_principal',
+    'new_refresh_token',
+    'normalize_email',
+]

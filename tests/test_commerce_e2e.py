@@ -2,25 +2,30 @@
 import asyncio
 from datetime import timedelta
 from types import SimpleNamespace
-from sqlalchemy import select,update,func
-from tests.test_auth_api import identity_key_files,identity_settings,build_runtime,build_app,http_client,_register,_login,bearer
-from tests.test_commerce_facts_mysql import seed
+
+from sqlalchemy import func, select, update
+
+from api import runtime as runtime_module
 from api.commerce import router
 from api.commerce_demo import configure_commerce_demo
-from shopping_session.service import ShoppingSessionService,CommerceError
-from shopping_session.models import CommerceSession
-from commerce_orchestrator.facts import CommerceFactsReader
-from commerce_orchestrator.service import CommerceOrchestrator
-from commerce_orchestrator.utils import request_hash
-from commerce_orchestrator.model import SafeIntentModel,SafeCandidateReranker
-from cart.service import CartService
 from cart.models import PendingAction
-from checkout.service import CheckoutService
 from checkout.gateway import DemoHostCheckoutGateway
-from commerce_events.service import CommerceEventService
+from commerce_orchestrator.graph import build_commerce_graph
+from commerce_orchestrator.utils import request_hash
+from db.base import new_id, utcnow
 from models.commerce import TurnRequest
-from db.base import utcnow,new_id
-from tests.conftest import downgrade_to,upgrade_to,read_schema
+from shopping_session.models import CommerceSession
+from tests.conftest import downgrade_to, read_schema, upgrade_to
+from tests.test_auth_api import (
+    _login,
+    _register,
+    bearer,
+    build_app,
+    http_client,
+    identity_settings,
+)
+from tests.test_auth_api import identity_key_files as identity_key_files
+from tests.test_commerce_facts_mysql import seed
 
 
 def test_commerce_migration_full_roundtrip(migrated_mysql_database):
@@ -34,7 +39,9 @@ def test_commerce_migration_full_roundtrip(migrated_mysql_database):
     assert 'checkout_handoffs' in read_schema(migrated_mysql_database)['tables']
 
 
-def test_two_category_purchase_preparation(migrated_mysql_database,clean_redis,identity_key_files):
+def test_two_category_purchase_preparation(
+    migrated_mysql_database, clean_redis, identity_key_files, monkeypatch,
+):
     class Model:
         async def parse(self,*args):
             from commerce_orchestrator.schemas import IntentUpdate
@@ -56,17 +63,23 @@ def test_two_category_purchase_preparation(migrated_mysql_database,clean_redis,i
             result=await self.graph.ainvoke(state);self.paths.append(result['trace']);return result
     async def scenario():
         factory,catalog,prices,stock,cats,products,skus=await seed(migrated_mysql_database)
-        settings=identity_settings(identity_key_files,commerce_demo_enabled=True,commerce_demo_checkout_enabled=True)
-        runtime=build_runtime(migrated_mysql_database,clean_redis,settings,client=None)
-        runtime.catalog,runtime.pricing,runtime.inventory=catalog,prices,stock
-        runtime.shopping_sessions=ShoppingSessionService(factory)
-        runtime.cart=CartService(factory,runtime.shopping_sessions,CommerceFactsReader(catalog,prices,stock))
-        host=Host();runtime.checkout=CheckoutService(factory,runtime.shopping_sessions,runtime.cart,host)
-        runtime.commerce=CommerceOrchestrator(runtime.shopping_sessions,runtime.cart.facts,catalog)
-        runtime.commerce.cart=runtime.cart;runtime.commerce.checkout=runtime.checkout
-        runtime.commerce.intent_model=SafeIntentModel(Model());runtime.commerce.reranker=SafeCandidateReranker(Model())
-        runtime.commerce.configure_graph();observed=ObservedGraph(runtime.commerce.graph);runtime.commerce.graph=observed
-        runtime.commerce_events=CommerceEventService(factory,runtime.shopping_sessions)
+        settings = identity_settings(
+            identity_key_files, commerce_demo_enabled=True,
+            commerce_demo_checkout_enabled=True, redis_url=clean_redis,
+        )
+        graphs = []
+
+        def observe(deps):
+            graph = ObservedGraph(build_commerce_graph(deps))
+            graphs.append(graph)
+            return graph
+
+        monkeypatch.setattr(runtime_module, 'build_commerce_graph', observe)
+        host = Host()
+        runtime = await runtime_module.create_runtime(
+            settings, session_factory=factory, gateway=host, model=Model(),
+        )
+        observed, = graphs
         app=build_app(runtime,settings);app.include_router(router);configure_commerce_demo(app,settings)
         try:
             async with http_client(app) as a,http_client(app) as b:
@@ -128,7 +141,8 @@ def test_two_category_purchase_preparation(migrated_mysql_database,clean_redis,i
                 assert all(p[-1]=='finalize' for p in observed.paths)
                 assert all(body.get('status') not in {'paid','order_created','payment_success'} for body in [shortlist,selected,confirmed.json(),ready])
         finally:
-            await runtime.redis.aclose()
+            await runtime.aclose()
+            await factory.kw['bind'].dispose()
     asyncio.run(scenario())
 
 

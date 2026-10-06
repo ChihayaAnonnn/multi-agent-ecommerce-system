@@ -22,7 +22,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.mysql import DATETIME
 from sqlalchemy.orm import Mapped, mapped_column
 
-from db.base import Base, new_id
+from shared.db import Base
+from shared.ids import new_id
 
 DATETIME6 = DATETIME(fsp=6)
 

@@ -123,9 +123,13 @@ def test_database_url_from_settings() -> str:
 
 
 @pytest.fixture(scope="session")
-def mysql_test_database_url() -> str:
+def mysql_test_database_url(request: pytest.FixtureRequest) -> str:
     """Resolve and validate the isolated MySQL test database URL."""
-    url = test_database_url_from_settings()
+    url = (
+        os.environ.get("ECOM_TEST_DATABASE_URL", "")
+        if request.config.getoption("--require-integration-services")
+        else test_database_url_from_settings()
+    )
     if not url:
         pytest.skip(
             "ECOM_TEST_DATABASE_URL 未配置：MySQL 迁移、约束与事务测试需要独立测试库，"
@@ -170,9 +174,13 @@ def test_redis_url_from_settings() -> str:
 
 
 @pytest.fixture(scope="session")
-def redis_test_url() -> str:
+def redis_test_url(request: pytest.FixtureRequest) -> str:
     """Resolve and validate the isolated Redis instance used by rate-limit tests."""
-    url = test_redis_url_from_settings()
+    url = (
+        os.environ.get("ECOM_TEST_REDIS_URL", "")
+        if request.config.getoption("--require-integration-services")
+        else test_redis_url_from_settings()
+    )
     if not url:
         pytest.skip(
             "ECOM_TEST_REDIS_URL 未配置：Redis 限流测试需要独立测试实例，"
@@ -218,3 +226,55 @@ def clean_redis(redis_test_url: str) -> str:
     asyncio.run(_clear_identity_keys(redis_test_url))
     yield redis_test_url
     asyncio.run(_clear_identity_keys(redis_test_url))
+
+
+def integration_markers(fixture_names: list[str]) -> set[str]:
+    """按 fixture 的传递依赖区分真实服务测试，而非按文件名猜测。"""
+    markers = set()
+    if {"mysql_test_database_url", "migrated_mysql_database"} & set(fixture_names):
+        markers.add("mysql")
+    if {"redis_test_url", "clean_redis"} & set(fixture_names):
+        markers.add("redis")
+    return markers
+
+
+def pytest_addoption(parser) -> None:
+    parser.addoption("--layering-artifacts", metavar="PATH", default=None)
+    parser.addoption("--require-integration-services", action="store_true")
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(items) -> None:
+    for item in items:
+        for marker in integration_markers(item.fixturenames):
+            item.add_marker(getattr(pytest.mark, marker))
+        item.user_properties.append(("node_id", item.nodeid))
+
+
+def pytest_collection_finish(session) -> None:
+    import json
+
+    config = session.config
+    if config.getoption("--require-integration-services"):
+        categories = {
+            marker for item in session.items
+            for marker in integration_markers(item.fixturenames)
+        }
+        for category, variable in (
+            ("mysql", "ECOM_TEST_DATABASE_URL"), ("redis", "ECOM_TEST_REDIS_URL")
+        ):
+            if category in categories and not os.environ.get(variable):
+                raise pytest.UsageError(f"{variable} must be explicitly configured")
+    target = config.getoption("--layering-artifacts")
+    if target:
+        directory = pathlib.Path(target)
+        directory.mkdir(parents=True, exist_ok=True)
+        manifest = {"tests": [
+            {"node_id": item.nodeid,
+             "markers": sorted(integration_markers(item.fixturenames))}
+            for item in session.items
+        ]}
+        (directory / "manifest.json").write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )

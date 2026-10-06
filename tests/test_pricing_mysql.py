@@ -9,7 +9,8 @@ import pytest
 from sqlalchemy import func, select
 
 from catalog.schemas import CategoryInput, ProductInput, SKUInput
-from catalog.service import CatalogConflictError, CatalogService
+from catalog.service import CatalogConflictError, CatalogService, CatalogSKUReader
+from db.base import utcnow
 from db.session import create_session_factory
 from pricing.models import SKUPrice, SKUPriceChange
 from pricing.service import (
@@ -19,7 +20,6 @@ from pricing.service import (
     PricingValidationError,
     to_minor_units,
 )
-from db.base import utcnow
 from tests.conftest import downgrade_to, read_schema, upgrade_to
 
 PRICING_TABLES = {"sku_prices", "sku_price_changes"}
@@ -96,7 +96,8 @@ def test_yuan_decimal_conversion_and_read_back(migrated_mysql_database: str):
 
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
-        pricing = PricingService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        pricing = PricingService(factory, CatalogSKUReader(factory))
 
         first = await pricing.set_price(sku_id, Decimal("12.99"), None, "首次定价")
         assert first.amount_minor == 1299
@@ -120,7 +121,8 @@ def test_rejects_float_negative_and_imprecise_amounts(migrated_mysql_database: s
 
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
-        pricing = PricingService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        pricing = PricingService(factory, CatalogSKUReader(factory))
 
         for bad_amount in (12.99, Decimal("1.005"), -1, True):
             with pytest.raises(PricingValidationError):
@@ -140,7 +142,8 @@ def test_non_cny_price_is_not_treated_as_current(migrated_mysql_database: str):
 
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
-        pricing = PricingService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        pricing = PricingService(factory, CatalogSKUReader(factory))
 
         async with create_session_factory(migrated_mysql_database)() as session:
             session.add(
@@ -172,7 +175,8 @@ def test_missing_price_is_not_backfilled(migrated_mysql_database: str):
     async def scenario():
         priced_sku = await _create_sku(migrated_mysql_database, code="P-1-000")
         unpriced_sku = await _create_sku(migrated_mysql_database, code="P-2-000")
-        pricing = PricingService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        pricing = PricingService(factory, CatalogSKUReader(factory))
         await pricing.set_price(priced_sku, 1000, None, "首次定价")
 
         prices = await pricing.get_prices([priced_sku, unpriced_sku])
@@ -188,7 +192,8 @@ def test_version_mismatch_does_not_write_history(migrated_mysql_database: str):
 
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
-        pricing = PricingService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        pricing = PricingService(factory, CatalogSKUReader(factory))
         await pricing.set_price(sku_id, 1000, None, "首次定价")
         await pricing.set_price(sku_id, 1200, 1, "调价")
 
@@ -222,7 +227,7 @@ def test_concurrent_writes_with_same_old_version_only_one_wins(
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
         factory = create_session_factory(migrated_mysql_database)
-        pricing = PricingService(factory)
+        pricing = PricingService(factory, CatalogSKUReader(factory))
         await pricing.set_price(sku_id, 1000, None, "首次定价")
 
         results = await asyncio.gather(
@@ -252,7 +257,8 @@ def test_unknown_sku_does_not_write_price(migrated_mysql_database: str):
     """无效 SKU 不写价格，也不写历史。"""
 
     async def scenario():
-        pricing = PricingService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        pricing = PricingService(factory, CatalogSKUReader(factory))
         with pytest.raises(PricingNotFoundError):
             await pricing.set_price("no-such-sku", 1000, None, "无效 SKU")
 
@@ -272,7 +278,7 @@ def test_catalog_activation_uses_real_pricing_service(migrated_mysql_database: s
 
     async def scenario():
         factory = create_session_factory(migrated_mysql_database)
-        pricing = PricingService(factory)
+        pricing = PricingService(factory, CatalogSKUReader(factory))
         catalog = CatalogService(factory, price_reader=pricing)
 
         category = await catalog.create_category(CategoryInput(code="c-1", name="手机"))

@@ -1,12 +1,13 @@
 """异步受控节点；不读写 ORM、不确认车、不调用宿主。"""
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
-from commerce_orchestrator.intent import parse_intent,route
-from commerce_orchestrator.schemas import ShoppingIntent,IntentUpdate
+
+from commerce_orchestrator.contracts import TurnResponse
 from commerce_orchestrator.facts import CommerceDependencyError
-from shopping_session.service import CommerceError
-from models.commerce import TurnResponse
-from db.base import new_id
+from commerce_orchestrator.intent import parse_intent, route
+from kernel.errors import CommerceError
+from kernel.intent import IntentUpdate, ShoppingIntent
+from shared.ids import new_id
 
 logger=structlog.get_logger()
 
@@ -103,22 +104,34 @@ class CommerceNodes:
         return {'response':response}
 
     async def propose_cart_action(self,state):
-        if self.deps.cart is None:
+        if self.deps.actions is None:
             return await self.unavailable(state)
         turn=state['turn'];response=state['response'].model_copy(deep=True)
         kind='remove' if any(w in turn.message for w in ['移除','删除']) else 'set_quantity' if '改成' in turn.message else 'add'
         target={'sku_id':turn.selected_sku_id}
         if kind!='remove':
             target['quantity']=turn.quantity
-        response.proposed_action=(await self.deps.cart.propose_action(state['principal'],state['claim'].session_id,kind,target,turn.expected_cart_version,state['claim'])).model_dump(mode='json')
+        response.proposed_action = (
+            await self.deps.actions.propose_action(
+                state["principal"],
+                state["claim"].session_id,
+                kind,
+                target,
+                turn.expected_cart_version,
+                state["claim"],
+            )
+        ).model_dump(mode="json")
         response.status='confirm_action'
         return {'response':response}
 
     async def preview_checkout(self,state):
-        if self.deps.checkout is None:
+        if self.deps.actions is None or self.deps.actions.checkout is None:
             return await self.unavailable(state)
         response=state['response'].model_copy(deep=True)
-        preview=await self.deps.checkout.preview(state['principal'],state['claim'].session_id,state['turn'].expected_cart_version,state['claim'])
+        preview=await self.deps.actions.preview_checkout(
+            state['principal'],state['claim'].session_id,
+            state['turn'].expected_cart_version,state['claim'],
+        )
         response.proposed_action=preview.model_dump(mode='json');response.errors=preview.errors
         response.status='confirm_action' if preview.checkout_eligible else 'clarify'
         return {'response':response}

@@ -1,0 +1,138 @@
+name: Layering contracts
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    env:
+      ECOM_LLM_API_KEY: test-only-not-a-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -r requirements-dev.txt
+      - name: 校验当前阶段架构边界
+        run: lint-imports --config .importlinter.stage.toml --no-cache
+      - run: >-
+          python -m pytest tests/ -q --tb=short -m 'not mysql and not redis'
+          --require-integration-services
+          --junitxml=.artifacts/layering/unit/results.xml
+          --layering-artifacts=.artifacts/layering/unit
+      - run: python -m tests.layering_reports zero-skips .artifacts/layering/unit/results.xml
+      - run: node tests/run_demo_contracts.cjs
+      - name: 采集 Ruff 告警，工具故障不能当作历史告警
+        shell: bash
+        run: |
+          mkdir -p .artifacts/layering/lint
+          set +e
+          ruff check . --output-format json > .artifacts/layering/lint/current.json
+          lint_status=$?
+          set -e
+          if [ "$lint_status" -gt 1 ]; then exit "$lint_status"; fi
+          python -m tests.layering_reports lint \
+            --baseline tests/fixtures/layering/lint-baseline.json \
+            --current .artifacts/layering/lint/current.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: layering-unit
+          path: .artifacts/layering/unit/
+
+  mysql:
+    runs-on: ubuntu-latest
+    container: python:3.12
+    env:
+      ECOM_LLM_API_KEY: test-only-not-a-secret
+      ECOM_TEST_DATABASE_URL: mysql+asyncmy://root:ci-test-only@mysql:3306/layering_test
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-test-only
+          MYSQL_DATABASE: layering_test
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci-test-only"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python -m pip install -r requirements-dev.txt
+      - run: >-
+          python -m pytest tests/ -q --tb=short -m 'mysql and not redis'
+          --require-integration-services
+          --junitxml=.artifacts/layering/mysql/results.xml
+          --layering-artifacts=.artifacts/layering/mysql
+      - run: python -m tests.layering_reports zero-skips .artifacts/layering/mysql/results.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: layering-mysql
+          path: .artifacts/layering/mysql/
+
+  redis:
+    runs-on: ubuntu-latest
+    container: python:3.12
+    env:
+      ECOM_LLM_API_KEY: test-only-not-a-secret
+      ECOM_TEST_DATABASE_URL: mysql+asyncmy://root:ci-test-only@mysql:3306/layering_test
+      ECOM_TEST_REDIS_URL: redis://redis:6379/0
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-test-only
+          MYSQL_DATABASE: layering_test
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci-test-only"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=3s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python -m pip install -r requirements-dev.txt
+      - run: >-
+          python -m pytest tests/ -q --tb=short -m redis --require-integration-services
+          --junitxml=.artifacts/layering/redis/results.xml
+          --layering-artifacts=.artifacts/layering/redis
+      - run: python -m tests.layering_reports zero-skips .artifacts/layering/redis/results.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: layering-redis
+          path: .artifacts/layering/redis/
+
+  compare:
+    needs: [unit, mysql, redis]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: layering-unit
+          path: .artifacts/layering/unit/
+      - uses: actions/download-artifact@v4
+        with:
+          name: layering-mysql
+          path: .artifacts/layering/mysql/
+      - uses: actions/download-artifact@v4
+        with:
+          name: layering-redis
+          path: .artifacts/layering/redis/
+      - run: >-
+          python -m tests.layering_reports compare-ci
+          --baseline tests/fixtures/layering
+          --unit .artifacts/layering/unit
+          --mysql .artifacts/layering/mysql
+          --redis .artifacts/layering/redis

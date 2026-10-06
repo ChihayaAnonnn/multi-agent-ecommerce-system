@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from db.base import UtcDateTime
+from shared.time import UtcDateTime
 
 
 class PriceView(BaseModel):
@@ -18,3 +18,8 @@ class PriceView(BaseModel):
     version: int
     effective_at: UtcDateTime
     read_at: UtcDateTime
+
+
+__all__ = [
+    'PriceView',
+]

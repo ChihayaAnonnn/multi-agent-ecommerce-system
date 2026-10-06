@@ -28,3 +28,11 @@ class StorefrontResolved(BaseModel):
 class ResolveRequest(BaseModel):
     model_config=ConfigDict(extra='forbid')
     product_ids: list[str]=Field(max_length=100)
+
+
+__all__ = [
+    'ResolveRequest',
+    'StorefrontPage',
+    'StorefrontProduct',
+    'StorefrontResolved',
+]

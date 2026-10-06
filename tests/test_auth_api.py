@@ -19,13 +19,14 @@ from api.auth import router as auth_router
 from api.catalog import router as catalog_router
 from api.commerce_read import router as commerce_read_router
 from api.health import router as health_router
+from api.http_config import IdentityHttpConfig, parse_http_list
 from api.identity import configure_identity_http, require_principal
 from api.recommendations import router as recommendations_router
 from api.runtime import build_identity_service
-from catalog.service import CatalogService
+from catalog.service import CatalogService, CatalogSKUReader
 from config.settings import Settings
 from db.session import create_session_factory
-from identity.types import IdentityHttpConfig, Principal, make_principal
+from identity.types import Principal, make_principal
 from inventory.service import InventoryService
 from models.schemas import Product, RecommendationResponse
 from pricing.service import PricingService
@@ -135,7 +136,11 @@ async def echo_client_ip(request: Request):
 
 def build_app(runtime, settings: Settings) -> FastAPI:
     app = FastAPI()
-    configure_identity_http(app, settings)
+    configure_identity_http(app, IdentityHttpConfig(
+        allowed_origins=parse_http_list(settings.identity_allowed_origins),
+        trusted_proxy_networks=parse_http_list(settings.identity_trusted_proxy_networks),
+        session_ttl_seconds=settings.identity_session_ttl_seconds,
+    ))
     for router in (
         health_router,
         recommendations_router,
@@ -152,7 +157,8 @@ def build_app(runtime, settings: Settings) -> FastAPI:
 def build_runtime(database_url: str, redis_url: str, settings: Settings, *, client) -> SimpleNamespace:
     """在事件循环内装配运行时；Redis 连接属于当前循环。"""
     factory = create_session_factory(database_url)
-    pricing = PricingService(factory)
+    sku_reader = CatalogSKUReader(factory)
+    pricing = PricingService(factory, sku_reader)
     redis_client = client or Redis.from_url(redis_url, decode_responses=True)
     return SimpleNamespace(
         ab_engine=ABTestEngine(),
@@ -161,12 +167,12 @@ def build_runtime(database_url: str, redis_url: str, settings: Settings, *, clie
         rec_graph=None,
         catalog=CatalogService(factory, price_reader=pricing),
         pricing=pricing,
-        inventory=InventoryService(factory),
+        inventory=InventoryService(factory, sku_reader),
         catalog_error=None,
         identity=build_identity_service(settings, factory, redis_client),
         identity_config=IdentityHttpConfig(
-            allowed_origins=settings.allowed_origins,
-            trusted_proxy_networks=settings.trusted_proxy_networks,
+            allowed_origins=parse_http_list(settings.identity_allowed_origins),
+            trusted_proxy_networks=parse_http_list(settings.identity_trusted_proxy_networks),
             session_ttl_seconds=settings.identity_session_ttl_seconds,
         ),
         identity_error=None,

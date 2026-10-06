@@ -1,8 +1,16 @@
 """确认入口的凭证门禁。"""
 import asyncio
+from types import SimpleNamespace
+
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+
 from api.commerce import router
+from api.identity import require_principal
+from commerce_orchestrator.actions import CartActionService
+from commerce_orchestrator.facts import CommerceFactsReader
+from tests.commerce_helpers import build_orchestrator
+from tests.test_cart_confirmation_mysql import setup
 
 
 def test_confirm_requires_bearer():
@@ -13,20 +21,16 @@ def test_confirm_requires_bearer():
             assert r.status_code==401
     asyncio.run(scenario())
 
-from types import SimpleNamespace
-from api.identity import require_principal
-from commerce_orchestrator.service import CommerceOrchestrator
-from tests.test_cart_confirmation_mysql import setup
-
-
 def test_turn_proposes_and_button_confirms_once(migrated_mysql_database):
     async def scenario():
         _,sessions,cart,a,_,s,_,_,_,skus=await setup(migrated_mysql_database)
+        actions = CartActionService(cart.factory, sessions, cart, None)
         app=FastAPI();app.include_router(router)
         app.dependency_overrides[require_principal]=lambda:a
-        app.state.runtime=SimpleNamespace(shopping_sessions=sessions,cart=cart,
-            commerce=CommerceOrchestrator(sessions,cart.facts,cart.facts.catalog))
-        app.state.runtime.commerce.cart=cart
+        app.state.runtime=SimpleNamespace(shopping_sessions=sessions,cart=cart,cart_actions=actions,
+            commerce=build_orchestrator(sessions,
+                CommerceFactsReader(cart.facts.catalog,cart.facts),cart.facts.catalog,
+                cart, actions))
         async with AsyncClient(transport=ASGITransport(app),base_url='https://test') as client:
             path=f'/api/v1/commerce/sessions/{s.session_id}'
             response=await client.post(path+'/turns',json={'turn_id':'add','message':'加入购物车',

@@ -1,11 +1,22 @@
 """已验证主体的购物入口与统一领域错误映射。"""
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.exc import SQLAlchemyError
+
+from api.errors import catalog_http_error, commerce_http_error
 from api.identity import require_principal
-from identity.types import Principal
-from models.commerce import CreateSessionRequest
+from api.runtime import require_catalog, require_inventory, require_pricing
+from catalog.service import CatalogError, CatalogService
+from commerce_orchestrator.actions import CartActionService
+from commerce_orchestrator.contracts import TurnRequest, TurnResponse
+from inventory.service import InventoryService
+from kernel.errors import CommerceDependencyError, CommerceError
+from models.commerce import CompareRequest, CreateSessionRequest, ProductContextRequest
+from pricing.service import PricingService
+from sale_facts.service import SaleFactsReader
+from shared.errors import DomainError
+from shared.principal import Principal
 from shopping_session.schemas import ShoppingSessionView
-from shopping_session.service import ShoppingSessionService, CommerceError
+from shopping_session.service import ShoppingSessionService
 
 router = APIRouter(prefix='/api/v1/commerce', tags=['commerce'])
 
@@ -20,10 +31,10 @@ def sessions(request: Request) -> ShoppingSessionService:
 async def invoke(awaitable):
     try:
         return await awaitable
-    except CommerceError as exc:
-        raise HTTPException(exc.status_code, detail={'code':exc.code, **exc.details}) from exc
-    except (SQLAlchemyError, CommerceDependencyError) as exc:
-        raise HTTPException(503, detail={'code':'dependency_unavailable'}) from exc
+    except DomainError as exc:
+        raise commerce_http_error(exc) from exc
+    except SQLAlchemyError as exc:
+        raise commerce_http_error(CommerceDependencyError()) from exc
 
 
 @router.post('/sessions', response_model=ShoppingSessionView)
@@ -35,8 +46,6 @@ async def create_session(principal: Principal = Depends(require_principal), serv
 async def get_session(session_id: str, principal: Principal = Depends(require_principal), service: ShoppingSessionService = Depends(sessions)):
     return await invoke(service.get_owned(session_id, principal))
 
-from models.commerce import TurnRequest, TurnResponse, CompareRequest
-from commerce_orchestrator.facts import CommerceDependencyError
 
 
 def orchestrator(request: Request):
@@ -71,23 +80,38 @@ async def get_cart(session_id: str, principal: Principal=Depends(require_princip
 from models.commerce import ConfirmationRequest
 
 
+def actions(request: Request) -> CartActionService:
+    service = getattr(request.app.state.runtime, 'cart_actions', None)
+    if service is None:
+        raise HTTPException(503, detail={'code':'dependency_unavailable'})
+    return service
+
+
 @router.post('/sessions/{session_id}/actions/{action_id}/confirm')
-async def confirm_action(session_id: str, action_id: str, body: ConfirmationRequest, principal: Principal=Depends(require_principal), service=Depends(carts)):
+async def confirm_action(
+    session_id: str,
+    action_id: str,
+    body: ConfirmationRequest,
+    principal: Principal = Depends(require_principal),
+    service=Depends(actions),
+):
     return await invoke(service.confirm(principal,session_id,action_id,body.approved,body.idempotency_key))
 
 from models.commerce import CheckoutPreviewRequest,CheckoutHandoffRequest
 
 
 def checkout(request: Request):
-    service=getattr(request.app.state.runtime,'checkout',None)
-    if service is None:
+    service=getattr(request.app.state.runtime,'cart_actions',None)
+    if service is None or service.checkout is None:
         raise HTTPException(503,detail={'code':'checkout_unavailable'})
     return service
 
 
 @router.post('/sessions/{session_id}/checkout-preview')
 async def checkout_preview(session_id: str,body: CheckoutPreviewRequest,principal: Principal=Depends(require_principal),service=Depends(checkout)):
-    return await invoke(service.preview(principal,session_id,body.cart_version))
+    return await invoke(
+        service.preview_checkout(principal,session_id,body.cart_version)
+    )
 
 
 @router.post('/sessions/{session_id}/checkout-handoff')
@@ -97,7 +121,7 @@ async def checkout_handoff(session_id: str,body: CheckoutHandoffRequest,principa
 
 @router.get('/sessions/{session_id}/handoffs/{handoff_id}')
 async def get_handoff(session_id: str,handoff_id: str,principal: Principal=Depends(require_principal),service=Depends(checkout)):
-    return await invoke(service.get_owned(principal,session_id,handoff_id))
+    return await invoke(service.get_handoff(principal,session_id,handoff_id))
 
 from fastapi import Response
 from models.commerce import EventRequest
@@ -118,13 +142,7 @@ async def record_event(body: EventRequest,response: Response,principal: Principa
     return receipt
 
 # 展厅显式商品引用：返回服务端事实后记录展示来源，绝不接受自报价格或可售状态。
-from models.commerce import ProductContextRequest
-from api.runtime import require_catalog, require_pricing, require_inventory
-from api.catalog import catalog_http_error
-from catalog.service import CatalogService, CatalogError
-from pricing.service import PricingService
-from inventory.service import InventoryService
-from commerce_orchestrator.facts import CommerceFactsReader
+
 
 @router.post('/sessions/{session_id}/product-context')
 async def product_context(session_id: str, body: ProductContextRequest,
@@ -139,8 +157,9 @@ async def product_context(session_id: str, body: ProductContextRequest,
             raise catalog_http_error(exc) from exc
         sku=next((s for s in product.skus if s.id==body.sku_id and s.status=='active'),None)
         if product.status!='active' or sku is None:
-            raise CommerceError('invalid_product_reference',422)
-        quote=(await CommerceFactsReader(catalog,pricing,inventory).quote_many([sku.id]))[sku.id]
+            raise CommerceError('invalid_product_reference')
+        facts = SaleFactsReader(catalog, pricing, inventory)
+        quote = (await facts.quote_many([sku.id]))[sku.id]
         await session_service.record_seen(session_id,principal,[product.id],[sku.id])
         return {'product_id':product.id,'sku_id':sku.id,'quote':quote}
     return await invoke(resolve_context())

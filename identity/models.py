@@ -11,11 +11,19 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import CHAR, CheckConstraint, Computed, ForeignKey, String, UniqueConstraint
+from sqlalchemy import (
+    CHAR,
+    CheckConstraint,
+    Computed,
+    ForeignKey,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.mysql import DATETIME
 from sqlalchemy.orm import Mapped, mapped_column
 
-from db.base import Base, TimestampMixin, new_id
+from shared.db import Base, TimestampMixin
+from shared.ids import new_id
 
 DATETIME6 = DATETIME(fsp=6)
 

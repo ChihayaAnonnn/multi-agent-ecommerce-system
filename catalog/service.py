@@ -13,24 +13,24 @@ import binascii
 import hashlib
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, Protocol, cast
+from typing import Any, cast
 
 from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from catalog.models import (
+    SKU,
     Category,
     CategoryAttribute,
     OptionValue,
     Product,
     ProductMedia,
     ProductOption,
-    SKU,
     SKUOptionValue,
 )
+from catalog.ports import PriceReader
 from catalog.schemas import (
-    SaleFactView,
     AttributeInput,
     AttributeView,
     CategoryInput,
@@ -49,18 +49,20 @@ from catalog.schemas import (
     ProductStatus,
     ProductSummaryView,
     ProductView,
+    SaleFactView,
     SelectedOptionValueView,
     SKUDetailView,
     SKUInput,
     SKUView,
 )
-from db.base import new_id
+from shared.errors import DomainError
+from shared.ids import new_id
 
 # 单页上限，防止一次拉取过多商品。
 MAX_PAGE_SIZE = 100
 
 
-class CatalogError(Exception):
+class CatalogError(DomainError):
     """目录领域异常基类。"""
 
 
@@ -76,14 +78,16 @@ class CatalogValidationError(CatalogError):
     """输入违反业务规则。"""
 
 
-class PriceReader(Protocol):
-    """只读价格查询边界。
+class CatalogSKUReader:
+    """独立于价格服务的 SKU 存在性查询，不开事务、不加锁、不提交。"""
 
-    目录模块不读写价格表，只通过该协议确认可售 SKU 是否具有现行价格。
-    实现是异步的：真实实现（pricing 模块）需要查询 MySQL。
-    """
+    def __init__(self, factory: async_sessionmaker[AsyncSession]) -> None:
+        self._session_factory = factory
 
-    async def has_current_prices(self, sku_ids: list[str]) -> bool: ...
+    async def require_sku_exists(self, db: AsyncSession, sku_id: str) -> None:
+        """复用调用方会话；缺失时抛目录异常。"""
+        if await db.get(SKU, sku_id) is None:
+            raise CatalogNotFoundError(f"SKU 不存在: {sku_id}")
 
 
 def compute_option_signature(pairs: Sequence[tuple[str, str]]) -> str:
@@ -699,3 +703,15 @@ class CatalogService:
         except IntegrityError as exc:
             await session.rollback()
             raise CatalogConflictError(conflict_message) from exc
+
+
+__all__ = [
+    'CatalogConflictError',
+    'CatalogError',
+    'CatalogNotFoundError',
+    'CatalogSKUReader',
+    'CatalogService',
+    'CatalogValidationError',
+    'MAX_PAGE_SIZE',
+    'compute_option_signature',
+]

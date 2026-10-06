@@ -15,12 +15,16 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from db.base import new_id, utcnow
+from catalog.ports import SKUExistenceReader
+from catalog.service import CatalogNotFoundError
 from pricing.models import CURRENCY, SKUPrice, SKUPriceChange
 from pricing.schemas import PriceView
+from shared.errors import DomainError
+from shared.ids import new_id
+from shared.time import utcnow
 
 
-class PricingError(Exception):
+class PricingError(DomainError):
     """价格领域异常基类。"""
 
 
@@ -65,8 +69,13 @@ def to_minor_units(amount: int | Decimal) -> int:
 class PricingService:
     """SKU 价格读写服务；同时满足目录模块的只读价格边界。"""
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        sku_reader: SKUExistenceReader,
+    ) -> None:
         self._session_factory = session_factory
+        self._sku_reader = sku_reader
 
     async def get_prices(self, sku_ids: list[str]) -> dict[str, PriceView]:
         """返回有现行 CNY 价格的 SKU；无价 SKU 不会出现在结果里。
@@ -235,12 +244,11 @@ class PricingService:
 
     # ---------- 内部工具 ----------
 
-    @staticmethod
-    async def _require_sku(session: AsyncSession, sku_id: str) -> None:
-        from catalog.models import SKU
-
-        if await session.get(SKU, sku_id) is None:
-            raise PricingNotFoundError(f"SKU 不存在: {sku_id}")
+    async def _require_sku(self, session: AsyncSession, sku_id: str) -> None:
+        try:
+            await self._sku_reader.require_sku_exists(session, sku_id)
+        except CatalogNotFoundError as exc:
+            raise PricingNotFoundError(f"SKU 不存在: {sku_id}") from exc
 
     @staticmethod
     async def _commit(session: AsyncSession, conflict_message: str) -> None:
@@ -249,3 +257,14 @@ class PricingService:
         except IntegrityError as exc:
             await session.rollback()
             raise PricingConflictError(conflict_message) from exc
+
+
+__all__ = [
+    'PricingConflictError',
+    'PricingDependencyError',
+    'PricingError',
+    'PricingNotFoundError',
+    'PricingService',
+    'PricingValidationError',
+    'to_minor_units',
+]

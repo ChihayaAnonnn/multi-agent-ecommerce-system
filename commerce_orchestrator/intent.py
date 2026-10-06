@@ -1,6 +1,7 @@
 """保守确定性解析；未确认文本只澄清，不推断硬约束。"""
 import re
-from commerce_orchestrator.schemas import ShoppingIntent, IntentUpdate
+
+from kernel.intent import IntentUpdate, ShoppingIntent
 
 
 def parse_intent(message: str, current: ShoppingIntent) -> IntentUpdate:

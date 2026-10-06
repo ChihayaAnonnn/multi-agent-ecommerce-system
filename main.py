@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from api.storefront import router as storefront_router
-
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -18,15 +16,17 @@ from fastapi import FastAPI
 
 from api.auth import router as auth_router
 from api.catalog import router as catalog_router
-from api.commerce_demo import configure_commerce_demo
 from api.commerce import router as commerce_router
+from api.commerce_demo import configure_commerce_demo
 from api.commerce_read import router as commerce_read_router
 from api.experiments import router as experiments_router
 from api.health import router as health_router
+from api.http_config import IdentityHttpConfig, parse_http_list
 from api.identity import configure_identity_http
 from api.metrics import router as metrics_router
 from api.recommendations import router as recommendations_router
 from api.runtime import create_runtime
+from api.storefront import router as storefront_router
 from config import get_settings
 from orchestrator.graph import build_recommendation_graph
 
@@ -36,12 +36,15 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    app.state.runtime.rec_graph = build_recommendation_graph()
-    logger.info("app.startup", model=settings.llm_model)
-    yield
-    # 释放身份模块的 Redis 连接；未装配身份时是空操作
-    await app.state.runtime.aclose()
-    logger.info("app.shutdown")
+    runtime = await create_runtime()
+    try:
+        runtime.rec_graph = build_recommendation_graph()
+        app.state.runtime = runtime
+        logger.info("app.startup", model=settings.llm_model)
+        yield
+    finally:
+        await runtime.aclose()
+        logger.info("app.shutdown")
 
 
 app = FastAPI(
@@ -50,11 +53,14 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
-app.state.runtime = create_runtime()
 
 # 认证域 CORS 只允许显式配置的前端来源，绝不使用通配符：
 # 带凭证的跨站请求不允许 `*`，未配置来源时按拒绝处理。
-configure_identity_http(app, settings)
+configure_identity_http(app, IdentityHttpConfig(
+    allowed_origins=parse_http_list(settings.identity_allowed_origins),
+    trusted_proxy_networks=parse_http_list(settings.identity_trusted_proxy_networks),
+    session_ttl_seconds=settings.identity_session_ttl_seconds,
+))
 configure_commerce_demo(app, settings)
 
 for router in (

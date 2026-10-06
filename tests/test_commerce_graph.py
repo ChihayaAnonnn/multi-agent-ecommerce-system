@@ -20,24 +20,24 @@ def test_graph_routes_only_to_intended_branch(message,expected):
         async def discover(self,intent):
             return [],False
     class Cart:
+        checkout = True
         async def get_cart(self,principal):
             return CartView(cart_id='cart',version=1,current_subtotal=0,checkout_eligible=False,checked_at=utcnow())
         async def propose_action(self,principal,sid,kind,target,version,claim):
             assert claim.lease_token=='lease'
             from cart.schemas import PendingActionView
             return PendingActionView(action_id='action',kind=kind,status='pending',expected_cart_version=1,payload=target,summary={},expires_at=utcnow())
+        async def preview_checkout(self,principal,sid,version,claim):
+            assert claim.lease_token=='lease'
+            from checkout.schemas import CheckoutPreview
+            return CheckoutPreview(action_id='action',checkout_eligible=True,current_subtotal=100,cart_version=1,checked_at=utcnow())
     class Comparison:
         async def compare(self,principal,sid,ids):
             from commerce_orchestrator.compare import CompareResponse
             return CompareResponse(products=[{'product_id':i} for i in ids])
-    class Checkout:
-        async def preview(self,principal,sid,version,claim):
-            assert claim.lease_token=='lease'
-            from checkout.schemas import CheckoutPreview
-            return CheckoutPreview(action_id='action',checkout_eligible=True,current_subtotal=100,cart_version=1,checked_at=utcnow())
     async def scenario():
         deps=CommerceGraphDependencies(discovery=Discover(),facts=SimpleNamespace(),comparison=Comparison(),
-            catalog=SimpleNamespace(),sessions=SimpleNamespace(),cart=Cart(),checkout=Checkout(),
+            catalog=SimpleNamespace(),sessions=SimpleNamespace(),cart=Cart(),actions=Cart(),
             intent_model=SafeIntentModel(),reranker=SafeCandidateReranker())
         graph=build_commerce_graph(deps)
         p=make_principal('test','a')
@@ -74,7 +74,9 @@ def test_graph_uses_only_requoted_facts_and_no_empty_fallback():
     async def scenario():
         p=make_principal('test','a');claim=TurnClaim(session_id='session',principal_key=p.principal_key,turn_id='t',lease_token='lease',session_version=1)
         state={'principal':p,'claim':claim,'turn':TurnRequest(turn_id='t',constraints={'category_id':'category'})}
-        deps=CommerceGraphDependencies(discovery=Discovery(),facts=Facts(),comparison=None,catalog=None,sessions=None,reranker=SafeCandidateReranker(BadModel()))
+        deps=CommerceGraphDependencies(discovery=Discovery(),facts=Facts(),comparison=None,
+            catalog=None,sessions=None,cart=None,actions=None,intent_model=SafeIntentModel(),
+            reranker=SafeCandidateReranker(BadModel()))
         response=(await build_commerce_graph(deps).ainvoke(state))['response']
         assert response.status=='shortlist' and response.items[0]['price']['amount_minor']==100
         assert [i['sku_id'] for i in response.items]==['sku']

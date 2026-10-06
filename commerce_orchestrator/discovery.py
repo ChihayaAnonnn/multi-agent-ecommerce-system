@@ -1,7 +1,7 @@
 """可信 SKU 硬过滤后的商品族短名单。"""
-from commerce_orchestrator.schemas import ShoppingIntent
-from commerce_orchestrator.facts import CommerceFactsReader
 from catalog.service import CatalogService
+from commerce_orchestrator.facts import CommerceFactsReader
+from kernel.intent import ShoppingIntent
 
 
 class DiscoveryService:
@@ -23,14 +23,14 @@ class DiscoveryService:
             reason_text='符合已确认条件，价格与库存已核验') for q in chosen], page.incomplete
 
     async def select(self,principal,session_id: str,product_id: str | None,sku_id: str | None,sessions,intent: ShoppingIntent) -> tuple[list[dict],bool]:
-        from shopping_session.service import CommerceError
+        from kernel.errors import CommerceError
         seen,_=await sessions.seen(session_id,principal)
         products=await self.catalog.get_products([product_id] if product_id else [])
         product=products.get(product_id)
         if product is None or product.id not in seen or sku_id not in {s.id for s in product.skus}:
-            raise CommerceError('not_seen',422)
+            raise CommerceError('not_seen')
         page=await self.facts.scan(intent,self.scan_limit)
         q=next((q for q in page.items if q.sku_id==sku_id),None)
         if q is None:
-            raise CommerceError('constraints_mismatch',422)
+            raise CommerceError('constraints_mismatch')
         return [dict(q.model_dump(mode='json'),product_id=product.id,name=product.name,attributes=product.attributes)],page.incomplete

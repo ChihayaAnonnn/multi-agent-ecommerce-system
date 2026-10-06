@@ -2,11 +2,6 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
-def _split_csv(value: str) -> tuple[str, ...]:
-    """把逗号分隔的配置项切成去空白、去空项、保持顺序的元组。"""
-    return tuple(item.strip() for item in value.split(",") if item.strip())
-
-
 class Settings(BaseSettings):
     app_name: str = "Multi-Agent E-Commerce System"
     debug: bool = False
@@ -72,14 +67,6 @@ class Settings(BaseSettings):
     identity_login_window_seconds: int = 900
     identity_register_window_seconds: int = 3600
     identity_refresh_window_seconds: int = 60
-
-    @property
-    def allowed_origins(self) -> tuple[str, ...]:
-        return _split_csv(self.identity_allowed_origins)
-
-    @property
-    def trusted_proxy_networks(self) -> tuple[str, ...]:
-        return _split_csv(self.identity_trusted_proxy_networks)
 
     # Agent timeouts (seconds)
     agent_timeout_user_profile: float = 5.0

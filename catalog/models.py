@@ -10,19 +10,20 @@ from __future__ import annotations
 
 from sqlalchemy import (
     CHAR,
+    JSON,
     Boolean,
     CheckConstraint,
     ForeignKey,
     Index,
     Integer,
-    JSON,
     String,
     Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from db.base import Base, TimestampMixin, new_id
+from shared.db import Base, TimestampMixin
+from shared.ids import new_id
 
 PRODUCT_STATUSES = ("draft", "active", "archived")
 SKU_STATUSES = ("active", "inactive")

@@ -3,7 +3,8 @@
 本包只提供基础设施，不放业务规则；业务规则属于 catalog/、pricing/、inventory/ 各领域模块。
 """
 
-from .base import Base
+from shared.db import Base
+
 from .session import create_session_factory
 
 __all__ = ["Base", "create_session_factory"]

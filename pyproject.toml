@@ -1,0 +1,17 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+junit_family = "legacy"
+markers = [
+    "mysql: 依赖显式配置的独立 MySQL 测试库",
+    "redis: 依赖显式配置的隔离 Redis 测试实例",
+]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.layering]
+layout = "original"
+require_complete_inventory = true

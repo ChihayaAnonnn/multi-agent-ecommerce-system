@@ -1,7 +1,9 @@
 """商品小计与已确认快照，不包含运费/税费/优惠或最终应付。"""
 from typing import Literal
-from pydantic import BaseModel,ConfigDict,Field
-from db.base import UtcDateTime
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from shared.time import UtcDateTime
 
 
 class CheckoutPreview(BaseModel):
@@ -46,3 +48,17 @@ class HandoffResult(BaseModel):
     retryable: bool=False
     replayed: bool=False
     preview: CheckoutPreview | None=None
+
+
+class HandoffAttempt(BaseModel):
+    snapshot: HandoffSnapshot
+    replayed: bool
+
+
+__all__ = [
+    'CheckoutPreview',
+    'Destination',
+    'HandoffAttempt',
+    'HandoffResult',
+    'HandoffSnapshot',
+]

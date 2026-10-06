@@ -1,0 +1,3326 @@
+{
+  "modules": [
+    "catalog",
+    "pricing",
+    "inventory",
+    "identity",
+    "shopping_session",
+    "cart",
+    "checkout",
+    "commerce_events"
+  ],
+  "tables": {
+    "cart_lines": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "cart_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sku_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "quantity",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "product_name_snapshot",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(255)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sku_options_snapshot",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "JSON"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "image_url_snapshot",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(512)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "last_seen_unit_amount_minor",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "last_seen_price_version",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_cart_lines_quantity",
+          "sqltext": "quantity > 0"
+        },
+        {
+          "columns": [
+            "cart_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_cart_lines_cart_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "carts.id"
+          ]
+        },
+        {
+          "columns": [
+            "sku_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_cart_lines_sku_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "skus.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_cart_lines"
+        },
+        {
+          "columns": [
+            "cart_id",
+            "sku_id"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_cart_lines_cart_id_sku_id"
+        }
+      ],
+      "indexes": [],
+      "options": {
+        "mysql_charset": "utf8mb4",
+        "mysql_engine": "InnoDB"
+      }
+    },
+    "carts": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "principal_key",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": "1",
+          "name": "version",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_carts"
+        },
+        {
+          "columns": [
+            "principal_key"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_carts_principal_key"
+        }
+      ],
+      "indexes": [],
+      "options": {
+        "mysql_charset": "utf8mb4",
+        "mysql_engine": "InnoDB"
+      }
+    },
+    "categories": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "parent_id",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "code",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "name",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(128)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "status",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "active",
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sort_order",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "0",
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_categories_status",
+          "sqltext": "status IN ('active', 'inactive')"
+        },
+        {
+          "columns": [
+            "parent_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_categories_parent_id_categories",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "categories.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_categories"
+        },
+        {
+          "columns": [
+            "code"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_categories_code"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    },
+    "category_attributes": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "category_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "code",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "name",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(128)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "value_type",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "unit",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(32)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "is_comparable",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "0",
+          "server_onupdate": null,
+          "type": "BOOL"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "is_filterable",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "0",
+          "server_onupdate": null,
+          "type": "BOOL"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_category_attributes_value_type",
+          "sqltext": "value_type IN ('text', 'number', 'boolean')"
+        },
+        {
+          "columns": [
+            "category_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_category_attributes_category_id_categories",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "categories.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_category_attributes"
+        },
+        {
+          "columns": [
+            "category_id",
+            "code"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_category_attributes_category_id_code"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    },
+    "checkout_handoffs": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "principal_key",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "cart_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "cart_version",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "action_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "snapshot_json",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "JSON"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "snapshot_hash",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "status",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "destination_kind",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "destination_ref",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(512)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": "False",
+          "name": "destination_demo",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "BOOL"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "expires_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_checkout_handoffs_status",
+          "sqltext": "status IN ('preparing','ready','failed','expired')"
+        },
+        {
+          "columns": [
+            "action_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_checkout_handoffs_action_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "pending_actions.id"
+          ]
+        },
+        {
+          "columns": [
+            "cart_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_checkout_handoffs_cart_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "carts.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_checkout_handoffs"
+        },
+        {
+          "columns": [
+            "action_id"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_checkout_handoffs_action_id"
+        }
+      ],
+      "indexes": [],
+      "options": {
+        "mysql_charset": "utf8mb4",
+        "mysql_engine": "InnoDB"
+      }
+    },
+    "commerce_events": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "principal_key",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "session_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "request_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "request_hash",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "kind",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(32)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "payload_json",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "JSON"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "session_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_commerce_events_session_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "commerce_sessions.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_commerce_events"
+        }
+      ],
+      "indexes": [
+        {
+          "expressions": [
+            "commerce_events.principal_key",
+            "commerce_events.session_id"
+          ],
+          "name": "ix_commerce_events_principal_session",
+          "unique": false
+        }
+      ],
+      "options": {
+        "mysql_charset": "utf8mb4",
+        "mysql_engine": "InnoDB"
+      }
+    },
+    "commerce_sessions": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "principal_key",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": "active",
+          "name": "status",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "expires_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "dict"
+          },
+          "name": "state_json",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "JSON"
+        },
+        {
+          "autoincrement": "auto",
+          "default": "1",
+          "name": "version",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "active_turn_id",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "turn_lease_token",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "turn_lease_expires_at",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_commerce_sessions"
+        }
+      ],
+      "indexes": [
+        {
+          "expressions": [
+            "commerce_sessions.principal_key",
+            "commerce_sessions.expires_at"
+          ],
+          "name": "ix_commerce_sessions_principal_expiry",
+          "unique": false
+        }
+      ],
+      "options": {
+        "mysql_charset": "utf8mb4",
+        "mysql_engine": "InnoDB"
+      }
+    },
+    "commerce_turns": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "session_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "turn_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "request_hash",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "status",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "response_json",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "JSON"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_commerce_turns_status",
+          "sqltext": "status IN ('processing','completed')"
+        },
+        {
+          "columns": [
+            "session_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_commerce_turns_session_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "commerce_sessions.id"
+          ]
+        },
+        {
+          "columns": [
+            "session_id",
+            "turn_id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_commerce_turns"
+        }
+      ],
+      "indexes": [],
+      "options": {
+        "mysql_charset": "utf8mb4",
+        "mysql_engine": "InnoDB"
+      }
+    },
+    "identity_auth_sessions": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "user_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "last_used_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "expires_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "revoked_at",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "revoke_reason",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_identity_auth_sessions_user_id_identity_users",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "identity_users.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_identity_auth_sessions"
+        }
+      ],
+      "indexes": [
+        {
+          "expressions": [
+            "identity_auth_sessions.user_id"
+          ],
+          "name": "ix_identity_auth_sessions_user_id",
+          "unique": false
+        }
+      ],
+      "options": {}
+    },
+    "identity_refresh_tokens": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "auth_session_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "token_hash",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "expires_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "consumed_at",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "revoked_at",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "active_auth_session_id",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": {
+            "computed": "CASE WHEN consumed_at IS NULL AND revoked_at IS NULL THEN auth_session_id ELSE NULL END",
+            "persisted": true
+          },
+          "server_onupdate": {
+            "computed": "CASE WHEN consumed_at IS NULL AND revoked_at IS NULL THEN auth_session_id ELSE NULL END",
+            "persisted": true
+          },
+          "type": "CHAR(36)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "auth_session_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_identity_refresh_tokens_auth_session_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "identity_auth_sessions.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_identity_refresh_tokens"
+        },
+        {
+          "columns": [
+            "active_auth_session_id"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_identity_refresh_tokens_active_auth_session_id"
+        },
+        {
+          "columns": [
+            "token_hash"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_identity_refresh_tokens_token_hash"
+        }
+      ],
+      "indexes": [
+        {
+          "expressions": [
+            "identity_refresh_tokens.auth_session_id"
+          ],
+          "name": "ix_identity_refresh_tokens_auth_session_id",
+          "unique": false
+        }
+      ],
+      "options": {}
+    },
+    "identity_users": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "email_normalized",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(320)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "password_hash",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(255)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "status",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "active",
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "source",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "demo",
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_identity_users_status",
+          "sqltext": "status IN ('active', 'disabled')"
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_identity_users"
+        },
+        {
+          "columns": [
+            "email_normalized"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_identity_users_email_normalized"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    },
+    "inventory_balances": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sku_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "location_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "on_hand",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "0",
+          "server_onupdate": null,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "reserved",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "0",
+          "server_onupdate": null,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "version",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "1",
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_inventory_balances_on_hand_non_negative",
+          "sqltext": "on_hand >= 0"
+        },
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_inventory_balances_reserved_within_on_hand",
+          "sqltext": "reserved >= 0 AND reserved <= on_hand"
+        },
+        {
+          "columns": [
+            "location_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_inventory_balances_location_id_stock_locations",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "stock_locations.id"
+          ]
+        },
+        {
+          "columns": [
+            "sku_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_inventory_balances_sku_id_skus",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "skus.id"
+          ]
+        },
+        {
+          "columns": [
+            "sku_id",
+            "location_id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_inventory_balances"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    },
+    "inventory_movements": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sku_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "location_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "delta",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "reason",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(255)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "idempotency_key",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(128)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "balance_version",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "occurred_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "location_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_inventory_movements_location_id_stock_locations",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "stock_locations.id"
+          ]
+        },
+        {
+          "columns": [
+            "sku_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_inventory_movements_sku_id_skus",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "skus.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_inventory_movements"
+        },
+        {
+          "columns": [
+            "idempotency_key"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_inventory_movements_idempotency_key"
+        },
+        {
+          "columns": [
+            "sku_id",
+            "location_id",
+            "balance_version"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_inventory_movements_sku_id_location_id_balance_version"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    },
+    "option_values": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "option_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "code",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "display_value",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(255)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sort_order",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "0",
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "option_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_option_values_option_id_product_options",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "product_options.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_option_values"
+        },
+        {
+          "columns": [
+            "option_id",
+            "code"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_option_values_option_id_code"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    },
+    "pending_actions": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "session_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "source_turn_id",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "principal_key",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "cart_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "kind",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(32)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "payload_json",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "JSON"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "proposal_hash",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "expected_cart_version",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "quote_snapshot_json",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "JSON"
+        },
+        {
+          "autoincrement": "auto",
+          "default": "pending",
+          "name": "status",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "expires_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "confirmation_key",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "confirmation_request_hash",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "result_json",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "JSON"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "active_session_id",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": {
+            "computed": "CASE WHEN status='pending' THEN session_id ELSE NULL END",
+            "persisted": true
+          },
+          "server_onupdate": {
+            "computed": "CASE WHEN status='pending' THEN session_id ELSE NULL END",
+            "persisted": true
+          },
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_pending_actions_kind",
+          "sqltext": "kind IN ('add','set_quantity','remove','checkout_handoff')"
+        },
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_pending_actions_status",
+          "sqltext": "status IN ('pending','declined','consumed','invalidated','expired')"
+        },
+        {
+          "columns": [
+            "cart_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_pending_actions_cart_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "carts.id"
+          ]
+        },
+        {
+          "columns": [
+            "session_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_pending_actions_session_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "commerce_sessions.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_pending_actions"
+        },
+        {
+          "columns": [
+            "active_session_id"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_pending_actions_active_session_id"
+        },
+        {
+          "columns": [
+            "principal_key",
+            "confirmation_key"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_pending_actions_principal_key_confirmation_key"
+        },
+        {
+          "columns": [
+            "session_id",
+            "source_turn_id"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_pending_actions_session_id_source_turn_id"
+        }
+      ],
+      "indexes": [],
+      "options": {
+        "mysql_charset": "utf8mb4",
+        "mysql_engine": "InnoDB"
+      }
+    },
+    "product_media": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "product_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sku_id",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "url",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(512)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "media_type",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(32)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "alt_text",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(255)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sort_order",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "0",
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "product_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_product_media_product_id_products",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "products.id"
+          ]
+        },
+        {
+          "columns": [
+            "sku_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_product_media_sku_id_skus",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "skus.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_product_media"
+        }
+      ],
+      "indexes": [
+        {
+          "expressions": [
+            "product_media.product_id",
+            "product_media.sort_order"
+          ],
+          "name": "ix_product_media_product_id_sort_order",
+          "unique": false
+        }
+      ],
+      "options": {}
+    },
+    "product_options": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "product_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "code",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "name",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(128)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sort_order",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "0",
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "product_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_product_options_product_id_products",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "products.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_product_options"
+        },
+        {
+          "columns": [
+            "product_id",
+            "code"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_product_options_product_id_code"
+        },
+        {
+          "columns": [
+            "product_id",
+            "sort_order"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_product_options_product_id_sort_order"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    },
+    "products": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "category_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "product_code",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "name",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(255)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "brand",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(128)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "description",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "TEXT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "attributes",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "JSON"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "status",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "draft",
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "version",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "1",
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_products_status",
+          "sqltext": "status IN ('draft', 'active', 'archived')"
+        },
+        {
+          "columns": [
+            "category_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_products_category_id_categories",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "categories.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_products"
+        },
+        {
+          "columns": [
+            "product_code"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_products_product_code"
+        }
+      ],
+      "indexes": [
+        {
+          "expressions": [
+            "products.category_id",
+            "products.status"
+          ],
+          "name": "ix_products_category_id_status",
+          "unique": false
+        },
+        {
+          "expressions": [
+            "products.status",
+            "products.updated_at"
+          ],
+          "name": "ix_products_status_updated_at",
+          "unique": false
+        }
+      ],
+      "options": {}
+    },
+    "session_seen_products": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "session_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "product_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "first_seen_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "product_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_session_seen_products_product_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "products.id"
+          ]
+        },
+        {
+          "columns": [
+            "session_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_session_seen_products_session_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "commerce_sessions.id"
+          ]
+        },
+        {
+          "columns": [
+            "session_id",
+            "product_id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_session_seen_products"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    },
+    "session_seen_skus": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "session_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sku_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "first_seen_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "session_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_session_seen_skus_session_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "commerce_sessions.id"
+          ]
+        },
+        {
+          "columns": [
+            "sku_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_session_seen_skus_sku_id",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "skus.id"
+          ]
+        },
+        {
+          "columns": [
+            "session_id",
+            "sku_id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_session_seen_skus"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    },
+    "sku_option_values": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sku_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "option_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "value_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "option_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_sku_option_values_option_id_product_options",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "product_options.id"
+          ]
+        },
+        {
+          "columns": [
+            "sku_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_sku_option_values_sku_id_skus",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "skus.id"
+          ]
+        },
+        {
+          "columns": [
+            "value_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_sku_option_values_value_id_option_values",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "option_values.id"
+          ]
+        },
+        {
+          "columns": [
+            "sku_id",
+            "option_id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_sku_option_values"
+        }
+      ],
+      "indexes": [
+        {
+          "expressions": [
+            "sku_option_values.value_id"
+          ],
+          "name": "ix_sku_option_values_value_id",
+          "unique": false
+        }
+      ],
+      "options": {}
+    },
+    "sku_price_changes": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sku_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "currency",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(3)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "old_amount_minor",
+          "nullable": true,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "new_amount_minor",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "price_version",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "reason",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(255)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "changed_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "sku_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_sku_price_changes_sku_id_skus",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "skus.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_sku_price_changes"
+        },
+        {
+          "columns": [
+            "sku_id",
+            "currency",
+            "price_version"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_sku_price_changes_sku_id_currency_price_version"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    },
+    "sku_prices": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sku_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "currency",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(3)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "amount_minor",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "version",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "1",
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "effective_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_sku_prices_amount_minor",
+          "sqltext": "amount_minor >= 0"
+        },
+        {
+          "columns": [
+            "sku_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_sku_prices_sku_id_skus",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "skus.id"
+          ]
+        },
+        {
+          "columns": [
+            "sku_id",
+            "currency"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_sku_prices"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    },
+    "skus": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "product_id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "sku_code",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "option_signature",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "status",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "active",
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "version",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "1",
+          "server_onupdate": null,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_skus_status",
+          "sqltext": "status IN ('active', 'inactive')"
+        },
+        {
+          "columns": [
+            "product_id"
+          ],
+          "kind": "ForeignKeyConstraint",
+          "name": "fk_skus_product_id_products",
+          "ondelete": null,
+          "onupdate": null,
+          "references": [
+            "products.id"
+          ]
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_skus"
+        },
+        {
+          "columns": [
+            "product_id",
+            "option_signature"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_skus_product_id_option_signature"
+        },
+        {
+          "columns": [
+            "sku_code"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_skus_sku_code"
+        }
+      ],
+      "indexes": [
+        {
+          "expressions": [
+            "skus.product_id",
+            "skus.status"
+          ],
+          "name": "ix_skus_product_id_status",
+          "unique": false
+        }
+      ],
+      "options": {}
+    },
+    "stock_locations": {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": {
+            "callable": "new_id"
+          },
+          "name": "id",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": true,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "CHAR(36)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "code",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(64)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "name",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": null,
+          "server_onupdate": null,
+          "type": "VARCHAR(128)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "status",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "active",
+          "server_onupdate": null,
+          "type": "VARCHAR(16)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "onupdate": null,
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "onupdate": "now(:now_1)",
+          "primary_key": false,
+          "server_default": "now(:now_1)",
+          "server_onupdate": null,
+          "type": "DATETIME(6)"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [],
+          "kind": "CheckConstraint",
+          "name": "ck_stock_locations_status",
+          "sqltext": "status IN ('active', 'inactive')"
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "kind": "PrimaryKeyConstraint",
+          "name": "pk_stock_locations"
+        },
+        {
+          "columns": [
+            "code"
+          ],
+          "kind": "UniqueConstraint",
+          "name": "uq_stock_locations_code"
+        }
+      ],
+      "indexes": [],
+      "options": {}
+    }
+  }
+}

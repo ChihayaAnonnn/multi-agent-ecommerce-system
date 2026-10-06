@@ -1,12 +1,19 @@
 """真实发现、来源记录、同轮回放和 SKU 选择。"""
 import asyncio
+
 import pytest
+from pydantic import ValidationError
+from sqlalchemy import update
+
+from commerce_orchestrator.facts import CommerceFactsReader
 from db.session import create_session_factory
 from identity.types import make_principal
-from shopping_session.service import ShoppingSessionService, CommerceError
-from commerce_orchestrator.facts import CommerceFactsReader
-from commerce_orchestrator.service import CommerceOrchestrator
 from models.commerce import TurnRequest
+from sale_facts.service import SaleFactsReader
+from shared.hashing import request_hash
+from shopping_session.models import CommerceTurn
+from shopping_session.service import CommerceError, ShoppingSessionService
+from tests.commerce_helpers import build_orchestrator
 from tests.test_commerce_facts_mysql import seed
 
 
@@ -16,7 +23,8 @@ def test_turn_merges_explicit_constraints_and_replays(migrated_mysql_database):
         sessions = ShoppingSessionService(factory)
         principal = make_principal('test','a')
         session = await sessions.create(principal)
-        service = CommerceOrchestrator(sessions, CommerceFactsReader(catalog, prices, stock), catalog)
+        facts = CommerceFactsReader(catalog, SaleFactsReader(catalog, prices, stock))
+        service = build_orchestrator(sessions, facts, catalog)
         first = await service.turn(principal, session.session_id, TurnRequest(turn_id='one', message='预算2000元', constraints={'category_id':cats[0].id}))
         assert first.status == 'shortlist' and len(first.items) <= 3
         again = await service.turn(principal, session.session_id, TurnRequest(turn_id='one', message='预算2000元', constraints={'category_id':cats[0].id}))
@@ -33,12 +41,49 @@ def test_turn_merges_explicit_constraints_and_replays(migrated_mysql_database):
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize('invalid', ['status', 'session_id', 'turn_id'])
+def test_application_rejects_invalid_historical_response(
+    migrated_mysql_database, invalid,
+):
+    async def scenario():
+        factory = create_session_factory(migrated_mysql_database)
+        sessions = ShoppingSessionService(factory)
+        principal = make_principal('test', 'history')
+        session = await sessions.create(principal)
+        await sessions.claim_turn(session.session_id, principal, 't', 'hash')
+        payload = {
+            'request_id': 'r', 'session_id': session.session_id,
+            'turn_id': 't', 'intent': 'shop', 'status': 'clarify',
+        }
+        payload[invalid] = 'paid' if invalid == 'status' else 'different'
+        request = TurnRequest(turn_id='t')
+        digest = request_hash(request.model_dump(mode='json'))
+        async with factory() as db, db.begin():
+            await db.execute(update(CommerceTurn).where(
+                CommerceTurn.session_id == session.session_id,
+                CommerceTurn.turn_id == 't',
+            ).values(status='completed', response_json=payload, request_hash=digest))
+        service = build_orchestrator(sessions, None, None)
+        if invalid == 'status':
+            replay = await sessions.claim_turn(
+                session.session_id, principal, 't', digest,
+            )
+            assert replay.response == payload
+        error = ValidationError if invalid == 'status' else CommerceError
+        with pytest.raises(error):
+            await service.turn(principal, session.session_id, request)
+        owned = await sessions.get_owned(session.session_id, principal)
+        assert owned.version == 1 and owned.state == {}
+    asyncio.run(scenario())
+
+
 def test_seen_ids_must_come_from_server_response(migrated_mysql_database):
     async def scenario():
         factory, catalog, prices, stock, cats, products, skus = await seed(migrated_mysql_database)
         sessions = ShoppingSessionService(factory); a = make_principal('test','a')
         session = await sessions.create(a)
-        service = CommerceOrchestrator(sessions, CommerceFactsReader(catalog, prices, stock), catalog)
+        facts = CommerceFactsReader(catalog, SaleFactsReader(catalog, prices, stock))
+        service = build_orchestrator(sessions, facts, catalog)
         first = await service.turn(a, session.session_id, TurnRequest(turn_id='one', constraints={'category_id':cats[0].id, 'budget_max_minor':350}))
         seen_p, seen_s = await sessions.seen(session.session_id, a)
         assert seen_p == {products[0].id, products[2].id}

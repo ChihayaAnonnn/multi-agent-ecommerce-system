@@ -1,20 +1,28 @@
 """有限页面事件去重及故障与购物事务隔离。"""
 import asyncio
+
 import pytest
-from sqlalchemy import select,func
+from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
-from commerce_events.service import CommerceEventService
+
 from commerce_events.models import CommerceEvent
-from tests.test_cart_confirmation_mysql import setup
-from shopping_session.service import CommerceError
+from commerce_events.service import CommerceEventService
+from commerce_orchestrator.actions import CartActionService
 from db.base import new_id
+from shopping_session.service import CommerceError
+from tests.test_cart_confirmation_mysql import setup
 
 
 def test_event_dedupe_and_failure_is_non_blocking(migrated_mysql_database):
     async def scenario():
         factory,sessions,cart,a,b,s,view,_,_,skus=await setup(migrated_mysql_database)
-        p=await cart.propose_action(a,s.session_id,'add',{'sku_id':skus[0].id,'quantity':1},view.version)
-        assert (await cart.confirm(a,s.session_id,p.action_id,True,'add')).status=='cart_updated'
+        actions = CartActionService(factory, sessions, cart, None)
+        proposal = await actions.propose_action(
+            a, s.session_id, 'add', {'sku_id': skus[0].id, 'quantity': 1}, view.version
+        )
+        assert (
+            await actions.confirm(a, s.session_id, proposal.action_id, True, 'add')
+        ).status == 'cart_updated'
         events=CommerceEventService(factory,sessions)
         eid=new_id()
         receipt=await events.record(a,s.session_id,eid,'request','impression',{'sku_id':skus[0].id,'position':0})

@@ -1,8 +1,18 @@
 """不可变交接快照和持久恢复状态。"""
 from datetime import datetime
-from sqlalchemy import CHAR,String,Integer,JSON,ForeignKey,UniqueConstraint,CheckConstraint
-from sqlalchemy.orm import Mapped,mapped_column
-from db.base import Base,TimestampMixin,DATETIME6
+
+from sqlalchemy import (
+    CHAR,
+    JSON,
+    CheckConstraint,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import Mapped, mapped_column
+
+from shared.db import DATETIME6, Base, TimestampMixin
 
 
 class CheckoutHandoff(TimestampMixin,Base):

@@ -20,9 +20,7 @@ from api.identity import (
     require_identity,
     require_principal,
 )
-from db.base import UtcDateTime
-from identity.passwords import PasswordPolicyError
-from identity.service import MAX_EMAIL_LENGTH, normalize_email
+from identity.service import MAX_EMAIL_LENGTH, PasswordPolicyError, normalize_email
 from identity.types import (
     AuthIssue,
     DemoModeDisabled,
@@ -32,10 +30,11 @@ from identity.types import (
     InvalidCredentials,
     InvalidCsrf,
     InvalidEmail,
-    Principal,
     RateLimited,
     UserView,
 )
+from shared.principal import Principal
+from shared.time import UtcDateTime
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 

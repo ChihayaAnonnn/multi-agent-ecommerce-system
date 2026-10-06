@@ -1,0 +1,270 @@
+[
+  {
+    "include_in_schema": false,
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "openapi",
+    "path": "/openapi.json"
+  },
+  {
+    "include_in_schema": false,
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "swagger_ui_html",
+    "path": "/docs"
+  },
+  {
+    "include_in_schema": false,
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "swagger_ui_redirect",
+    "path": "/docs/oauth2-redirect"
+  },
+  {
+    "include_in_schema": false,
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "redoc_html",
+    "path": "/redoc"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "health",
+    "path": "/health"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "recommend",
+    "path": "/api/v1/recommend"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "recommend_via_graph",
+    "path": "/api/v1/recommend/graph"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "get_experiments",
+    "path": "/api/v1/experiments"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "record_outcome",
+    "path": "/api/v1/experiments/{experiment_id}/outcome"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "get_metrics",
+    "path": "/api/v1/metrics"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "list_products",
+    "path": "/api/v1/catalog/products"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "get_product",
+    "path": "/api/v1/catalog/products/{product_id}"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "get_sku",
+    "path": "/api/v1/catalog/skus/{sku_id}"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "products",
+    "path": "/api/v1/storefront/products"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "resolve",
+    "path": "/api/v1/storefront/products/resolve"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "quote_sku",
+    "path": "/api/v1/commerce/skus/{sku_id}/quote"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "create_session",
+    "path": "/api/v1/commerce/sessions"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "get_session",
+    "path": "/api/v1/commerce/sessions/{session_id}"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "turn",
+    "path": "/api/v1/commerce/sessions/{session_id}/turns"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "compare",
+    "path": "/api/v1/commerce/sessions/{session_id}/compare"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "get_cart",
+    "path": "/api/v1/commerce/sessions/{session_id}/cart"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "confirm_action",
+    "path": "/api/v1/commerce/sessions/{session_id}/actions/{action_id}/confirm"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "checkout_preview",
+    "path": "/api/v1/commerce/sessions/{session_id}/checkout-preview"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "checkout_handoff",
+    "path": "/api/v1/commerce/sessions/{session_id}/checkout-handoff"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "get_handoff",
+    "path": "/api/v1/commerce/sessions/{session_id}/handoffs/{handoff_id}"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "record_event",
+    "path": "/api/v1/commerce/events"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "product_context",
+    "path": "/api/v1/commerce/sessions/{session_id}/product-context"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "register",
+    "path": "/api/v1/auth/register"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "login",
+    "path": "/api/v1/auth/login"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "csrf",
+    "path": "/api/v1/auth/csrf"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "refresh",
+    "path": "/api/v1/auth/refresh"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "POST"
+    ],
+    "name": "logout",
+    "path": "/api/v1/auth/logout"
+  },
+  {
+    "include_in_schema": true,
+    "methods": [
+      "GET"
+    ],
+    "name": "me",
+    "path": "/api/v1/auth/me"
+  }
+]

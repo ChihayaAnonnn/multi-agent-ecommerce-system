@@ -1,12 +1,16 @@
 """商品卡片必须来自批量事实读取，缺失事实不变成可售。"""
 import asyncio
 from types import SimpleNamespace as NS
+
 import pytest
-from db.base import utcnow
+
 from catalog.schemas import CategoryRefView
-from commerce_orchestrator.facts import CommerceFactsReader, CommerceDependencyError
-from tests.test_commerce_facts import Catalog, Prices, Inventory
+from db.base import utcnow
+from kernel.errors import CommerceDependencyError
+from sale_facts.service import SaleFactsReader
 from storefront.service import StorefrontService
+from tests.test_commerce_facts import Catalog, Inventory, Prices
+
 
 class Products(Catalog):
     def __init__(self, count=3):
@@ -25,7 +29,7 @@ class Products(Catalog):
         return NS(items=[NS(id=i) for i in self.products][:kwargs['limit']],next_cursor='next')
 
 
-def reader(c):return CommerceFactsReader(c,Prices(),Inventory())
+def reader(c):return SaleFactsReader(c,Prices(),Inventory())
 
 def test_card_uses_first_active_sku():
     c=Products();r=asyncio.run(StorefrontService(c,reader(c)).resolve_products(['0']))
@@ -72,7 +76,7 @@ def test_real_batch_queries_do_not_grow_with_product_count(migrated_mysql_databa
         def record(conn,cursor,statement,parameters,context,executemany):queries.append(statement)
         event.listen(engine,'before_cursor_execute',record)
         try:
-            reader=StorefrontService(catalog,CommerceFactsReader(catalog,prices,stock))
+            reader=StorefrontService(catalog,SaleFactsReader(catalog,prices,stock))
             await reader.resolve_products([products[0].id]);one=len(queries);queries.clear()
             result=await reader.resolve_products([p.id for p in products])
             assert len(queries)==one

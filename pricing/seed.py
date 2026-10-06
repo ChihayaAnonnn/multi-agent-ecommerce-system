@@ -1,9 +1,11 @@
 """内部离线导入的新 SKU 测试价格；不覆盖现价、不自行提交。"""
 from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.base import utcnow, new_id
-from pricing.models import SKUPrice, SKUPriceChange, CURRENCY
+
+from pricing.models import CURRENCY, SKUPrice, SKUPriceChange
 from pricing.service import to_minor_units
+from shared.ids import new_id
+from shared.time import utcnow
 
 
 async def insert_seed_prices(db: AsyncSession, rows: list[dict]) -> None:

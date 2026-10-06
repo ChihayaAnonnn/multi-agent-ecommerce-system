@@ -5,27 +5,17 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
+from api.errors import catalog_http_error as catalog_http_error
 from api.runtime import require_catalog
 from catalog.schemas import ProductDetailView, ProductPage, SKUDetailView
 from catalog.service import (
-    CatalogConflictError,
     CatalogError,
-    CatalogNotFoundError,
     CatalogService,
 )
 
 router = APIRouter(prefix="/api/v1/catalog", tags=["catalog"])
-
-
-def catalog_http_error(exc: CatalogError) -> HTTPException:
-    """把领域异常映射为 HTTP 状态码。"""
-    if isinstance(exc, CatalogNotFoundError):
-        return HTTPException(status_code=404, detail=str(exc))
-    if isinstance(exc, CatalogConflictError):
-        return HTTPException(status_code=409, detail=str(exc))
-    return HTTPException(status_code=422, detail=str(exc))
 
 
 @router.get("/products", response_model=ProductPage)

@@ -1,11 +1,14 @@
 """报价缺失与依赖故障不能提升为可购买。"""
 import asyncio
+
 import pytest
+
 from catalog.schemas import SKUDetailView
+from commerce_orchestrator.facts import CommerceDependencyError, CommerceFactsReader
 from db.base import utcnow
 from inventory.schemas import AvailabilityView
 from pricing.schemas import PriceView
-from commerce_orchestrator.facts import CommerceFactsReader, CommerceDependencyError
+from sale_facts.service import SaleFactsReader
 
 
 class Catalog:
@@ -32,7 +35,10 @@ class Inventory:
 
 def test_quote_many_never_promotes_unknown_to_purchasable():
     async def scenario():
-        q = await CommerceFactsReader(Catalog(), Prices(), Inventory()).quote_many(
+        catalog = Catalog()
+        reader = CommerceFactsReader(catalog,
+            SaleFactsReader(catalog, Prices(), Inventory()))
+        q = await reader.quote_many(
             ['ok', 'unknown', 'zero', 'no-price', 'missing'])
         assert q['ok'].purchasable
         assert {k: v.reason for k, v in q.items() if k != 'ok'} == {
@@ -52,4 +58,5 @@ def test_quote_dependency_failure_is_not_empty(dependency):
     deps = dict(catalog=Catalog(), pricing=Prices(), inventory=Inventory())
     deps[dependency] = Broken()
     with pytest.raises(CommerceDependencyError):
-        asyncio.run(CommerceFactsReader(**deps).quote_many(['ok']))
+        reader = CommerceFactsReader(deps['catalog'], SaleFactsReader(**deps))
+        asyncio.run(reader.quote_many(['ok']))

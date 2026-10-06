@@ -1,19 +1,21 @@
 """短事务声明轮次；模型和外部事实查询在锁外运行。"""
 from datetime import timedelta
+
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.dialects.mysql import insert
-from db.base import utcnow, new_id
-from identity.types import Principal
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from kernel.errors import CommerceError as CommerceError
+from shared.ids import new_id
+from shared.principal import Principal
+from shared.time import utcnow
 from shopping_session.models import CommerceSession, CommerceTurn, SeenProduct, SeenSKU
-from shopping_session.schemas import ShoppingSessionView, TurnClaim, TurnReplay, TurnCompletion
-from models.commerce import TurnResponse
-
-
-class CommerceError(Exception):
-    def __init__(self, code: str, status_code: int = 409, details: dict | None = None):
-        super().__init__(code)
-        self.code, self.status_code, self.details = code, status_code, details or {}
+from shopping_session.schemas import (
+    ShoppingSessionView,
+    TurnClaim,
+    TurnCompletion,
+    TurnReplay,
+)
 
 
 class ShoppingSessionService:
@@ -30,9 +32,9 @@ class ShoppingSessionService:
             stmt = stmt.with_for_update()
         row = await db.scalar(stmt)
         if row is None:
-            raise CommerceError('not_found', 404)
+            raise CommerceError('not_found')
         if row.status != 'active' or row.expires_at <= utcnow():
-            raise CommerceError('session_expired', 409)
+            raise CommerceError('session_expired')
         return row
 
     async def create(self, principal: Principal) -> ShoppingSessionView:
@@ -41,6 +43,17 @@ class ShoppingSessionService:
                 expires_at=utcnow()+timedelta(seconds=self.ttl), state_json={}, version=1)
             db.add(row); await db.flush()
             return self.view(row)
+
+    async def lock_owned_session(
+        self, db: AsyncSession, session_id: str, principal_key: str,
+    ) -> ShoppingSessionView:
+        row = await self.owned_row(db, session_id, principal_key, True)
+        return self.view(row).model_copy(deep=True)
+
+    async def has_seen_sku(
+        self, db: AsyncSession, session_id: str, sku_id: str,
+    ) -> bool:
+        return await db.get(SeenSKU, (session_id, sku_id)) is not None
 
     async def get_owned(self, session_id: str, principal: Principal) -> ShoppingSessionView:
         async with self.factory() as db:
@@ -71,10 +84,19 @@ class ShoppingSessionService:
                 if turn.request_hash != request_hash:
                     raise CommerceError('idempotency_conflict')
                 if turn.status == 'completed':
-                    return TurnReplay(response=TurnResponse.model_validate(turn.response_json))
+                    replay = TurnReplay(
+                        session_id=session_id, turn_id=turn_id,
+                        response=turn.response_json,
+                    )
+                    if (
+                        replay.response.get('session_id') != session_id
+                        or replay.response.get('turn_id') != turn_id
+                    ):
+                        raise CommerceError('invalid_completion')
+                    return replay
             now = utcnow()
             if row.active_turn_id is not None and row.turn_lease_expires_at is not None and row.turn_lease_expires_at > now:
-                raise CommerceError('turn_processing', 409, {'retryable':True})
+                raise CommerceError('turn_processing', {'retryable':True})
             token = new_id()
             row.active_turn_id, row.turn_lease_token = turn_id, token
             row.turn_lease_expires_at = now + timedelta(seconds=self.lease)
@@ -90,14 +112,23 @@ class ShoppingSessionService:
             raise CommerceError('turn_lease_lost')
 
     async def complete_turn(self, claim: TurnClaim, completion: TurnCompletion) -> None:
-        completion = TurnCompletion.model_validate(completion)
-        if completion.response.session_id != claim.session_id or completion.response.turn_id != claim.turn_id:
-            raise CommerceError('invalid_completion', 422)
+        completion = TurnCompletion.model_validate(
+            dict(completion)
+        )
+        if not (
+            completion.session_id
+            == completion.response.get('session_id')
+            == claim.session_id
+            and completion.turn_id
+            == completion.response.get('turn_id')
+            == claim.turn_id
+        ):
+            raise CommerceError('invalid_completion')
         async with self.factory() as db, db.begin():
             await self.assert_current_turn(db, claim)
             row = await db.get(CommerceSession, claim.session_id)
             turn = await db.get(CommerceTurn, (claim.session_id, claim.turn_id))
-            turn.status, turn.response_json = 'completed', completion.response.model_dump(mode='json')
+            turn.status, turn.response_json = 'completed', completion.response
             row.state_json, row.version = completion.state, row.version+1
             row.active_turn_id = row.turn_lease_token = row.turn_lease_expires_at = None
             await self._record_seen(db, row.id, completion.product_ids, completion.sku_ids)
@@ -109,3 +140,8 @@ class ShoppingSessionService:
                 CommerceSession.principal_key==claim.principal_key).with_for_update())
             if row and row.active_turn_id==claim.turn_id and row.turn_lease_token==claim.lease_token:
                 row.active_turn_id=row.turn_lease_token=row.turn_lease_expires_at=None
+
+
+__all__ = [
+    'ShoppingSessionService',
+]

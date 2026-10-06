@@ -7,12 +7,13 @@ from pathlib import Path
 import pytest
 from sqlalchemy import func, select
 
+from catalog.models import SKU, Product, ProductMedia
+from catalog.service import CatalogSKUReader
 from db.session import create_session_factory
-from inventory.models import InventoryBalance, InventoryMovement, DEFAULT_LOCATION_ID
+from inventory.models import DEFAULT_LOCATION_ID, InventoryBalance, InventoryMovement
 from inventory.service import InventoryService
 from pricing.models import SKUPrice, SKUPriceChange
 from pricing.service import PricingService
-from catalog.models import Product, SKU, ProductMedia
 
 
 def importer():
@@ -66,8 +67,11 @@ def test_batch_import_is_atomic_and_repeat_keeps_business_changes(migrated_mysql
             result = await module.write_batch(db, [row,row])
             assert result == 1
         sid = row['sku']['id']
-        await PricingService(factory).set_price(sid,12345,1,'测试调价')
-        await InventoryService(factory).adjust(sid,DEFAULT_LOCATION_ID,-2,'test-adjust','测试库存调整')
+        sku_reader = CatalogSKUReader(factory)
+        pricing = PricingService(factory, sku_reader)
+        inventory = InventoryService(factory, sku_reader)
+        await pricing.set_price(sid,12345,1,'测试调价')
+        await inventory.adjust(sid,DEFAULT_LOCATION_ID,-2,'test-adjust','测试库存调整')
         async with factory() as db, db.begin():
             assert await module.write_batch(db,[row]) == 0
         async with factory() as db:
@@ -139,7 +143,8 @@ def test_unknown_stock_and_late_failure_rollback(migrated_mysql_database):
             await module.ensure_categories(db,['Electronics'])
             await module.write_batch(db,[unknown])
         sku=unknown['sku']['id']
-        availability=await InventoryService(factory).get_availability([sku])
+        inventory = InventoryService(factory, CatalogSKUReader(factory))
+        availability=await inventory.get_availability([sku])
         assert availability[sku].status=='unknown'
         async with factory() as db:
             assert await db.get(InventoryBalance,(sku,DEFAULT_LOCATION_ID)) is None

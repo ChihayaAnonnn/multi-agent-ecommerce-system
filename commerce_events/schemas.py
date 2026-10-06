@@ -22,3 +22,11 @@ class EventReceipt(BaseModel):
     accepted: bool
     duplicate: bool=False
     error_code: str | None=None
+
+
+__all__ = [
+    'EventKind',
+    'EventPayload',
+    'EventReceipt',
+    'KINDS',
+]

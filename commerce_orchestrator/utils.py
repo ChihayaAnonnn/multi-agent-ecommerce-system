@@ -1,7 +1,3 @@
-"""规范化请求哈希，不包含凭证。"""
-import hashlib
-import json
+"""请求哈希的兼容入口；实现只存在于 shared。"""
 
-
-def request_hash(data: dict) -> str:
-    return hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False, separators=(',',':')).encode()).hexdigest()
+from shared.hashing import request_hash as request_hash

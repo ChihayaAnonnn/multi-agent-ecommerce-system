@@ -1,21 +1,26 @@
 """真实目录批量查询、硬约束扫描与 SQL 次数验收。"""
 import asyncio
-from sqlalchemy import event, update, delete
-from catalog.models import Product, SKU
-from catalog.schemas import CategoryInput, AttributeInput, ProductInput, SKUInput
-from catalog.service import CatalogService
+
+from sqlalchemy import delete, event, update
+
+from catalog.models import SKU, Product
+from catalog.schemas import AttributeInput, CategoryInput, ProductInput, SKUInput
+from catalog.service import CatalogService, CatalogSKUReader
+from commerce_orchestrator.facts import CommerceFactsReader
+from commerce_orchestrator.schemas import HardCondition, ShoppingIntent
 from db.session import create_session_factory
+from inventory.models import DEFAULT_LOCATION_ID
+from inventory.service import InventoryService
 from pricing.models import SKUPrice
 from pricing.service import PricingService
-from inventory.service import InventoryService
-from inventory.models import DEFAULT_LOCATION_ID
-from commerce_orchestrator.facts import CommerceFactsReader
-from commerce_orchestrator.schemas import ShoppingIntent, HardCondition
+from sale_facts.service import SaleFactsReader
 
 
 async def seed(url):
     factory = create_session_factory(url)
-    prices, stock = PricingService(factory), InventoryService(factory)
+    sku_reader = CatalogSKUReader(factory)
+    prices = PricingService(factory, sku_reader)
+    stock = InventoryService(factory, sku_reader)
     catalog = CatalogService(factory, prices)
     cats = []
     for code in ['phone', 'headphone']:
@@ -64,7 +69,7 @@ def test_batch_details_have_constant_sql_count(migrated_mysql_database):
 def test_scan_hard_filters_and_limit(migrated_mysql_database):
     async def scenario():
         _, catalog, prices, stock, cats, products, skus = await seed(migrated_mysql_database)
-        reader = CommerceFactsReader(catalog, prices, stock)
+        reader = CommerceFactsReader(catalog, SaleFactsReader(catalog, prices, stock))
         result = await reader.scan(ShoppingIntent(category_id=cats[0].id,
             budget_max_minor=350, hard_conditions=[HardCondition(code='wireless', value=True)]), 200, 2)
         assert {q.sku.id for q in result.items} == {skus[0].id, skus[2].id}
@@ -89,7 +94,8 @@ def test_real_quote_statuses_and_two_categories(migrated_mysql_database):
             await db.execute(delete(InventoryBalance).where(InventoryBalance.sku_id == skus[6].id))
             await db.commit()
         await stock.adjust(skus[7].id, DEFAULT_LOCATION_ID, -5, 'empty', '清空')
-        q = await CommerceFactsReader(catalog, prices, stock).quote_many([s.id for s in skus])
+        reader = CommerceFactsReader(catalog, SaleFactsReader(catalog, prices, stock))
+        q = await reader.quote_many([s.id for s in skus])
         assert [q[s.id].reason for s in skus] == ['purchasable', 'purchasable',
             'product_not_active', 'product_not_active', 'sku_inactive', 'price_missing',
             'stock_unknown', 'out_of_stock']

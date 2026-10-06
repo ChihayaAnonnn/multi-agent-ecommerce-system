@@ -14,17 +14,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from api.http_config import IdentityHttpConfig, parse_trusted_networks
 from api.runtime import get_runtime
 from identity.service import IdentityService
 from identity.types import (
     IdentityDependencyError,
-    IdentityHttpConfig,
     InvalidAccessToken,
-    Principal,
-    parse_trusted_networks,
 )
+from shared.principal import Principal
 
-# 刷新 Cookie 名默认值见 identity.types.IdentityHttpConfig：
+# 刷新 Cookie 名默认值见 api.http_config.IdentityHttpConfig：
 # `__Host-` 前缀要求 Secure、Path=/ 且不带 Domain。
 CSRF_HEADER_NAME = "X-CSRF-Token"
 
@@ -121,14 +120,14 @@ async def require_principal(
         raise HTTPException(status_code=503, detail="身份服务不可用", headers=NO_STORE) from exc
 
 
-def configure_cors(app, settings) -> None:
+def configure_cors(app, config: IdentityHttpConfig) -> None:
     """为认证域配置 CORS：只允许明确配置的来源，绝不使用 `*`。
 
     `allow_credentials=True` 与通配来源互斥，这里通过只填入具体来源来保证。
     """
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=list(settings.allowed_origins),
+        allow_origins=list(config.allowed_origins),
         allow_credentials=True,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", CSRF_HEADER_NAME],
@@ -157,7 +156,7 @@ def install_validation_error_handler(app) -> None:
         )
 
 
-def configure_identity_http(app, settings) -> None:
+def configure_identity_http(app, config: IdentityHttpConfig) -> None:
     """装配认证域的 HTTP 行为：CORS 白名单与不回显提交内容的校验错误。"""
-    configure_cors(app, settings)
+    configure_cors(app, config)
     install_validation_error_handler(app)

@@ -13,12 +13,21 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from db.base import new_id, utcnow
-from inventory.models import DEFAULT_LOCATION_ID, InventoryBalance, InventoryMovement, StockLocation
+from catalog.ports import SKUExistenceReader
+from catalog.service import CatalogNotFoundError
+from inventory.models import (
+    DEFAULT_LOCATION_ID,
+    InventoryBalance,
+    InventoryMovement,
+    StockLocation,
+)
 from inventory.schemas import AdjustmentView, AvailabilityView, BalanceView
+from shared.errors import DomainError
+from shared.ids import new_id
+from shared.time import utcnow
 
 
-class InventoryError(Exception):
+class InventoryError(DomainError):
     """库存领域异常基类。"""
 
 
@@ -62,8 +71,13 @@ def to_adjustment_view(
 class InventoryService:
     """库存读写服务。"""
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        sku_reader: SKUExistenceReader,
+    ) -> None:
         self._session_factory = session_factory
+        self._sku_reader = sku_reader
 
     # ---------- 只读查询 ----------
 
@@ -277,12 +291,11 @@ class InventoryService:
                 raise InventoryConflictError("库存调整写入冲突，请重试")
             return await self._replay(session, movement, sku_id, location_id, delta)
 
-    @staticmethod
-    async def _require_sku(session: AsyncSession, sku_id: str) -> None:
-        from catalog.models import SKU
-
-        if await session.get(SKU, sku_id) is None:
-            raise InventoryNotFoundError(f"SKU 不存在: {sku_id}")
+    async def _require_sku(self, session: AsyncSession, sku_id: str) -> None:
+        try:
+            await self._sku_reader.require_sku_exists(session, sku_id)
+        except CatalogNotFoundError as exc:
+            raise InventoryNotFoundError(f"SKU 不存在: {sku_id}") from exc
 
     @staticmethod
     async def _commit(session: AsyncSession, conflict_message: str) -> None:
@@ -291,3 +304,15 @@ class InventoryService:
         except IntegrityError as exc:
             await session.rollback()
             raise InventoryConflictError(conflict_message) from exc
+
+
+__all__ = [
+    'InventoryConflictError',
+    'InventoryDependencyError',
+    'InventoryError',
+    'InventoryNotFoundError',
+    'InventoryService',
+    'InventoryValidationError',
+    'to_adjustment_view',
+    'to_balance_view',
+]

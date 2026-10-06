@@ -1,14 +1,17 @@
 """采集独立提交；失败可观察，但不回滚既有购物事务。"""
 from typing import Literal
 from uuid import UUID
+
 import structlog
-from pydantic import BaseModel,ConfigDict,Field,ValidationError
-from sqlalchemy.exc import SQLAlchemyError,IntegrityError
+from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
 from commerce_events.models import CommerceEvent
-from shopping_session.service import CommerceError,ShoppingSessionService
-from identity.types import Principal
-from commerce_orchestrator.utils import request_hash
-from db.base import utcnow
+from kernel.errors import CommerceError
+from shared.hashing import request_hash
+from shared.principal import Principal
+from shared.time import utcnow
+from shopping_session.service import ShoppingSessionService
 
 logger=structlog.get_logger()
 from commerce_events.schemas import EventKind,EventPayload,EventReceipt,KINDS
@@ -21,7 +24,7 @@ class CommerceEventService:
     @staticmethod
     def existing_receipt(row: CommerceEvent,principal: Principal,digest: str) -> EventReceipt:
         if row.principal_key!=principal.principal_key:
-            raise CommerceError('not_found',404)
+            raise CommerceError('not_found')
         if row.request_hash!=digest:
             raise CommerceError('idempotency_conflict')
         return EventReceipt(accepted=True,duplicate=True)
@@ -31,9 +34,9 @@ class CommerceEventService:
             event_id=str(UUID(event_id))
             safe=EventPayload.model_validate(payload).model_dump(mode='json',exclude_none=True)
         except (ValueError,ValidationError) as exc:
-            raise CommerceError('invalid_event_input',422) from exc
+            raise CommerceError('invalid_event_input') from exc
         if kind not in KINDS or not 1<=len(request_id)<=64:
-            raise CommerceError('invalid_event_input',422)
+            raise CommerceError('invalid_event_input')
         digest=request_hash({'session_id':session_id,'request_id':request_id,'kind':kind,'payload':safe})
         try:
             async with self.factory() as db,db.begin():
@@ -57,3 +60,8 @@ class CommerceEventService:
             pass
         logger.warning('commerce.event_unavailable',event_id=event_id,session_id=session_id,request_id=request_id)
         return EventReceipt(accepted=False,error_code='event_unavailable')
+
+
+__all__ = [
+    'CommerceEventService',
+]

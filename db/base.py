@@ -1,69 +1,15 @@
-"""所有领域 ORM 模型的声明式基类。"""
+"""共享原语的兼容入口；定义只存在于 shared。"""
 
-from __future__ import annotations
+from shared.db import DATETIME6 as DATETIME6
+from shared.db import NAMING_CONVENTION as NAMING_CONVENTION
+from shared.db import Base as Base
+from shared.db import TimestampMixin as TimestampMixin
+from shared.ids import new_id as new_id
+from shared.time import UtcDateTime as UtcDateTime
+from shared.time import mark_utc as _mark_utc
+from shared.time import utcnow as utcnow
 
-import uuid
-from datetime import datetime, timezone
-from typing import Annotated
-
-from pydantic import BeforeValidator
-from sqlalchemy import MetaData, func
-from sqlalchemy.dialects.mysql import DATETIME
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
-# MySQL 的 DATETIME(6)：微秒精度，对应设计稿的 DATETIME(6)。
-# 注意不能写成 sa.DateTime(6)：泛型 DateTime 的首个位置参数是 timezone 而不是精度。
-DATETIME6 = DATETIME(fsp=6)
-
-# 统一约束命名，便于迁移降级与后续 alembic autogenerate 比对。
-# 不含 ck：CHECK 约束一律在模型与迁移中显式命名，避免命名约定重复拼接前缀。
-NAMING_CONVENTION = {
-    "ix": "ix_%(table_name)s_%(column_0_N_name)s",
-    "uq": "uq_%(table_name)s_%(column_0_N_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_N_name)s",
-    "pk": "pk_%(table_name)s",
-}
-
-
-def new_id() -> str:
-    """应用生成的 UUID 主键。"""
-    return str(uuid.uuid4())
-
-
-def utcnow() -> datetime:
-    """当前 UTC 时间（naive，与 DATETIME(6) 列一致）。
-
-    业务时间统一由应用写入 UTC，不依赖数据库会话时区。
-    """
-    return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-def _mark_utc(value: datetime) -> datetime:
-    """把数据库读出的 naive UTC 时间标注为 UTC。"""
-    if isinstance(value, datetime) and value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value
-
-
-# 对外领域 DTO 的时间字段统一使用该类型：MySQL DATETIME 不存时区，
-# 值本身是 UTC，返回给调用方时补上时区标识，避免被当成服务器本地时间
-# （本地为 UTC+8 时会直接差 8 小时）。
-# 旧推荐接口的 models/schemas.py 不在此列，其响应形状保持兼容。
-UtcDateTime = Annotated[datetime, BeforeValidator(_mark_utc)]
-
-
-class Base(DeclarativeBase):
-    """领域模型的声明式基类。"""
-
-    metadata = MetaData(naming_convention=NAMING_CONVENTION)
-
-
-class TimestampMixin:
-    """可变实体共用的创建/更新时间（UTC）。"""
-
-    created_at: Mapped[datetime] = mapped_column(
-        DATETIME6, nullable=False, server_default=func.now(6)
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DATETIME6, nullable=False, server_default=func.now(6), onupdate=func.now(6)
-    )
+__all__ = [
+    "DATETIME6", "NAMING_CONVENTION", "Base", "TimestampMixin", "new_id",
+    "UtcDateTime", "_mark_utc", "utcnow",
+]

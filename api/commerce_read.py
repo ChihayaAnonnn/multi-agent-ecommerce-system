@@ -9,15 +9,16 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from api.catalog import catalog_http_error
+from api.errors import catalog_http_error
 from api.runtime import require_catalog, require_inventory, require_pricing
 from catalog.schemas import SKUDetailView
 from catalog.service import CatalogError, CatalogService
-from db.base import UtcDateTime, utcnow
 from inventory.schemas import AvailabilityView
 from inventory.service import InventoryDependencyError, InventoryService
+from kernel.quotes import evaluate_legacy_api_purchasability
 from pricing.schemas import PriceView
 from pricing.service import PricingDependencyError, PricingService
+from shared.time import UtcDateTime, utcnow
 
 router = APIRouter(prefix="/api/v1/commerce", tags=["commerce"])
 
@@ -41,19 +42,13 @@ class QuoteView(BaseModel):
     read_at: UtcDateTime
 
 
-def _quote_reason(sku: SKUDetailView, price, availability) -> str:
-    if sku.status != "active":
-        return REASON_SKU_INACTIVE
-    # 商品未上架（草稿或已归档）时，SKU 有价有货也不构成可购买
-    if sku.product_status != "active":
-        return REASON_PRODUCT_NOT_ACTIVE
-    if price is None:
-        return REASON_PRICE_MISSING
-    if availability is None or availability.status == "unknown":
-        return REASON_STOCK_UNKNOWN
-    if availability.status != "available" or not availability.available_quantity:
-        return REASON_OUT_OF_STOCK
-    return REASON_PURCHASABLE
+def _quote_reason(
+    sku: SKUDetailView,
+    price: PriceView | None,
+    availability: AvailabilityView | None,
+) -> str:
+    """保留 API 弱规则；R 批准前不归一非 CNY 与负库存语义。"""
+    return evaluate_legacy_api_purchasability(sku, price, availability)
 
 
 @router.get("/skus/{sku_id}/quote", response_model=QuoteView)

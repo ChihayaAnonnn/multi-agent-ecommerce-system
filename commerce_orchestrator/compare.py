@@ -1,7 +1,8 @@
 """同类商品只按目录声明的可比较属性展示。"""
 from pydantic import BaseModel, Field
-from shopping_session.service import CommerceError
-from commerce_orchestrator.schemas import ShoppingIntent
+
+from kernel.errors import CommerceError
+from kernel.intent import ShoppingIntent
 
 
 class CompareResponse(BaseModel):
@@ -16,21 +17,21 @@ class CompareService:
 
     async def compare(self, principal, session_id: str, product_ids: list[str]) -> CompareResponse:
         if not 2 <= len(product_ids) <= 3 or len(set(product_ids)) != len(product_ids):
-            raise CommerceError('invalid_comparison',422)
+            raise CommerceError('invalid_comparison')
         view = await self.sessions.get_owned(session_id, principal)
         seen, _ = await self.sessions.seen(session_id, principal)
         if not set(product_ids) <= seen:
-            raise CommerceError('not_seen',422)
+            raise CommerceError('not_seen')
         products = await self.catalog.get_products(product_ids)
         if len(products) != len(product_ids):
-            raise CommerceError('not_found',404)
+            raise CommerceError('not_found')
         categories = {p.category_id for p in products.values()}
         if len(categories) != 1:
-            raise CommerceError('comparison_category_mismatch',422)
+            raise CommerceError('comparison_category_mismatch')
         intent = ShoppingIntent.model_validate(view.state)
         allowed = {q.sku.product_id for q in (await self.facts.scan(intent, 200)).items}
         if not set(product_ids) <= allowed:
-            raise CommerceError('constraints_mismatch',422)
+            raise CommerceError('constraints_mismatch')
         first = products[product_ids[0]]
         dimensions = [dict(code=a.code, name=a.name, unit=a.unit, value_type=a.value_type) for a in first.category_attributes if a.is_comparable]
         result = []

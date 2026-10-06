@@ -1,0 +1,606 @@
+[tool.importlinter]
+root_packages = ["agents", "api", "cart", "catalog", "checkout", "commerce_events", "commerce_orchestrator", "config", "data", "db", "identity", "infrastructure", "inventory", "kernel", "migrations", "models", "orchestrator", "pricing", "sale_facts", "scripts", "services", "shared", "shopping_session", "storefront"]
+include_namespace_packages = true
+
+[[tool.importlinter.contracts]]
+name = "业务与应用能力不得依赖 HTTP 层"
+type = "forbidden"
+source_modules = ["cart", "catalog", "checkout", "commerce_events", "commerce_orchestrator", "identity", "inventory", "pricing", "sale_facts", "shopping_session", "storefront"]
+forbidden_modules = ["api"]
+
+[[tool.importlinter.contracts]]
+name = "shared 不得依赖配置或业务包"
+type = "forbidden"
+source_modules = ["shared"]
+forbidden_modules = ["agents", "api", "cart", "catalog", "checkout", "commerce_events", "commerce_orchestrator", "config", "data", "db", "identity", "infrastructure", "inventory", "kernel", "migrations", "models", "orchestrator", "pricing", "sale_facts", "scripts", "services", "shopping_session", "storefront"]
+
+[[tool.importlinter.contracts]]
+name = "kernel 只允许基础 schemas 与 shared"
+type = "forbidden"
+source_modules = ["kernel"]
+forbidden_modules = ["agents", "api", "cart", "catalog", "checkout", "commerce_events", "commerce_orchestrator", "config", "data", "db", "identity", "infrastructure", "inventory", "migrations", "models", "orchestrator", "pricing", "sale_facts", "scripts", "services", "shopping_session", "storefront"]
+ignore_imports = ["kernel.constraints -> catalog.schemas", "kernel.constraints -> pricing.schemas", "kernel.quotes -> catalog.schemas", "kernel.quotes -> inventory.schemas", "kernel.quotes -> pricing.schemas"]
+unmatched_ignore_imports_alerting = "none"
+
+[[tool.importlinter.contracts]]
+name = "基础 schemas 不得反向依赖 kernel"
+type = "forbidden"
+source_modules = ["catalog.schemas", "inventory.schemas", "pricing.schemas"]
+forbidden_modules = ["kernel"]
+
+[[tool.importlinter.contracts]]
+name = "sessions 不得依赖应用响应契约"
+type = "forbidden"
+source_modules = ["shopping_session"]
+forbidden_modules = ["commerce_orchestrator", "models.commerce"]
+
+[[tool.importlinter.contracts]]
+name = "业务事实能力不得依赖应用事实读取"
+type = "forbidden"
+source_modules = ["cart", "sale_facts", "storefront"]
+forbidden_modules = ["commerce_orchestrator"]
+
+[[tool.importlinter.contracts]]
+name = "cart 不得协调会话和应用层"
+type = "forbidden"
+source_modules = ["cart"]
+forbidden_modules = ["commerce_orchestrator", "shopping_session"]
+
+[[tool.importlinter.contracts]]
+name = "checkout 不得协调会话和应用层"
+type = "forbidden"
+source_modules = ["checkout"]
+forbidden_modules = ["commerce_orchestrator", "shopping_session"]
+
+[[tool.importlinter.contracts]]
+name = "checkout 业务服务不得依赖宿主适配器"
+type = "forbidden"
+source_modules = ["checkout.service"]
+forbidden_modules = ["checkout.gateway"]
+
+[[tool.importlinter.contracts]]
+name = "模型端口与 guards 不得依赖具体模型适配器"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.guards", "commerce_orchestrator.ports"]
+forbidden_modules = ["commerce_orchestrator.llm_adapter"]
+
+[[tool.importlinter.contracts]]
+name = "orchestrator 不得构造具体图与模型适配器"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.service"]
+forbidden_modules = ["commerce_orchestrator.graph", "commerce_orchestrator.llm_adapter"]
+
+[[tool.importlinter.contracts]]
+name = "模块与应用不得间接依赖具体基础设施或旧栈"
+type = "forbidden"
+source_modules = ["cart.models", "cart.schemas", "cart.service", "catalog.models", "catalog.ports", "catalog.schemas", "catalog.seed", "catalog.service", "checkout.models", "checkout.ports", "checkout.schemas", "checkout.service", "commerce_events.models", "commerce_events.schemas", "commerce_events.service", "commerce_orchestrator.actions", "commerce_orchestrator.compare", "commerce_orchestrator.contracts", "commerce_orchestrator.discovery", "commerce_orchestrator.facts", "commerce_orchestrator.graph", "commerce_orchestrator.guards", "commerce_orchestrator.intent", "commerce_orchestrator.nodes", "commerce_orchestrator.ports", "commerce_orchestrator.schemas", "commerce_orchestrator.service", "commerce_orchestrator.state", "commerce_orchestrator.utils", "identity.csrf", "identity.models", "identity.passwords", "identity.rate_limit", "identity.service", "identity.tokens", "identity.types", "inventory.models", "inventory.schemas", "inventory.seed", "inventory.service", "pricing.models", "pricing.schemas", "pricing.seed", "pricing.service", "sale_facts.service", "shopping_session.models", "shopping_session.schemas", "shopping_session.service", "storefront.schemas", "storefront.service"]
+forbidden_modules = ["agents", "checkout.gateway", "commerce_orchestrator.llm_adapter", "config", "db", "db.session", "infrastructure", "models", "orchestrator", "services"]
+
+[[tool.importlinter.contracts]]
+name = "cart 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["cart"]
+forbidden_modules = ["catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "catalog 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["catalog"]
+forbidden_modules = ["cart.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "checkout 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["checkout"]
+forbidden_modules = ["cart.models", "catalog.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_events 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["commerce_events"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "identity 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["identity"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "inventory 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["inventory"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "pricing 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["pricing"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "sale_facts 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["sale_facts"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "shopping_session 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["shopping_session"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "storefront 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["storefront"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "agents.base_agent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["agents.base_agent"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "agents.inventory_agent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["agents.inventory_agent"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "agents.marketing_copy_agent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["agents.marketing_copy_agent"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "agents.product_rec_agent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["agents.product_rec_agent"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "agents.user_profile_agent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["agents.user_profile_agent"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.auth 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.auth"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.catalog 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.catalog"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.commerce 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.commerce"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.commerce_demo 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.commerce_demo"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.commerce_read 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.commerce_read"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.errors 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.errors"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.experiments 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.experiments"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.health 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.health"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.http_config 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.http_config"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.identity 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.identity"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.metrics 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.metrics"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.recommendations 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.recommendations"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "api.storefront 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["api.storefront"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "checkout.gateway 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["checkout.gateway"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.actions 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.actions"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.compare 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.compare"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.contracts 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.contracts"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.discovery 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.discovery"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.facts 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.facts"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.graph 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.graph"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.guards 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.guards"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.intent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.intent"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.llm_adapter 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.llm_adapter"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.nodes 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.nodes"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.ports 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.ports"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.schemas 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.schemas"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.service 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.service"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.state 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.state"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "commerce_orchestrator.utils 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["commerce_orchestrator.utils"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "db.session 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["db.session"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "infrastructure.milvus_client 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["infrastructure.milvus_client"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "infrastructure.mysql_client 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["infrastructure.mysql_client"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "infrastructure.redis_client 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["infrastructure.redis_client"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "models.commerce 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["models.commerce"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "models.schemas 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["models.schemas"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "orchestrator.graph 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["orchestrator.graph"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "orchestrator.supervisor 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["orchestrator.supervisor"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "services.ab_test 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["services.ab_test"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "services.feature_store 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["services.feature_store"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "services.metrics 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["services.metrics"]
+forbidden_modules = ["cart.models", "catalog.models", "checkout.models", "commerce_events.models", "identity.models", "inventory.models", "pricing.models", "shopping_session.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "具体适配器仅组合根与精确兼容入口可以直接导入"
+type = "protected"
+protected_modules = ["checkout.gateway", "commerce_orchestrator.llm_adapter", "db.session", "infrastructure"]
+allowed_importers = ["api.runtime"]
+ignore_imports = ["commerce_orchestrator.model -> commerce_orchestrator.llm_adapter", "data.import_amazon_metadata -> db.session", "db -> db.session", "scripts.reset_demo_password -> db.session"]
+unmatched_ignore_imports_alerting = "none"
+
+[tool.layering.inventory]
+"agents" = "legacy"
+"agents.base_agent" = "legacy"
+"agents.inventory_agent" = "legacy"
+"agents.marketing_copy_agent" = "legacy"
+"agents.product_rec_agent" = "legacy"
+"agents.user_profile_agent" = "legacy"
+"api" = "api"
+"api.auth" = "api"
+"api.catalog" = "api"
+"api.commerce" = "api"
+"api.commerce_demo" = "api"
+"api.commerce_read" = "api"
+"api.errors" = "api"
+"api.experiments" = "api"
+"api.health" = "api"
+"api.http_config" = "api"
+"api.identity" = "api"
+"api.metrics" = "api"
+"api.recommendations" = "api"
+"api.runtime" = "composition"
+"api.storefront" = "api"
+"cart" = "business"
+"cart.models" = "business"
+"cart.schemas" = "business"
+"cart.service" = "business"
+"catalog" = "business"
+"catalog.legacy_adapter" = "alias"
+"catalog.models" = "business"
+"catalog.ports" = "business"
+"catalog.schemas" = "business"
+"catalog.seed" = "business"
+"catalog.service" = "business"
+"checkout" = "business"
+"checkout.gateway" = "infra"
+"checkout.models" = "business"
+"checkout.ports" = "business"
+"checkout.schemas" = "business"
+"checkout.service" = "business"
+"commerce_events" = "business"
+"commerce_events.models" = "business"
+"commerce_events.schemas" = "business"
+"commerce_events.service" = "business"
+"commerce_orchestrator" = "application"
+"commerce_orchestrator.actions" = "application"
+"commerce_orchestrator.compare" = "application"
+"commerce_orchestrator.contracts" = "application"
+"commerce_orchestrator.discovery" = "application"
+"commerce_orchestrator.facts" = "application"
+"commerce_orchestrator.graph" = "application"
+"commerce_orchestrator.guards" = "application"
+"commerce_orchestrator.intent" = "application"
+"commerce_orchestrator.llm_adapter" = "infra"
+"commerce_orchestrator.model" = "alias"
+"commerce_orchestrator.nodes" = "application"
+"commerce_orchestrator.ports" = "application"
+"commerce_orchestrator.schemas" = "application"
+"commerce_orchestrator.service" = "application"
+"commerce_orchestrator.state" = "application"
+"commerce_orchestrator.utils" = "application"
+"config" = "config"
+"config.settings" = "config"
+"data" = "tool"
+"data.download_amazon_metadata" = "tool"
+"data.import_amazon_metadata" = "tool"
+"db" = "alias"
+"db.base" = "alias"
+"db.session" = "infra"
+"identity" = "business"
+"identity.csrf" = "business"
+"identity.models" = "business"
+"identity.passwords" = "business"
+"identity.rate_limit" = "business"
+"identity.service" = "business"
+"identity.tokens" = "business"
+"identity.types" = "business"
+"infrastructure" = "infra"
+"infrastructure.milvus_client" = "infra"
+"infrastructure.mysql_client" = "infra"
+"infrastructure.redis_client" = "infra"
+"inventory" = "business"
+"inventory.models" = "business"
+"inventory.schemas" = "business"
+"inventory.seed" = "business"
+"inventory.service" = "business"
+"kernel" = "kernel"
+"kernel.constraints" = "kernel"
+"kernel.errors" = "kernel"
+"kernel.intent" = "kernel"
+"kernel.quotes" = "kernel"
+"main" = "composition"
+"migrations" = "tool"
+"migrations.env" = "tool"
+"migrations.versions" = "tool"
+"migrations.versions.0001_catalog" = "tool"
+"migrations.versions.0002_pricing" = "tool"
+"migrations.versions.0003_inventory" = "tool"
+"migrations.versions.0004_identity" = "tool"
+"migrations.versions.0005_commerce_sessions" = "tool"
+"migrations.versions.0006_cart" = "tool"
+"migrations.versions.0007_checkout" = "tool"
+"migrations.versions.0008_commerce_events" = "tool"
+"models" = "legacy"
+"models.commerce" = "api"
+"models.schemas" = "legacy"
+"orchestrator" = "legacy"
+"orchestrator.graph" = "legacy"
+"orchestrator.supervisor" = "legacy"
+"pricing" = "business"
+"pricing.models" = "business"
+"pricing.schemas" = "business"
+"pricing.seed" = "business"
+"pricing.service" = "business"
+"sale_facts" = "business"
+"sale_facts.service" = "business"
+"scripts" = "tool"
+"scripts.reset_demo_password" = "tool"
+"services" = "legacy"
+"services.ab_test" = "legacy"
+"services.feature_store" = "legacy"
+"services.metrics" = "legacy"
+"shared" = "shared"
+"shared.db" = "shared"
+"shared.errors" = "shared"
+"shared.hashing" = "shared"
+"shared.ids" = "shared"
+"shared.principal" = "shared"
+"shared.time" = "shared"
+"shopping_session" = "business"
+"shopping_session.models" = "business"
+"shopping_session.schemas" = "business"
+"shopping_session.service" = "business"
+"storefront" = "business"
+"storefront.schemas" = "business"
+"storefront.service" = "business"

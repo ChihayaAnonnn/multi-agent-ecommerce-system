@@ -1,10 +1,11 @@
 """批量拼装目录与报价；不执行购物写操作。"""
 from catalog.service import CatalogService
-from commerce_orchestrator.facts import CommerceFactsReader
-from storefront.schemas import StorefrontProduct,StorefrontPage,StorefrontResolved
+from sale_facts.service import SaleFactsReader
+from storefront.schemas import StorefrontPage, StorefrontProduct, StorefrontResolved
+
 
 class StorefrontService:
-    def __init__(self,catalog: CatalogService,facts: CommerceFactsReader):
+    def __init__(self,catalog: CatalogService,facts: SaleFactsReader):
         self.catalog,self.facts=catalog,facts
 
     async def list_products(self,*,limit: int=24,cursor: str | None=None) -> StorefrontPage:
@@ -29,3 +30,8 @@ class StorefrontService:
                 availability=quote.availability if quote else None,purchasable=bool(quote and quote.purchasable),
                 reason=quote.reason if quote else 'sku_missing',simulated=attrs.get('simulation_price') is True or attrs.get('simulation_sku') is True))
         return StorefrontResolved(items=cards,missing_product_ids=[i for i in ids if i not in active])
+
+
+__all__ = [
+    'StorefrontService',
+]

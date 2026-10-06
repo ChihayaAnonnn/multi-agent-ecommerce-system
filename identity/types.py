@@ -6,76 +6,18 @@
 
 from __future__ import annotations
 
-import hashlib
-import ipaddress
-import struct
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from functools import lru_cache
+
+from shared.errors import DomainError
+from shared.principal import PRINCIPAL_KEY_VERSION as PRINCIPAL_KEY_VERSION
+from shared.principal import Principal as Principal
+from shared.principal import _length_prefixed as _length_prefixed
+from shared.principal import make_principal as make_principal
+from shared.principal import principal_key_for as principal_key_for
 
 # 允许开放演示注册/登录的部署环境；其他环境一律拒绝 source=demo。
 DEMO_ENVIRONMENTS = ("development", "test", "demo")
-
-# 主体键编码版本；改变编码规则必须换前缀，避免新旧键混用。
-PRINCIPAL_KEY_VERSION = b"ecom-principal-v1\x00"
-
-
-@dataclass(frozen=True)
-class IdentityHttpConfig:
-    """认证端点需要的 HTTP 层配置（来源白名单、可信代理、Cookie 名与时效）。"""
-
-    allowed_origins: tuple[str, ...] = ()
-    trusted_proxy_networks: tuple[str, ...] = ()
-    refresh_cookie_name: str = "__Host-ecom_refresh"
-    session_ttl_seconds: int = 2592000
-    extra: dict = field(default_factory=dict)
-
-
-@lru_cache(maxsize=64)
-def parse_trusted_networks(networks: tuple[str, ...]) -> tuple:
-    """解析可信代理 CIDR；配置写错时直接报错，不静默忽略。"""
-    parsed = []
-    for entry in networks:
-        try:
-            parsed.append(ipaddress.ip_network(entry, strict=False))
-        except ValueError as exc:
-            raise IdentityConfigurationError(
-                f"可信代理网段不是合法 CIDR：{entry}（ECOM_IDENTITY_TRUSTED_PROXY_NETWORKS）"
-            ) from exc
-    return tuple(parsed)
-
-
-@dataclass(frozen=True)
-class Principal:
-    """一次已验证请求的主体身份。
-
-    `principal_key` 是 `(issuer, subject)` 的无歧义稳定编码摘要，
-    未来接入其他身份提供方时不会与同值 `subject` 串户。
-    """
-
-    issuer: str
-    subject: str
-    principal_key: str
-
-
-def _length_prefixed(value: str) -> bytes:
-    """4 字节大端长度前缀 + UTF-8 字节，保证不同分段不会拼出同一串。"""
-    raw = value.encode("utf-8")
-    return struct.pack(">I", len(raw)) + raw
-
-
-def principal_key_for(issuer: str, subject: str) -> str:
-    digest = hashlib.sha256(
-        PRINCIPAL_KEY_VERSION + _length_prefixed(issuer) + _length_prefixed(subject)
-    )
-    return digest.hexdigest()
-
-
-def make_principal(issuer: str, user_id: str) -> Principal:
-    return Principal(
-        issuer=issuer, subject=user_id, principal_key=principal_key_for(issuer, user_id)
-    )
-
 
 @dataclass(frozen=True)
 class UserView:
@@ -103,7 +45,7 @@ class AuthIssue:
     session_id: str
 
 
-class IdentityError(Exception):
+class IdentityError(DomainError):
     """身份模块错误基类。"""
 
 
@@ -149,3 +91,25 @@ class RateLimited(IdentityError):
     def __init__(self, retry_after_seconds: int):
         super().__init__(f"请求过于频繁，请在 {retry_after_seconds} 秒后重试")
         self.retry_after_seconds = retry_after_seconds
+
+
+__all__ = [
+    'AuthIssue',
+    'DEMO_ENVIRONMENTS',
+    'DemoModeDisabled',
+    'EmailAlreadyRegistered',
+    'IdentityConfigurationError',
+    'IdentityDependencyError',
+    'IdentityError',
+    'InvalidAccessToken',
+    'InvalidCredentials',
+    'InvalidCsrf',
+    'InvalidEmail',
+    'PRINCIPAL_KEY_VERSION',
+    'Principal',
+    'RateLimited',
+    'UnknownAccount',
+    'UserView',
+    'make_principal',
+    'principal_key_for',
+]

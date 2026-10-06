@@ -1,0 +1,96 @@
+[
+  {
+    "body": {
+      "model": "MiniMax-M1",
+      "status": "healthy"
+    },
+    "headers": {
+      "content-length": "41",
+      "content-type": "application/json",
+      "vary": "Origin"
+    },
+    "method": "GET",
+    "path": "/health",
+    "status_code": 200
+  },
+  {
+    "body": {
+      "detail": "数据库未配置：请将 ECOM_DATABASE_URL 设置为 mysql+asyncmy:// URL"
+    },
+    "headers": {
+      "content-length": "89",
+      "content-type": "application/json",
+      "vary": "Origin"
+    },
+    "method": "GET",
+    "path": "/api/v1/catalog/products",
+    "status_code": 503
+  },
+  {
+    "body": {
+      "detail": "数据库未配置：请将 ECOM_DATABASE_URL 设置为 mysql+asyncmy:// URL"
+    },
+    "headers": {
+      "content-length": "89",
+      "content-type": "application/json",
+      "vary": "Origin"
+    },
+    "method": "GET",
+    "path": "/api/v1/catalog/products/missing",
+    "status_code": 503
+  },
+  {
+    "body": {
+      "detail": "数据库未配置：请将 ECOM_DATABASE_URL 设置为 mysql+asyncmy:// URL"
+    },
+    "headers": {
+      "content-length": "89",
+      "content-type": "application/json",
+      "vary": "Origin"
+    },
+    "method": "GET",
+    "path": "/api/v1/catalog/skus/missing",
+    "status_code": 503
+  },
+  {
+    "body": {
+      "detail": "数据库未配置：请将 ECOM_DATABASE_URL 设置为 mysql+asyncmy:// URL"
+    },
+    "headers": {
+      "content-length": "89",
+      "content-type": "application/json",
+      "vary": "Origin"
+    },
+    "method": "GET",
+    "path": "/api/v1/commerce/skus/missing/quote",
+    "status_code": 503
+  },
+  {
+    "body": {
+      "detail": "数据库未配置：请将 ECOM_DATABASE_URL 设置为 mysql+asyncmy:// URL"
+    },
+    "headers": {
+      "cache-control": "no-store",
+      "content-length": "89",
+      "content-type": "application/json",
+      "vary": "Origin"
+    },
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "status_code": 503
+  },
+  {
+    "body": {
+      "detail": "数据库未配置：请将 ECOM_DATABASE_URL 设置为 mysql+asyncmy:// URL"
+    },
+    "headers": {
+      "cache-control": "no-store",
+      "content-length": "89",
+      "content-type": "application/json",
+      "vary": "Origin"
+    },
+    "method": "POST",
+    "path": "/api/v1/commerce/sessions",
+    "status_code": 503
+  }
+]

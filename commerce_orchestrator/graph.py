@@ -1,10 +1,13 @@
 """独立、单轮、无 checkpointer 的 commerce StateGraph。"""
-from dataclasses import dataclass,field
+from dataclasses import dataclass
 from typing import Any
-from langgraph.graph import StateGraph,END
-from commerce_orchestrator.schemas import CommerceGraphState
-from commerce_orchestrator.model import SafeIntentModel,SafeCandidateReranker
+
+from langgraph.graph import END, StateGraph
+
+from commerce_orchestrator.guards import SafeCandidateReranker, SafeIntentModel
 from commerce_orchestrator.nodes import CommerceNodes
+from commerce_orchestrator.ports import CommerceGraph
+from commerce_orchestrator.state import CommerceGraphState
 
 
 @dataclass
@@ -14,13 +17,13 @@ class CommerceGraphDependencies:
     comparison: Any
     catalog: Any
     sessions: Any
-    cart: Any=None
-    checkout: Any=None
-    intent_model: SafeIntentModel=field(default_factory=SafeIntentModel)
-    reranker: SafeCandidateReranker=field(default_factory=SafeCandidateReranker)
+    cart: Any
+    actions: Any
+    intent_model: SafeIntentModel
+    reranker: SafeCandidateReranker
 
 
-def build_commerce_graph(deps: CommerceGraphDependencies):
+def build_commerce_graph(deps: CommerceGraphDependencies) -> CommerceGraph:
     graph=StateGraph(CommerceGraphState)
     nodes=CommerceNodes(deps)
     names=['parse_intent','validate_route','discover','quote_filter','rank_explain','compare','read_cart','propose_cart_action','preview_checkout','clarify','unsupported','unavailable','finalize']

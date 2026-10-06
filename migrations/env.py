@@ -14,15 +14,15 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-import commerce_events.models  # noqa: F401
-import checkout.models  # noqa: F401
 import cart.models  # noqa: F401
-import shopping_session.models  # noqa: F401
 import catalog.models  # noqa: F401  注册目录表到 metadata
+import checkout.models  # noqa: F401
+import commerce_events.models  # noqa: F401
 import identity.models  # noqa: F401  注册身份表到 metadata
 import inventory.models  # noqa: F401  注册库存表到 metadata
 import pricing.models  # noqa: F401  注册价格表到 metadata
-from db.base import Base
+import shopping_session.models  # noqa: F401
+from shared.db import Base
 
 config = context.config
 

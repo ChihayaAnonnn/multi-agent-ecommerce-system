@@ -1,14 +1,15 @@
 """主体唯一购物车及实时小计。"""
 import asyncio
-from sqlalchemy import select, func, delete
-from tests.test_commerce_facts_mysql import seed
-from identity.types import make_principal
-from shopping_session.service import ShoppingSessionService
-from commerce_orchestrator.facts import CommerceFactsReader
-from cart.service import CartService
+
+from sqlalchemy import delete
+
 from cart.models import Cart, CartLine
+from cart.service import CartService
+from identity.types import make_principal
 from pricing.models import SKUPrice
-from tests.conftest import downgrade_to, upgrade_to, read_schema
+from sale_facts.service import SaleFactsReader
+from tests.conftest import downgrade_to, read_schema, upgrade_to
+from tests.test_commerce_facts_mysql import seed
 
 
 def test_cart_migration_and_unique_owner(migrated_mysql_database):
@@ -20,8 +21,7 @@ def test_cart_migration_and_unique_owner(migrated_mysql_database):
     upgrade_to(migrated_mysql_database,'0006_cart')
     async def scenario():
         factory,catalog,prices,stock,*_ = await seed(migrated_mysql_database)
-        sessions = ShoppingSessionService(factory)
-        service = CartService(factory,sessions,CommerceFactsReader(catalog,prices,stock))
+        service = CartService(factory,SaleFactsReader(catalog,prices,stock))
         a = make_principal('test','a'); b = make_principal('test','b')
         results = await asyncio.gather(*(service.get_or_create(a) for _ in range(5)))
         assert len({r.cart_id for r in results}) == 1
@@ -34,7 +34,8 @@ def test_cart_migration_and_unique_owner(migrated_mysql_database):
 def test_cart_read_uses_current_facts(migrated_mysql_database):
     async def scenario():
         factory,catalog,prices,stock,_,products,skus = await seed(migrated_mysql_database)
-        service = CartService(factory,ShoppingSessionService(factory),CommerceFactsReader(catalog,prices,stock))
+        service = CartService(factory,
+            SaleFactsReader(catalog, prices, stock))
         a=make_principal('test','a'); cart=await service.get_or_create(a)
         async with factory() as db:
             db.add(CartLine(id='00000000-0000-0000-0000-000000000099',cart_id=cart.cart_id,sku_id=skus[0].id,quantity=2,

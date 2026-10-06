@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from db.base import UtcDateTime
+from shared.time import UtcDateTime
 
 AvailabilityStatus = Literal["available", "out_of_stock", "unknown"]
 
@@ -49,3 +49,11 @@ class AvailabilityView(BaseModel):
     version: int | None = None
     read_at: UtcDateTime
     locations: list[BalanceView] = Field(default_factory=list)
+
+
+__all__ = [
+    'AdjustmentView',
+    'AvailabilityStatus',
+    'AvailabilityView',
+    'BalanceView',
+]

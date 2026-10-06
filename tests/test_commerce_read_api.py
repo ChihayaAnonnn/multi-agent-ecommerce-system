@@ -12,8 +12,15 @@ from httpx import ASGITransport, AsyncClient
 
 from api.runtime import ApiRuntime, create_runtime
 from catalog.legacy_adapter import to_legacy_product
-from catalog.schemas import CategoryInput, OptionInput, OptionValueInput, ProductInput, SKUInput
-from catalog.service import CatalogService
+from catalog.schemas import (
+    CategoryInput,
+    OptionInput,
+    OptionValueInput,
+    ProductInput,
+    SKUInput,
+)
+from catalog.service import CatalogService, CatalogSKUReader
+from config import Settings
 from db.session import create_session_factory
 from inventory.models import DEFAULT_LOCATION_ID
 from inventory.service import InventoryDependencyError, InventoryService
@@ -45,8 +52,9 @@ def request(app, method, path, **kwargs):
 
 def mysql_runtime(database_url: str, inventory=None, pricing=None) -> ApiRuntime:
     factory = create_session_factory(database_url)
+    sku_reader = CatalogSKUReader(factory)
     if pricing is None:
-        pricing = PricingService(factory)
+        pricing = PricingService(factory, sku_reader)
     return SimpleNamespace(
         ab_engine=ABTestEngine(),
         metrics_collector=MetricsCollector(),
@@ -54,7 +62,7 @@ def mysql_runtime(database_url: str, inventory=None, pricing=None) -> ApiRuntime
         rec_graph=None,
         catalog=CatalogService(factory, price_reader=pricing),
         pricing=pricing,
-        inventory=inventory or InventoryService(factory),
+        inventory=inventory or InventoryService(factory, sku_reader),
         catalog_error=None,
     )
 
@@ -65,7 +73,9 @@ async def _seed_catalog(database_url: str):
     刻意不上架：上架需要现行价格，由各用例按需定价后再调用 activate_product。
     """
     factory = create_session_factory(database_url)
-    catalog = CatalogService(factory, price_reader=PricingService(factory))
+    sku_reader = CatalogSKUReader(factory)
+    pricing = PricingService(factory, sku_reader)
+    catalog = CatalogService(factory, price_reader=pricing)
     category = await catalog.create_category(CategoryInput(code="c-phone", name="手机"))
     product = await catalog.create_product(
         ProductInput(category_id=category.id, product_code="P-1", name="测试手机")
@@ -82,24 +92,62 @@ async def _seed_catalog(database_url: str):
     return catalog, product, sku
 
 
-class BrokenInventory(InventoryService):
+class BrokenInventory:
     """模拟库存后端故障。"""
-
-    def __init__(self):
-        pass
 
     async def get_availability(self, sku_ids):
         raise InventoryDependencyError("库存查询失败")
 
 
-class BrokenPricing(PricingService):
+class BrokenPricing:
     """模拟价格后端故障。"""
-
-    def __init__(self):
-        pass
 
     async def get_prices(self, sku_ids):
         raise PricingDependencyError("价格查询失败")
+
+
+def test_single_sku_quote_keeps_inventory_error_priority(migrated_mysql_database: str):
+    async def scenario():
+        _, _, sku = await _seed_catalog(migrated_mysql_database)
+        runtime = mysql_runtime(migrated_mysql_database,
+            inventory=BrokenInventory(), pricing=BrokenPricing())
+        app = build_app(runtime)
+        response = await arequest(app, 'GET', f'/api/v1/commerce/skus/{sku.id}/quote')
+        assert response.status_code == 503
+        assert response.json() == {'detail': '库存服务不可用，无法报价'}
+        missing = await arequest(app, 'GET', '/api/v1/commerce/skus/missing/quote')
+        assert missing.status_code == 404
+
+    asyncio.run(scenario())
+
+
+def test_single_sku_quote_keeps_independent_source_order():
+    from catalog.schemas import SKUDetailView
+    from tests.test_commerce_facts import Inventory, Prices
+
+    calls = []
+
+    class Catalog:
+        async def get_sku(self, sku_id):
+            calls.append('catalog')
+            return SKUDetailView(id=sku_id, product_id='product', sku_code='SKU',
+                option_signature='default', status='active',
+                product_status='active', version=1)
+
+    class Pricing(Prices):
+        async def get_prices(self, ids):
+            calls.append('pricing')
+            return await super().get_prices(ids)
+
+    class Stock(Inventory):
+        async def get_availability(self, ids):
+            calls.append('inventory')
+            return await super().get_availability(ids)
+
+    response = request(build_app(SimpleNamespace(catalog=Catalog(), pricing=Pricing(),
+        inventory=Stock())), 'GET', '/api/v1/commerce/skus/sku-1/quote')
+    assert response.status_code == 200 and response.json()['purchasable']
+    assert calls == ['catalog', 'inventory', 'pricing']
 
 
 # ---------- 目录读取 ----------
@@ -145,17 +193,19 @@ def test_list_and_detail_expose_product_sku_hierarchy(migrated_mysql_database: s
 
 def test_read_endpoints_return_503_when_database_is_not_configured():
     """未配置数据库时，新只读端点返回 503，并且不泄露连接串。"""
-    runtime = create_runtime()
-    runtime.catalog = None
-    runtime.pricing = None
-    runtime.inventory = None
-    runtime.catalog_error = "数据库未配置：请将 ECOM_DATABASE_URL 设置为 mysql+asyncmy:// URL"
-    app = build_app(runtime)
+    async def scenario():
+        runtime = await create_runtime(Settings(_env_file=None, database_url=""))
+        try:
+            response = await arequest(
+                build_app(runtime), "GET", "/api/v1/catalog/products",
+            )
+            assert response.status_code == 503
+            assert "ECOM_DATABASE_URL" in response.json()["detail"]
+            assert "password" not in response.json()["detail"]
+        finally:
+            await runtime.aclose()
 
-    response = request(app, "GET", "/api/v1/catalog/products")
-    assert response.status_code == 503
-    assert "ECOM_DATABASE_URL" in response.json()["detail"]
-    assert "password" not in response.json()["detail"]
+    asyncio.run(scenario())
 
 
 def _assert_utc_timestamp(value: str) -> None:

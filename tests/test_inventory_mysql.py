@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import func, select
 
 from catalog.schemas import CategoryInput, ProductInput, SKUInput
-from catalog.service import CatalogService
+from catalog.service import CatalogService, CatalogSKUReader
 from db.session import create_session_factory
 from inventory.models import DEFAULT_LOCATION_ID, InventoryMovement
 from inventory.service import (
@@ -94,7 +94,8 @@ def test_adjust_from_zero_balance_records_movement(migrated_mysql_database: str)
 
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
-        service = InventoryService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        service = InventoryService(factory, CatalogSKUReader(factory))
 
         created = await service.create_balance(sku_id)
         assert (created.on_hand, created.reserved, created.available, created.version) == (0, 0, 0, 1)
@@ -118,7 +119,8 @@ def test_insufficient_stock_is_rejected_without_movement(migrated_mysql_database
 
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
-        service = InventoryService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        service = InventoryService(factory, CatalogSKUReader(factory))
         await service.create_balance(sku_id)
         await service.adjust(sku_id, DEFAULT_LOCATION_ID, 2, "key-in", "采购入库")
 
@@ -150,7 +152,8 @@ def test_concurrent_outbound_never_oversells(migrated_mysql_database: str):
 
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
-        service = InventoryService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        service = InventoryService(factory, CatalogSKUReader(factory))
         await service.create_balance(sku_id)
         await service.adjust(sku_id, DEFAULT_LOCATION_ID, 8, "key-seed", "采购入库")
 
@@ -181,7 +184,8 @@ def test_idempotency_key_replays_once_and_conflicts_on_other_payloads(
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
         other_sku = await _create_sku(migrated_mysql_database, code="P-2-000")
-        service = InventoryService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        service = InventoryService(factory, CatalogSKUReader(factory))
         await service.create_balance(sku_id)
         await service.create_balance(other_sku)
 
@@ -211,7 +215,8 @@ def test_idempotent_replay_is_marked_and_never_reapplies(migrated_mysql_database
 
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
-        service = InventoryService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        service = InventoryService(factory, CatalogSKUReader(factory))
         await service.create_balance(sku_id)
 
         first = await service.adjust(sku_id, DEFAULT_LOCATION_ID, 5, "key-idem", "采购入库")
@@ -247,7 +252,8 @@ def test_availability_distinguishes_unknown_zero_and_aggregates_locations(
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
         unknown_sku = await _create_sku(migrated_mysql_database, code="P-2-000")
-        service = InventoryService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        service = InventoryService(factory, CatalogSKUReader(factory))
 
         await service.create_balance(sku_id)
         availability = await service.get_availability([sku_id, unknown_sku])
@@ -280,7 +286,8 @@ def test_replay_marker_belongs_to_adjustment_not_to_availability(
 
     async def scenario():
         sku_id = await _create_sku(migrated_mysql_database)
-        service = InventoryService(create_session_factory(migrated_mysql_database))
+        factory = create_session_factory(migrated_mysql_database)
+        service = InventoryService(factory, CatalogSKUReader(factory))
         await service.create_balance(sku_id)
 
         adjusted = await service.adjust(sku_id, DEFAULT_LOCATION_ID, 3, "key-in", "入库")
@@ -319,7 +326,8 @@ def test_availability_raises_dependency_error_on_backend_failure(
         broken_engine = create_async_engine(
             "mysql+asyncmy://nobody:nobody@127.0.0.1:1/nothing"
         )
-        broken = InventoryService(async_sessionmaker(broken_engine, expire_on_commit=False))
+        factory = async_sessionmaker(broken_engine, expire_on_commit=False)
+        broken = InventoryService(factory, CatalogSKUReader(factory))
         with pytest.raises(InventoryDependencyError):
             await broken.get_availability(["any-sku"])
         await broken_engine.dispose()
