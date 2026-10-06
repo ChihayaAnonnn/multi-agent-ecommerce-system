@@ -151,6 +151,69 @@ def test_lint_different_source_is_new_violation():
     )
 
 
+def test_split_file_shares_one_baseline_allowance():
+    """一拆二时，同一告警在两个目标各出现一次 => 其中一条是新增。"""
+    baseline = [lint_entry("legacy/one.py", "long source")]
+    current = [
+        lint_entry("unit/one.py", "long source"),
+        lint_entry("integration/one.py", "long source"),
+    ]
+    path_map = {"legacy/one.py": ["unit/one.py", "integration/one.py"]}
+    assert report_tools().new_lint_violations(baseline, current, path_map) == [
+        current[1]
+    ]
+
+
+def test_split_file_keeps_one_occurrence_per_baseline_record():
+    """原告警有两条时，两侧各一条仍不算新增（额度按基线记录数共享）。"""
+    baseline = [lint_entry("legacy/one.py", "long source")] * 2
+    current = [
+        lint_entry("unit/one.py", "long source"),
+        lint_entry("integration/one.py", "long source"),
+    ]
+    path_map = {"legacy/one.py": ["unit/one.py", "integration/one.py"]}
+    assert report_tools().new_lint_violations(baseline, current, path_map) == []
+
+
+def test_split_file_reports_increased_occurrences():
+    """目标侧次数增加时，多出来的算新增。"""
+    baseline = [lint_entry("legacy/one.py", "long source")]
+    current = [
+        lint_entry("unit/one.py", "long source"),
+        lint_entry("unit/one.py", "long source", row=2),
+    ]
+    path_map = {"legacy/one.py": ["unit/one.py", "integration/one.py"]}
+    assert len(report_tools().new_lint_violations(baseline, current, path_map)) == 1
+
+
+def test_split_file_result_is_independent_of_target_order():
+    """目标 list 的顺序不影响判定结果。"""
+    baseline = [lint_entry("legacy/one.py", "long source")]
+    current = [
+        lint_entry("unit/one.py", "long source"),
+        lint_entry("integration/one.py", "long source"),
+    ]
+    forward = {"legacy/one.py": ["unit/one.py", "integration/one.py"]}
+    reverse = {"legacy/one.py": ["integration/one.py", "unit/one.py"]}
+    assert report_tools().new_lint_violations(baseline, current, forward) == (
+        report_tools().new_lint_violations(baseline, current, reverse)
+    )
+
+
+def test_merged_target_consumes_each_baseline_record():
+    """合并方向（多对一）仍按基线记录逐条消费，不误报新增。"""
+    baseline = [
+        lint_entry("legacy/a.py", "long source"),
+        lint_entry("legacy/b.py", "long source"),
+    ]
+    current = [
+        lint_entry("merged/one.py", "long source"),
+        lint_entry("merged/one.py", "long source", row=2),
+    ]
+    path_map = {"legacy/a.py": "merged/one.py", "legacy/b.py": "merged/one.py"}
+    assert report_tools().new_lint_violations(baseline, current, path_map) == []
+
+
 def test_fixture_classification_uses_closure_not_filename():
     from tests import conftest
 

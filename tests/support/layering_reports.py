@@ -233,15 +233,28 @@ def new_lint_violations(
     def identity(record: JsonObject, path: str) -> tuple[str, str, str]:
         return (path, record["code"], record["source"])
 
+    # 一条基线告警只有一次共享额度：混合文件拆分后，多个目标只是这条额度的
+    # 候选位置。若给每个目标各记一份，同一告警在两个目标各出现一次也会被
+    # 判定为「不是新增」，等于把历史额度复制了一份。
     remaining: Counter = Counter()
-    for record in baseline:
+    candidates: dict[tuple[str, str, str], list[tuple[str, str, str]]] = {}
+    ordered = sorted(
+        baseline, key=lambda item: (item["filename"], item["code"], item["source"])
+    )
+    for record in ordered:
+        group = identity(record, record["filename"])
+        remaining[group] += 1
         for destination in mapped_paths(record["filename"], path_map):
-            remaining[identity(record, destination)] += 1
+            entries = candidates.setdefault(identity(record, destination), [])
+            if group not in entries:
+                entries.append(group)
     added = []
     for record in current:
         key = identity(record, record["filename"])
-        if remaining[key]:
-            remaining[key] -= 1
+        for group in candidates.get(key, ()):
+            if remaining[group]:
+                remaining[group] -= 1
+                break
         else:
             added.append(record)
     return added
