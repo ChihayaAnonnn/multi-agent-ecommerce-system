@@ -7,11 +7,11 @@ import asyncio
 import pytest
 from sqlalchemy import func, select
 
-from catalog.schemas import CategoryInput, ProductInput, SKUInput
-from catalog.service import CatalogService, CatalogSKUReader
-from db.session import create_session_factory
-from inventory.models import DEFAULT_LOCATION_ID, InventoryMovement
-from inventory.service import (
+from infra.db import create_session_factory
+from modules.catalog.schemas import CategoryInput, ProductInput, SKUInput
+from modules.catalog.service import CatalogService, CatalogSKUReader
+from modules.inventory.models import DEFAULT_LOCATION_ID, InventoryMovement
+from modules.inventory.service import (
     InventoryConflictError,
     InventoryDependencyError,
     InventoryNotFoundError,
@@ -38,7 +38,7 @@ def test_inventory_migration_adds_tables_and_seeds_default_location(
 
     async def check_seed():
         async with create_session_factory(migrated_mysql_database)() as session:
-            from inventory.models import StockLocation
+            from modules.inventory.models import StockLocation
 
             location = await session.get(StockLocation, DEFAULT_LOCATION_ID)
             assert location is not None
@@ -77,7 +77,7 @@ async def _movements(database_url: str, sku_id: str):
 
 
 async def _location(database_url: str, code: str, name: str) -> str:
-    from inventory.models import StockLocation
+    from modules.inventory.models import StockLocation
 
     async with create_session_factory(database_url)() as session:
         location = StockLocation(id=f"loc-{code}", code=code, name=name)
@@ -339,7 +339,7 @@ def test_default_location_is_seeded_exactly_once(migrated_mysql_database: str):
     """默认库位由迁移写入，且只有一行。"""
 
     async def scenario():
-        from inventory.models import StockLocation
+        from modules.inventory.models import StockLocation
 
         async with create_session_factory(migrated_mysql_database)() as session:
             count = await session.scalar(

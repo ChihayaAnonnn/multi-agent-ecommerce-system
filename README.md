@@ -7,6 +7,13 @@
 
 ---
 
+> [!IMPORTANT]
+> **当前主线是购物 Agent，不是本文开头的推荐 Demo。**
+> 真实可运行的电商后端在 `modules/`（目录/价格/库存/购物车/结账/身份）与 `application/shopping/`（购物 Agent 图与动作用例）。
+> 本文描述的「Supervisor + 四大 Agent」是按 D1/D2 保留在 `legacy/` 的旧推荐栈，依赖硬编码样例商品，
+> **与真实目录无关**，其接口保持注册但不在主线上。现行架构见 [`docs/architecture.md`](docs/architecture.md)，
+> 分层设计与决策依据见 [`docs/layering-design.md`](docs/layering-design.md)。
+
 ## 📖 目录
 
 1. [这个项目是什么？](#-这个项目是什么)

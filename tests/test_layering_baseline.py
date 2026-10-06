@@ -17,15 +17,16 @@ from tests.layering_reports import CONTRACT_FILES
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "layering"
 MODEL_MODULES = (
-    "catalog", "pricing", "inventory", "identity", "shopping_session",
-    "cart", "checkout", "commerce_events",
+    "modules.catalog", "modules.pricing", "modules.inventory",
+    "modules.identity", "modules.sessions", "modules.cart",
+    "modules.checkout", "modules.events",
 )
 
 
 def metadata_signature() -> dict:
     from sqlalchemy.dialects.mysql import dialect
 
-    from db.base import Base
+    from shared.db import Base
 
     for module in MODEL_MODULES:
         importlib.import_module(f"{module}.models")

@@ -4,9 +4,9 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from models.schemas import AgentResult, Product, RecommendationResponse
-from services.ab_test import ABTestEngine
-from services.metrics import MetricsCollector
+from legacy.models.schemas import AgentResult, Product, RecommendationResponse
+from legacy.services.ab_test import ABTestEngine
+from legacy.services.metrics import MetricsCollector
 
 
 class StubSupervisor:
@@ -37,12 +37,12 @@ class StubGraph:
 
 
 def build_test_app():
-    from api.catalog import router as catalog_router
-    from api.commerce_read import router as commerce_read_router
-    from api.experiments import router as experiments_router
-    from api.health import router as health_router
-    from api.metrics import router as metrics_router
-    from api.recommendations import router as recommendations_router
+    from api.routes.catalog import quote_router
+    from api.routes.catalog import router as catalog_router
+    from api.routes.health import router as health_router
+    from api.routes.legacy_experiments import router as experiments_router
+    from api.routes.legacy_recommendations import router as recommendations_router
+    from api.routes.metrics import router as metrics_router
 
     app = FastAPI()
     for router in (
@@ -51,7 +51,7 @@ def build_test_app():
         experiments_router,
         metrics_router,
         catalog_router,
-        commerce_read_router,
+        quote_router,
     ):
         app.include_router(router)
     app.state.runtime = SimpleNamespace(

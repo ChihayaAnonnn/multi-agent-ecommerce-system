@@ -1,5 +1,10 @@
 # 代码讲解指南 — 从零读懂每一行
 
+> **适用版本**：本文描述的是按 D1/D2 保留在 `legacy/` 的旧推荐栈
+> （`legacy/agents/`、`legacy/orchestrator/`、`legacy/models/`、`legacy/services/`），
+> **不是当前主线**。现行架构见 [architecture.md](architecture.md)。
+> 旧栈的接口、注册与行为保持不变，代码路径已整体迁入 `legacy/`。
+
 > 面向小白的逐文件讲解,帮助你在面试中自信地解释每一个技术细节。
 
 ---

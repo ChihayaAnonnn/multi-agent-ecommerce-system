@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 
-from catalog.schemas import AttributeView, ProductView
 from kernel.intent import ShoppingIntent
-from pricing.schemas import PriceView
+from modules.catalog.schemas import AttributeView, ProductView
+from modules.pricing.schemas import PriceView
 
 __all__ = ['matches_product_constraints', 'matches_budget']
 

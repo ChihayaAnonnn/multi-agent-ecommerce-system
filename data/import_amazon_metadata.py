@@ -4,30 +4,35 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 import hashlib
 import json
 import math
 import os
-from pathlib import Path
 import re
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from pathlib import Path
 from uuid import UUID, uuid5
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from sqlalchemy import select, update, text, func
-from sqlalchemy.dialects.mysql import insert as mysql_insert
-from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, async_sessionmaker
-from tqdm import tqdm
-from catalog.models import Category, CategoryAttribute, Product
-from catalog.seed import insert_catalog_batch
-from inventory.models import StockLocation, DEFAULT_LOCATION_ID
-from inventory.seed import insert_seed_inventory
-from pricing.seed import insert_seed_prices
-from data.download_amazon_metadata import CATEGORIES, REPO_ID
+from sqlalchemy import func, select, text, update  # noqa: E402
+from sqlalchemy.dialects.mysql import insert as mysql_insert  # noqa: E402
+from sqlalchemy.engine import make_url  # noqa: E402
+from sqlalchemy.ext.asyncio import (  # noqa: E402
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+)
+from tqdm import tqdm  # noqa: E402
+
+from data.download_amazon_metadata import CATEGORIES, REPO_ID  # noqa: E402
+from modules.catalog.models import Category, CategoryAttribute, Product  # noqa: E402
+from modules.catalog.seed import insert_catalog_batch  # noqa: E402
+from modules.inventory.models import DEFAULT_LOCATION_ID, StockLocation  # noqa: E402
+from modules.inventory.seed import insert_seed_inventory  # noqa: E402
+from modules.pricing.seed import insert_seed_prices  # noqa: E402
 
 NAMESPACE = UUID('699e5fb0-bf94-4c5a-92c7-e4a575ebf39a')
 RULE_VERSION = 'amazon-demo-v1'
@@ -288,7 +293,7 @@ async def run(args: argparse.Namespace) -> dict:
     if not args.database_name or not re.fullmatch(r'[a-zA-Z0-9_]+',args.database_name):
         raise ValueError('写入前须用 --database-name 明确指定目标库名')
     from config import get_settings
-    from db.session import create_session_factory
+    from infra.db import create_session_factory
     url = make_url(get_settings().database_url)
     if url.drivername != 'mysql+asyncmy' or url.host not in ['localhost','127.0.0.1','::1']:
         raise ValueError('此测试数据脚本仅支持配置中的本机 mysql+asyncmy 连接')

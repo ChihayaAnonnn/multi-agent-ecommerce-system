@@ -7,12 +7,12 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from api import runtime as runtime_module
-from checkout.schemas import Destination
+from api import deps as runtime_module
 from config.settings import Settings
 from kernel.intent import IntentUpdate
+from modules.checkout.schemas import Destination
+from modules.sessions.schemas import TurnClaim
 from shared.principal import make_principal
-from shopping_session.schemas import TurnClaim
 
 
 class LocalModel:
@@ -61,7 +61,7 @@ def runtime_case(monkeypatch):
 
 
 def test_runtime_uses_one_actions_cart_checkout_and_model(runtime_case, monkeypatch):
-    from commerce_orchestrator.graph import build_commerce_graph
+    from application.shopping.graph import build_commerce_graph
 
     captured = []
 
@@ -101,7 +101,7 @@ def test_runtime_uses_one_actions_cart_checkout_and_model(runtime_case, monkeypa
 def test_graph_compiles_once_before_first_request(runtime_case, monkeypatch):
     from langgraph.graph import StateGraph
 
-    from commerce_orchestrator.contracts import TurnRequest
+    from application.shopping.contracts import TurnRequest
 
     compiled = []
     original = StateGraph.compile
@@ -260,9 +260,9 @@ def test_close_failure_still_disposes_engine_once(runtime_case, monkeypatch):
 
 
 def test_missing_database_preserves_health_and_503():
-    from api.auth import router as auth_router
-    from api.catalog import router as catalog_router
-    from api.health import router as health_router
+    from api.routes.auth import router as auth_router
+    from api.routes.catalog import router as catalog_router
+    from api.routes.health import router as health_router
 
     async def scenario():
         runtime = await runtime_module.create_runtime(Settings(
@@ -289,7 +289,7 @@ def test_missing_database_preserves_health_and_503():
 
 
 def test_known_identity_configuration_error_keeps_commerce(runtime_case, monkeypatch):
-    from identity.types import IdentityConfigurationError
+    from modules.identity.types import IdentityConfigurationError
 
     def fail(*args):
         raise IdentityConfigurationError('missing identity keys')
@@ -342,7 +342,7 @@ def test_lifespan_awaits_runtime_and_closes_on_failure(
 
 
 def test_database_resources_expose_engine_and_legacy_factory(monkeypatch):
-    from db import session
+    from infra import db as session
 
     assert hasattr(session, 'create_database')
     created = []
@@ -383,9 +383,9 @@ def test_database_resources_expose_engine_and_legacy_factory(monkeypatch):
     ('https', 'https://shop.test/checkout/\\one', False, False),
 ])
 def test_destination_validation_is_business_owned(kind, ref, demo, valid):
-    from checkout import service
+    from modules.checkout import service
 
-    assert service.validate_destination.__module__ == 'checkout.service'
+    assert service.validate_destination.__module__ == 'modules.checkout.service'
     destination = Destination(kind=kind, ref=ref, demo=demo)
     if valid:
         assert service.validate_destination(destination, ('shop.test',)) is destination

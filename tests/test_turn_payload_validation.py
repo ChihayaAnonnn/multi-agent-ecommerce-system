@@ -6,12 +6,12 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from commerce_orchestrator.contracts import TurnRequest, TurnResponse
-from commerce_orchestrator.service import CommerceOrchestrator
+from application.shopping.contracts import TurnRequest, TurnResponse
+from application.shopping.orchestrator import CommerceOrchestrator
 from kernel.intent import ShoppingIntent
+from modules.sessions.schemas import TurnClaim, TurnCompletion, TurnReplay
+from modules.sessions.service import CommerceError
 from shared.principal import make_principal
-from shopping_session.schemas import TurnClaim, TurnCompletion, TurnReplay
-from shopping_session.service import CommerceError
 
 
 class SessionSaveSpy:

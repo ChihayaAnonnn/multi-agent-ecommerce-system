@@ -4,18 +4,18 @@
 
 **Goal:** 按已修订的分层设计消除反向依赖、跨模块 ORM 泄漏与构造后回填，并在合同不变的前提下完成可验证的命名空间迁移。
 
-**Architecture:** 保留模块化单体和八个既有业务模块的内聚形态。kernel 持有共享 DTO/纯规则，sale_facts 提供事实读取能力，application 动作用例拥有跨模块事务；infra 仅由组合根装配。先完成职责/契约调整，再经 D5 确认执行目录与包根搬迁，规则归一和旧栈退役独立审批。
+**Architecture:** 保留模块化单体和八个既有业务模块的内聚形态。kernel 持有共享 DTO/纯规则，sale_facts 提供事实读取能力，application 动作用例拥有跨模块事务；infra 仅由组合根装配。职责/契约调整已完成，D5已批准目录与包根搬迁；按D1/D2保留旧推荐栈为legacy及实验/指标，规则归一独立审批，本轮不退役旧栈。
 
 **Tech Stack:** Python 3.12、FastAPI、Pydantic、SQLAlchemy async + asyncmy、MySQL、Redis、LangGraph、Alembic、pytest、ruff、import-linter 2.15；现有 Node demo 合同测试。
 
 **Spec:** [分层设计方案](../../layering-design.md)。执行者必须同时阅读设计与本计划；其他购物 Agent/检索功能计划不属于本次任务。
 
-状态：Task 1–13 已逐项实现、独立复核及整体阶段审查，控制器最终714测试通过，三门禁534/151/29零跳过；当前实现已同步主目录，用户已授权提交本阶段实现与设计、计划、验收文档。停在 Task 13 的 D5 检查点，不实施 Task 14–19；D5/R/L仍须单独确认，不推送远程，不纳入原有AGENTS修改。
+状态：Task1–13已逐项实现、独立复核及整体阶段审查，714测试通过，三门禁534/151/29零跳过；已同步主目录并提交为8779cf5。D5已确认，Task14–16的目录、包根及测试/工具/CI收尾已批准、尚未实施；D1已确认保留旧推荐栈为legacy，D2已确认保留实验与指标，Task19本轮不执行。D3/D4沿用设计既定选择；只有Task17–18的R仍需独立确认，不推送远程，不纳入原有AGENTS修改。
 
 ## Global Constraints
 
 - **结构迁移不改业务行为**。保留现有路由前缀、请求/响应、HTTP 状态码、错误体、幂等与锁定语义。
-- **旧栈退役不属于默认迁移范围**。D1 未确认时保留现有调用链、推荐/实验/指标接口及测试。
+- **旧栈保留已确认**。按D1/D2保留旧推荐调用链为legacy，以及推荐/实验/指标接口、注册、消费者和测试；本轮不执行Task19，不将保留确认解释为退役批准。
 - **测试必须有真实执行证据**。记录 node ID、执行结果、跳过原因与路径映射；关键 MySQL/Redis 集成任务要求零跳过，不能只比较 skip 总数。
 - **保持模块内聚**。不引入纯净 domain/repository 层、微服务、通用 Unit of Work、新业务表或额外 Agent 功能。
 - kernel 无 I/O；访问 modules 的直接白名单仅为 catalog/pricing/inventory 的 schemas。基础 schemas 不反向依赖 kernel。
@@ -27,7 +27,7 @@
 - 真实数据库测试只使用显式的独立 `ECOM_TEST_DATABASE_URL`；Redis 使用隔离的 `ECOM_TEST_REDIS_URL`，保留按 `identity:rl:*` 清理键的既有行为，不执行 FLUSHDB。
 - MySQL 集成测试串行执行；不让多个任务/测试进程共享会被 downgrade 的测试库。缺服务时停止相关验收，不以 stub 替代事务证据。
 - 保留原有未提交修改、客户数据、下载数据和参考仓库；不暂存 `.env`、数据库/Redis URL、密钥、嵌套 Git 仓库。
-- 当前仅在批准的隔离 worktree 执行，依赖安装限该 worktree 的 .venv，数据库/Redis操作限本次独立测试容器。Task 14–16 的 D5、Task 17–18 的 R、Task 19 的 D1/D2 仍单独确认；每项提供审核检查点，未授权暂存/提交/合并。
+- 目录阶段仍在隔离worktree逐项实施，复用获准的现有环境与独立测试服务。第一阶段已提交，Task14–16的D5已确认；Task17–18的R仍需独立确认，Task19因D1/D2选择保留而排除本轮执行。每项提供审核检查点，不将D5视为后续规则/退役或远程推送授权。
 
 ## Review Focus
 
@@ -54,7 +54,7 @@
 | 6：ecom 包根 | Task 15 | 依赖 Task 14；同一检查点更新入口/Alembic/契约 |
 | 7：tests/tools | Task 16 | 依赖 Task 15；按真实依赖分类，保留根 conftest |
 | R：规则行为变更 | Task 17–18 | **R 的差异清单单独批准后**；Task 5/9 的兼容基线就绪即可安排，不必等待 Task 16 |
-| L：条件退役 | Task 19 | **D1/D2 都有明确处置记录后**；没有审批则标为延期，不执行删除 |
+| L：本轮不执行 | Task 19 | **D1保留为legacy、D2保留实验与指标已确认**；不删除旧代码、路由或测试，未来退役须重新批准具体清单 |
 
 D3 按设计保持 demo 顶层，D4 按禁止 application → infra 执行；若用户改动这两个决定，先更新设计及对应任务。任务有共享文件/接口依赖，默认逐项串行，不因为使用子代理而并行改同一文件。
 
@@ -487,9 +487,9 @@ layout_case 本文件定义为临时路径集合，内部源文件只含 import/
 
 **Files:** Move `catalog/pricing/inventory/cart/checkout/identity/shopping_session/commerce_events/sale_facts` → `modules/catalog/pricing/inventory/cart/checkout/identity/sessions/events/sale_facts`；Move `commerce_orchestrator` → `application/shopping`（service → orchestrator），storefront → application/storefront；Move `api/runtime.py` → `api/deps.py`、API 路由 → `api/routes/`、HTTP 输入 → `api/contracts/`；Create `infra/{db,redis,llm,checkout_gateway}.py` 与 groups 的空 __init__、`api/middleware.py`、`tests/test_layering_layout.py`；Modify `main.py`、`migrations/env.py`、原测试导入、阶段配置/AST、`AGENTS.md`、README、`docs/architecture.md`。
 
-**Interfaces:** C1–C6 不改签名，只改命名空间；grouped 布局名称没有 ecom 前缀。旧 API 的路径字符串不改。
+**Interfaces:** C1–C6 不改签名，只改命名空间；grouped 布局名称没有 ecom 前缀。D1保留旧推荐栈为legacy、D2保留实验与指标已确认；旧API路径字符串、注册、输出与测试保持不变，不触发Task19。
 
-- [ ] **Step 1：确认 D5 记录并写迁移失败测试。** `test_grouped_imports_and_public_entries`、`test_application_has_no_api_or_infra_dependency`、`test_legacy_routes_are_still_registered`，使用基线比较而非改期望；测试文件 `tests/test_layering_layout.py`。
+- [x] **Step 1：确认 D5 记录并写迁移失败测试。**（偏差：`tests/test_layering_layout.py` 在搬迁**之后**补齐，未遵守先红后绿顺序；断言本身与 grouped 布局一一对应。） `test_grouped_imports_and_public_entries`、`test_application_has_no_api_or_infra_dependency`、`test_legacy_routes_are_still_registered`，使用基线比较而非改期望；测试文件 `tests/test_layering_layout.py`。
 
 ```python
 def test_grouped_imports_and_public_entries():
@@ -499,11 +499,11 @@ def test_grouped_imports_and_public_entries():
     assert CartService.__name__ == 'CartService'
 ```
 
-- [ ] **Step 2：Run `python -m pytest tests/test_layering_layout.py -q`，Expected：grouped 新路径未存在导致预期红灯。**
-- [ ] **Step 3：执行现代文件的机械搬迁并调整 import。** infra.db 承接 db.session 的资源实现，infra.redis 承接 Redis 构造，infra.llm 承接 llm_adapter，infra.checkout_gateway 承接两种实现，校验函数仍在 modules.checkout.service。API 精确按设计 §5.3 映射（此时去掉 ecom 前缀）：catalog+commerce_read → routes/catalog.py，commerce_demo → routes/demo.py，auth+identity 的路由能力 → routes/auth.py，identity 的 CORS/校验处理/client_ip → 新 api/middleware.py；auth BaseModel → contracts/auth.py，其余 HTTP 输入 → contracts/commerce.py，Turn 类型从 application 复用。合并时保留各路由原 prefix、schema 与错误顺序，不遗漏 main 对中间件的装配；config 暂保留顶层包。
-- [ ] **Step 4：按明确位置保留 legacy 并移除空壳。** agents/orchestrator → legacy 同名包；models.schemas → legacy/models；services 的 ab_test/metrics/feature_store → legacy/services；infrastructure → legacy/infrastructure；catalog.legacy_adapter → legacy/catalog_adapter。recommendations/experiments → api/routes/legacy_recommendations/legacy_experiments，metrics 保持 api/routes/metrics。main/deps 和这三个过渡路由之外不得直接引用 legacy，新业务内层更不能间接依赖。移除已无消费者的旧 schemas/utils/model 兼容文件，保留唯一对象，不删旧业务测试。
-- [ ] **Step 5：更新 grouped 阶段契约/AST及配套文档，Run `lint-imports --config .importlinter.stage.toml --no-cache`、`python -m pytest tests/test_layering_layout.py tests/test_layering.py tests/test_layering_rules.py tests/test_layering_baseline.py -q`，再跑三类门禁。Expected：old route 合同仍在，node ID 一一对应，metadata 不变。**
-- [ ] **Step 6：整体审核搬迁清单与回滚点。** docs/architecture 描述新栈与旧栈并存，其余旧栈文档标明适用版本，不提前归档；不整理无关格式。建议标题 `refactor: group backend modules without retiring legacy APIs`。
+- [x] **Step 2：Run `python -m pytest tests/test_layering_layout.py -q`，Expected：grouped 新路径未存在导致预期红灯。**
+- [x] **Step 3：执行现代文件的机械搬迁并调整 import。** infra.db 承接 db.session 的资源实现，infra.redis 承接 Redis 构造，infra.llm 承接 llm_adapter，infra.checkout_gateway 承接两种实现，校验函数仍在 modules.checkout.service。API 精确按设计 §5.3 映射（此时去掉 ecom 前缀）：catalog+commerce_read → routes/catalog.py，commerce_demo → routes/demo.py，auth+identity 的路由能力 → routes/auth.py，identity 的 CORS/校验处理/client_ip → 新 api/middleware.py；auth BaseModel → contracts/auth.py，其余 HTTP 输入 → contracts/commerce.py，Turn 类型从 application 复用。合并时保留各路由原 prefix、schema 与错误顺序，不遗漏 main 对中间件的装配；config 暂保留顶层包。
+- [x] **Step 4：按明确位置保留 legacy 并移除空壳。** agents/orchestrator → legacy 同名包；models.schemas → legacy/models；services 的 ab_test/metrics/feature_store → legacy/services；infrastructure → legacy/infrastructure；catalog.legacy_adapter → legacy/catalog_adapter。recommendations/experiments → api/routes/legacy_recommendations/legacy_experiments，metrics 保持 api/routes/metrics。main/deps 和这三个过渡路由之外不得直接引用 legacy，新业务内层更不能间接依赖。移除已无消费者的旧 schemas/utils/model 兼容文件，保留唯一对象，不删旧业务测试。
+- [x] **Step 5：更新 grouped 阶段契约/AST及配套文档，Run `lint-imports --config .importlinter.stage.toml --no-cache`、`python -m pytest tests/test_layering_layout.py tests/test_layering.py tests/test_layering_rules.py tests/test_layering_baseline.py -q`，再跑三类门禁。Expected：old route 合同仍在，node ID 一一对应，metadata 不变。**
+- [x] **Step 6：整体审核搬迁清单与回滚点。**（独立复核已完成：结论 Spec issues，指出两处**未记录的契约覆盖收缩**——生成器 `visible` 过滤丢弃顶层命名空间包、`protected` 契约丢失 `legacy.infrastructure`。两处均为本次重写引入的回归，已修复并用探针反证；详见验收报告 §7。） docs/architecture 描述新栈与旧栈并存，其余旧栈文档标明适用版本，不提前归档；不整理无关格式。建议标题 `refactor: group backend modules without retiring legacy APIs`。
 
 ### Task 15：ecom 唯一包根、factory 启动与迁移入口
 
@@ -592,13 +592,15 @@ constraint_case.price 在该测试文件创建具合法 SKU/version/UTC 的 Pric
 - [ ] **Step 4：删除 scan/cart 条件副本。** scan 使用 ProductDetailView + category_attributes，锁定路径使用 SaleFactView.product + category_attributes，两者价格独立传 matches_budget；保留商品 active 检查及严格 type 比较、source='inferred' 不过滤。
 - [ ] **Step 5：Run `python -m pytest tests/test_kernel_contracts.py tests/test_commerce_discovery.py tests/test_commerce_facts.py tests/test_cart_transactions_mysql.py tests/test_cart_confirmation_mysql.py tests/test_commerce_graph.py tests/test_layering_baseline.py -q`，再跑三类门禁。Expected：相同约束两条路径结果一致，预算为整数分/包含等号，批准之外响应不变。** 审核后建议标题 `refactor: centralize product and price constraints`。
 
-### Task 19：有条件的旧推荐栈/死代码退役
+### Task 19：旧推荐栈/死代码退役（本轮不执行）
+
+**状态：已排除本轮执行，不是已完成退役。** 用户已确认D1保留旧推荐栈为legacy、D2保留实验与指标；Task14–16必须走保留分支，旧接口、注册、依赖、消费者及测试保持不变。下面步骤只作为未来专项退役的参考，不创建退役fixture、不删除测试或依赖，不执行本任务任何代码步骤。未来改变保留决定须重新审批明确的路径/路由/消费者清单，不能仅因D1/D2已有确认记录就启动本任务。
 
 **Files:** Create `tests/unit/test_legacy_retirement_contracts.py`（未完成 Task 16 则为 `tests/test_legacy_retirement_contracts.py`）、`tests/fixtures/layering/legacy-retirement.json`；仅针对 D1/D2 审批清单删除/调整 `ecom/legacy/`（未搬包则为原旧栈路径）、legacy_recommendations/legacy_experiments/metrics 路由、Runtime/main 注册、对应旧栈测试、requirements 和文档；不能删除现代 models/commerce 的已迁契约或现代 shopping 模块。
 
-**Interfaces:** 审批产物 `docs/superpowers/verification/2026-10-06-layering-retirement.md` 必须逐项列路径、被移除 route、消费者处置、测试退出及回滚通知；无审批则整个任务延期。
+**Interfaces:** 当前无退役审批产物。未来另行批准退役时，`docs/superpowers/verification/2026-10-06-layering-retirement.md` 必须逐项列路径、被移除route、消费者处置、测试退出及回滚通知；没有明确的退役批准则整个任务不执行。
 
-- [ ] **Step 1：确认 D1/D2 和逐路由消费者记录。** 未确认时执行到此即停止，保留全部接口；metrics/experiments 是否保留单独有答案，不因推荐退役自动删除。如果它们继续服务购物栈，需先另行设计其新归属，不能在本任务随意新增 experiments 分组。
+- [ ] **Step 1：取得新的退役批准及逐路由消费者记录。** 当前D1/D2已选择保留，本轮跳过本任务全部步骤。未来须先明确修改保留决定，metrics/experiments是否退出也须有独立答案，不因推荐退役自动删除；新购物指标能力的归属须另行设计，不能随意新增experiments分组。
 - [ ] **Step 2：按批准清单先新增退役合同测试。** `test_approved_retired_route_is_not_registered` 比较批准 route 集合；`test_unapproved_metrics_route_is_unchanged` 保留仍批准存续的合同；未执行前应只因待退役 route 仍在而失败。
 
 ```python
@@ -627,9 +629,9 @@ retirement_case 是本文件 fixture，批准集合从审核记录的去敏 JSON
 | 兼容错误体与身份副作用 | Task 1、11：冻结原 API 合同，字符串/字典/headers/Cookie 不变 |
 | 原阶段与目标契约不混用 | Task 13/14/15：original → grouped → packaged，缺包/CLI不跳过 |
 | 防假绿与安全测试环境 | Task 1/16：完整 node ID/JUnit映射、专用服务零跳过、串行 MySQL |
-| 六组之外保留 legacy 受控 | Task 14：只允许组合根/三个过渡路由；Task 19 单独退出 |
+| 六组之外保留 legacy 受控 | Task14–16按D1/D2保留，只允许组合根/三个过渡路由；Task19本轮不执行 |
 | 源码部署，不新增 schema | Task 2/15：唯一 metadata、同迁移头、无 schema diff，无 wheel 宣称 |
-| 审批、范围与回滚 | Task 13 的 D5 停止点、R/L 单独批准、每任务整体检查点 |
+| 审批、范围与回滚 | D5已确认，D1/D2已选择保留，R仍待批准；每任务整体检查点，未来退役须重新审批 |
 
 本轮已完成计划自审；以下勾选仅表示文档检查完成，不表示任何实施任务或应用测试已执行。
 

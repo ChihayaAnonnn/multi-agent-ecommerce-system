@@ -10,21 +10,21 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
 
-from api import identity
-from api.commerce import invoke
-from catalog.service import (
+from api import http_config
+from api.routes.commerce import invoke
+from kernel.errors import CommerceDependencyError, CommerceError
+from modules.catalog.service import (
     CatalogConflictError,
     CatalogError,
     CatalogNotFoundError,
     CatalogValidationError,
 )
-from identity.passwords import PasswordPolicyError
-from identity.types import IdentityError
-from inventory.service import InventoryError
-from kernel.errors import CommerceDependencyError, CommerceError
-from pricing.service import PricingError
+from modules.identity.passwords import PasswordPolicyError
+from modules.identity.types import IdentityError
+from modules.inventory.service import InventoryError
+from modules.pricing.service import PricingError
+from modules.sessions.service import CommerceError as SessionCommerceError
 from shared.errors import DomainError
-from shopping_session.service import CommerceError as SessionCommerceError
 
 COMMERCE_STATUSES = {
     'not_found': 404,
@@ -95,8 +95,8 @@ def test_registered_codes_cover_raise_sites_and_dynamic_quote_reasons():
     codes = set()
     dynamic_codes = set()
     for directory in (
-        'cart', 'checkout', 'shopping_session', 'commerce_events',
-        'commerce_orchestrator', 'api',
+        'modules/cart', 'modules/checkout', 'modules/sessions', 'modules/events',
+        'application/shopping', 'api', 'api/routes',
     ):
         for path in (root / directory).glob('*.py'):
             for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
@@ -162,15 +162,15 @@ def test_password_policy_error_preserves_value_error_compatibility():
 
 
 def test_password_policy_public_export_is_same_object():
-    from identity import service
+    from modules.identity import service
 
     assert getattr(service, 'PasswordPolicyError', None) is PasswordPolicyError
     assert 'PasswordPolicyError' in service.__all__
 
 
 def test_auth_imports_password_policy_from_public_service():
-    from api import auth
-    from identity import service
+    from api.routes import auth
+    from modules.identity import service
 
     source = Path(auth.__file__).read_text(encoding='utf-8')
     imports = {
@@ -179,8 +179,8 @@ def test_auth_imports_password_policy_from_public_service():
         if isinstance(node, ast.ImportFrom)
         for alias in node.names
     }
-    assert ('identity.passwords', 'PasswordPolicyError') not in imports
-    assert ('identity.service', 'PasswordPolicyError') in imports
+    assert ('modules.identity.passwords', 'PasswordPolicyError') not in imports
+    assert ('modules.identity.service', 'PasswordPolicyError') in imports
     assert auth.PasswordPolicyError is service.PasswordPolicyError
 
 
@@ -198,9 +198,9 @@ def test_catalog_errors_keep_string_details(error_type, status):
 
 
 def test_identity_http_configuration_belongs_to_api():
-    assert identity.IdentityHttpConfig.__module__ == 'api.http_config'
-    assert identity.parse_trusted_networks.__module__ == 'api.http_config'
-    config = identity.IdentityHttpConfig()
+    assert http_config.IdentityHttpConfig.__module__ == 'api.http_config'
+    assert http_config.parse_trusted_networks.__module__ == 'api.http_config'
+    config = http_config.IdentityHttpConfig()
     assert config.refresh_cookie_name == '__Host-ecom_refresh'
     assert config.session_ttl_seconds == 2592000
     assert config.allowed_origins == config.trusted_proxy_networks == ()
@@ -219,15 +219,15 @@ def test_http_list_parsing_is_not_settings_business_behavior():
 
 
 def test_trusted_network_validation_remains_fail_closed():
-    assert identity.parse_trusted_networks.__module__ == 'api.http_config'
-    from identity.types import IdentityConfigurationError
+    assert http_config.parse_trusted_networks.__module__ == 'api.http_config'
+    from modules.identity.types import IdentityConfigurationError
 
-    parsed = identity.parse_trusted_networks(('10.0.0.1/8', '2001:db8::/32'))
+    parsed = http_config.parse_trusted_networks(('10.0.0.1/8', '2001:db8::/32'))
     assert tuple(str(network) for network in parsed) == (
         '10.0.0.0/8', '2001:db8::/32',
     )
     with pytest.raises(IdentityConfigurationError, match='ECOM_IDENTITY'):
-        identity.parse_trusted_networks(('invalid-cidr',))
+        http_config.parse_trusted_networks(('invalid-cidr',))
 
 
 @pytest.mark.parametrize('error', [
@@ -276,8 +276,8 @@ def test_unknown_domain_error_keeps_internal_error_policy(error):
 
 
 def test_identity_error_response_side_effects_are_preserved():
-    from api.auth import router
-    from identity.types import RateLimited
+    from api.routes.auth import router
+    from modules.identity.types import RateLimited
 
     class IdentityStub:
         async def login(self, *args):
@@ -290,7 +290,7 @@ def test_identity_error_response_side_effects_are_preserved():
         app = FastAPI()
         app.include_router(router)
         app.state.runtime = SimpleNamespace(
-            identity=IdentityStub(), identity_config=identity.IdentityHttpConfig(),
+            identity=IdentityStub(), identity_config=http_config.IdentityHttpConfig(),
         )
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url='https://test',

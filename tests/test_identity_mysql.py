@@ -19,20 +19,23 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from db.base import utcnow
-from db.session import create_session_factory
-from identity.csrf import CsrfSigner
-from identity.models import AuthSession, IdentityUser, RefreshToken
-from identity.passwords import PasswordPolicyError, hash_password, verify_password
-from identity.rate_limit import RedisRateLimiter
-from identity.service import (
+from infra.db import create_session_factory
+from modules.identity.csrf import CsrfSigner
+from modules.identity.models import AuthSession, IdentityUser, RefreshToken
+from modules.identity.passwords import (
+    PasswordPolicyError,
+    hash_password,
+    verify_password,
+)
+from modules.identity.rate_limit import RedisRateLimiter
+from modules.identity.service import (
     DEFAULT_SESSION_TTL_SECONDS,
     IdentityService,
     hash_refresh_token,
     normalize_email,
 )
-from identity.tokens import TokenCodec
-from identity.types import (
+from modules.identity.tokens import TokenCodec
+from modules.identity.types import (
     AuthIssue,
     DemoModeDisabled,
     EmailAlreadyRegistered,
@@ -45,6 +48,7 @@ from identity.types import (
     UnknownAccount,
     UserView,
 )
+from shared.time import utcnow
 from tests.conftest import downgrade_to, read_schema, upgrade_to
 
 IDENTITY_TABLES = {"identity_users", "identity_auth_sessions", "identity_refresh_tokens"}

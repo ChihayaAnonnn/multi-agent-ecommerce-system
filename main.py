@@ -9,26 +9,27 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import structlog
 import uvicorn
 from fastapi import FastAPI
 
-from api.auth import router as auth_router
-from api.catalog import router as catalog_router
-from api.commerce import router as commerce_router
-from api.commerce_demo import configure_commerce_demo
-from api.commerce_read import router as commerce_read_router
-from api.experiments import router as experiments_router
-from api.health import router as health_router
+from api.deps import create_runtime
 from api.http_config import IdentityHttpConfig, parse_http_list
-from api.identity import configure_identity_http
-from api.metrics import router as metrics_router
-from api.recommendations import router as recommendations_router
-from api.runtime import create_runtime
-from api.storefront import router as storefront_router
+from api.middleware import configure_identity_http
+from api.routes.auth import router as auth_router
+from api.routes.catalog import quote_router
+from api.routes.catalog import router as catalog_router
+from api.routes.commerce import router as commerce_router
+from api.routes.demo import configure_commerce_demo
+from api.routes.health import router as health_router
+from api.routes.legacy_experiments import router as experiments_router
+from api.routes.legacy_recommendations import router as recommendations_router
+from api.routes.metrics import router as metrics_router
+from api.routes.storefront import router as storefront_router
 from config import get_settings
-from orchestrator.graph import build_recommendation_graph
+from legacy.orchestrator.graph import build_recommendation_graph
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -61,7 +62,10 @@ configure_identity_http(app, IdentityHttpConfig(
     trusted_proxy_networks=parse_http_list(settings.identity_trusted_proxy_networks),
     session_ttl_seconds=settings.identity_session_ttl_seconds,
 ))
-configure_commerce_demo(app, settings)
+# 演示页绝对位置由组合根给出：路由模块搬迁后不再从自身深度推断仓库根。
+configure_commerce_demo(
+    app, settings, demo_dir=Path(__file__).resolve().parent / "demo"
+)
 
 for router in (
     health_router,
@@ -70,7 +74,7 @@ for router in (
     metrics_router,
     catalog_router,
     storefront_router,
-    commerce_read_router,
+    quote_router,
     commerce_router,
     auth_router,
 ):

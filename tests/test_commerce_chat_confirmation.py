@@ -1,11 +1,11 @@
 """聊天确认通过确定性门禁，与按钮共用命令，绕过图。"""
 import asyncio
 
-from commerce_orchestrator.actions import CartActionService
-from commerce_orchestrator.compare import CompareService
-from commerce_orchestrator.facts import CommerceFactsReader
-from commerce_orchestrator.service import CommerceOrchestrator
-from models.commerce import TurnRequest
+from application.shopping.actions import CartActionService
+from application.shopping.compare import CompareService
+from application.shopping.contracts import TurnRequest
+from application.shopping.facts import CommerceFactsReader
+from application.shopping.orchestrator import CommerceOrchestrator
 from tests.commerce_helpers import build_orchestrator
 from tests.test_cart_confirmation_mysql import setup
 
@@ -44,7 +44,8 @@ def test_chat_confirm_uses_same_command_as_button(migrated_mysql_database):
 
 def test_foreign_chat_action_is_404(migrated_mysql_database):
     import pytest
-    from shopping_session.service import CommerceError
+
+    from modules.sessions.service import CommerceError
     async def scenario():
         _,sessions,cart,a,b,s,view,_,_,skus=await setup(migrated_mysql_database)
         actions = CartActionService(cart.factory, sessions, cart, None)
@@ -65,15 +66,17 @@ def test_foreign_chat_action_is_404(migrated_mysql_database):
 
 
 def test_stale_chat_claim_cannot_confirm_cart_or_checkout(migrated_mysql_database):
-    import pytest
     from datetime import timedelta
-    from sqlalchemy import update,select,func
-    from shopping_session.models import CommerceSession
-    from shopping_session.service import CommerceError
-    from checkout.models import CheckoutHandoff
-    from checkout.service import CheckoutService
-    from checkout.gateway import DemoHostCheckoutGateway
-    from db.base import utcnow
+
+    import pytest
+    from sqlalchemy import func, select, update
+
+    from infra.checkout_gateway import DemoHostCheckoutGateway
+    from modules.checkout.models import CheckoutHandoff
+    from modules.checkout.service import CheckoutService
+    from modules.sessions.models import CommerceSession
+    from modules.sessions.service import CommerceError
+    from shared.time import utcnow
     class Host(DemoHostCheckoutGateway):
         calls=0
         async def create_handoff(self,*args):

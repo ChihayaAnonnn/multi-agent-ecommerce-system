@@ -7,8 +7,9 @@ import asyncio
 import pytest
 from sqlalchemy import func, select
 
-from catalog.models import Product, SKU
-from catalog.schemas import (
+from infra.db import create_session_factory
+from modules.catalog.models import SKU, Product
+from modules.catalog.schemas import (
     AttributeInput,
     CategoryInput,
     MediaInput,
@@ -17,14 +18,13 @@ from catalog.schemas import (
     ProductInput,
     SKUInput,
 )
-from catalog.service import (
+from modules.catalog.service import (
     CatalogConflictError,
     CatalogNotFoundError,
     CatalogService,
     CatalogValidationError,
     compute_option_signature,
 )
-from db.session import create_session_factory
 from tests.conftest import downgrade_to_base, read_schema, upgrade_to
 
 CATALOG_TABLES = {

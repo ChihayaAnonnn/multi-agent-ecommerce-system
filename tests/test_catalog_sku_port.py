@@ -1,30 +1,29 @@
 """SKU 存在性端口的注入、会话复用与模块异常边界。"""
 
 import asyncio
-import tomllib
 from contextlib import asynccontextmanager
 
 import pytest
 from sqlalchemy import delete, event
 
-from catalog.models import SKU
-from catalog.ports import PriceReader, SKUExistenceReader
-from catalog.schemas import CategoryInput, ProductInput, SKUInput
-from catalog.service import (
+from infra.db import create_session_factory
+from modules.catalog.models import SKU
+from modules.catalog.ports import PriceReader, SKUExistenceReader
+from modules.catalog.schemas import CategoryInput, ProductInput, SKUInput
+from modules.catalog.service import (
     CatalogNotFoundError,
     CatalogService,
     CatalogSKUReader,
 )
-from catalog.service import (
+from modules.catalog.service import (
     PriceReader as LegacyPriceReader,
 )
-from db.session import create_session_factory
-from inventory.service import InventoryNotFoundError, InventoryService
-from pricing.service import PricingNotFoundError, PricingService
+from modules.inventory.service import InventoryNotFoundError, InventoryService
+from modules.pricing.service import PricingNotFoundError, PricingService
 from tests.test_layering import (
-    STAGE_CONFIG,
     run_stage_imports,
-    write_stage_module_stubs,
+    write_grouped_tree,
+    write_stage_config,
 )
 
 
@@ -168,36 +167,21 @@ def test_catalog_reader_observes_uncommitted_caller_transaction(
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("consumer", ["pricing", "inventory"])
+@pytest.mark.parametrize("consumer", ["modules.pricing", "modules.inventory"])
 @pytest.mark.parametrize("via_catalog_service", [False, True])
 def test_stage_enforces_catalog_model_ownership(
     tmp_path, consumer, via_catalog_service,
 ):
-    options = tomllib.loads(STAGE_CONFIG.read_text(encoding="utf-8"))
-    for package in options["tool"]["importlinter"]["root_packages"]:
-        directory = tmp_path / package
-        directory.mkdir()
-        (directory / "__init__.py").write_text("", encoding="utf-8")
-    for package in ("catalog", "pricing", "inventory"):
-        for module in ("schemas", "models"):
-            (tmp_path / package / f"{module}.py").write_text(
-                "", encoding="utf-8",
-            )
-    (tmp_path / "models" / "commerce.py").write_text("", encoding="utf-8")
-    (tmp_path / "kernel" / "allowed.py").write_text(
-        "import catalog.schemas\nimport pricing.schemas\nimport inventory.schemas\n",
-        encoding="utf-8",
+    write_grouped_tree(tmp_path)
+    (tmp_path / "modules" / "catalog" / "service.py").write_text(
+        "import modules.catalog.models\n", encoding="utf-8",
     )
-    (tmp_path / "catalog" / "service.py").write_text(
-        "import catalog.models\n", encoding="utf-8",
-    )
-    dependency = "catalog.service" if via_catalog_service else "catalog.models"
-    (tmp_path / consumer / "service.py").write_text(
+    dependency = ("modules.catalog.service" if via_catalog_service
+                  else "modules.catalog.models")
+    (tmp_path.joinpath(*consumer.split(".")) / "service.py").write_text(
         f"import {dependency}\n", encoding="utf-8",
     )
-    write_stage_module_stubs(tmp_path)
-    config = tmp_path / ".importlinter.stage.toml"
-    config.write_text(STAGE_CONFIG.read_text(encoding="utf-8"), encoding="utf-8")
+    config = write_stage_config(tmp_path)
     if via_catalog_service:
         run_stage_imports(config, tmp_path)
     else:

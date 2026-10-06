@@ -5,12 +5,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 class RedisClientTests(unittest.TestCase):
     def test_connect_ping_and_close(self):
-        from infrastructure.redis_client import RedisClient
+        from legacy.infrastructure.redis_client import RedisClient
 
         raw = MagicMock()
         raw.ping = AsyncMock(return_value=True)
         raw.aclose = AsyncMock()
-        with patch("infrastructure.redis_client.Redis.from_url", return_value=raw) as factory:
+        with patch(
+            "legacy.infrastructure.redis_client.Redis.from_url",
+            return_value=raw,
+        ) as factory:
             client = RedisClient("redis://localhost:6379/0")
             self.assertIs(client.client, raw)
             self.assertTrue(asyncio.run(client.ping()))
@@ -22,13 +25,13 @@ class RedisClientTests(unittest.TestCase):
 
 class MySQLClientTests(unittest.TestCase):
     def test_rejects_non_mysql_url(self):
-        from infrastructure.mysql_client import MySQLClient
+        from legacy.infrastructure.mysql_client import MySQLClient
 
         with self.assertRaisesRegex(ValueError, "mysql\\+asyncmy"):
             MySQLClient("sqlite:///example.db")
 
     def test_ping_and_dispose(self):
-        from infrastructure.mysql_client import MySQLClient
+        from legacy.infrastructure.mysql_client import MySQLClient
 
         connection = AsyncMock()
         context = MagicMock()
@@ -39,7 +42,10 @@ class MySQLClientTests(unittest.TestCase):
         engine.dispose = AsyncMock()
         url = "mysql+asyncmy://user:password@localhost:3306/ecommerce"
 
-        with patch("infrastructure.mysql_client.create_async_engine", return_value=engine) as factory:
+        with patch(
+            "legacy.infrastructure.mysql_client.create_async_engine",
+            return_value=engine,
+        ) as factory:
             client = MySQLClient(url)
             asyncio.run(client.ping())
             asyncio.run(client.close())
@@ -51,12 +57,15 @@ class MySQLClientTests(unittest.TestCase):
 
 class MilvusClientTests(unittest.TestCase):
     def test_ping_and_close(self):
-        from infrastructure.milvus_client import MilvusClient
+        from legacy.infrastructure.milvus_client import MilvusClient
 
         raw = MagicMock()
         raw.list_collections = AsyncMock(return_value=["products"])
         raw.close = AsyncMock()
-        with patch("infrastructure.milvus_client.PyAsyncMilvusClient", return_value=raw) as factory:
+        with patch(
+            "legacy.infrastructure.milvus_client.PyAsyncMilvusClient",
+            return_value=raw,
+        ) as factory:
             client = MilvusClient("localhost", 19530, "product_embeddings")
             self.assertIs(client.client, raw)
             self.assertEqual(client.collection_name, "product_embeddings")

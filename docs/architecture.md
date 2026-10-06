@@ -1,156 +1,125 @@
-# 系统架构设计文档
+# 系统架构
 
-## 1. 系统总览
+> 适用版本：分层重构 Task 14 之后的 `grouped` 布局（`modules/ application/ infra/ legacy/`）。
+> 本文描述**当前源码**。旧推荐栈按 D1/D2 保留在 `legacy/`，见文末「保留的旧栈」。
+> 分层设计与决策依据见 [`layering-design.md`](layering-design.md)。
 
-本系统采用 **Supervisor + 4 Agent 并行聚合** 架构,实现电商场景下的个性化推荐全链路。
+## 1. 系统概览
 
-```
-用户请求
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│                  Supervisor 协调Agent                  │
-│                                                       │
-│  Phase 1 (并行):                                      │
-│  ┌─────────────────┐  ┌─────────────────┐            │
-│  │ 用户画像Agent    │  │ 商品召回Agent    │            │
-│  │ Redis特征查询    │  │ 多路召回+去重    │            │
-│  └────────┬────────┘  └────────┬────────┘            │
-│           │                    │                      │
-│  Phase 2 (并行):               ▼                      │
-│  ┌─────────────────┐  ┌─────────────────┐            │
-│  │ LLM重排Agent    │  │ 库存决策Agent    │            │
-│  │ 画像x商品交叉   │  │ 库存校验+限购   │            │
-│  └────────┬────────┘  └────────┬────────┘            │
-│           │                    │                      │
-│           └──────────┬─────────┘                      │
-│                      ▼                                │
-│  Phase 3 (串行):                                      │
-│  ┌─────────────────────────────────┐                  │
-│  │ 结果聚合: 库存过滤 + 排序合并    │                  │
-│  └────────────────┬────────────────┘                  │
-│                   ▼                                   │
-│  ┌─────────────────────────────────┐                  │
-│  │ 营销文案Agent: 个性化文案生成    │                  │
-│  └────────────────┬────────────────┘                  │
-│                   ▼                                   │
-│  ┌─────────────────────────────────┐                  │
-│  │ A/B测试引擎: 实验分组 + 指标     │                  │
-│  └────────────────┬────────────────┘                  │
-└───────────────────┼──────────────────────────────────┘
-                    ▼
-              个性化响应
-```
-
-## 2. Agent职责矩阵
-
-| Agent | 核心职责 | 输入 | 输出 | 工具/数据源 | 超时 |
-|-------|---------|------|------|-----------|------|
-| 用户画像 | 实时特征+RFM+分群 | user_id | UserProfile | Redis Feature Store | 5s |
-| 商品推荐 | 多路召回+LLM重排 | UserProfile, num_items | Product[] | Milvus, LLM | 8s |
-| 营销文案 | 模板选择+LLM生成+合规 | UserProfile, Product[] | Copy[] | LLM | 10s |
-| 库存决策 | 库存校验+预警+限购 | Product[] | available_ids, alerts | MySQL/WMS | 5s |
-
-## 3. 数据流
+本系统是一个**模块化单体**的电商后端：HTTP 接口 + 可信购物 Agent + 领域模块 + 基础设施适配器。
+真实交易事实（目录、价格、库存、购物车、结账交接）来自 MySQL，由领域模块持有；
+对话编排只读取已核验事实，不臆造商品、价格或库存。
 
 ```
-Redis (Feature Store)          Milvus (向量库)         MySQL (业务数据)
-       │                            │                       │
-       ▼                            ▼                       ▼
-  用户画像Agent              商品推荐Agent              库存决策Agent
-       │                            │                       │
-       └──────────┬─────────────────┘                       │
-                  ▼                                         │
-            结果聚合器 ◄────────────────────────────────────┘
-                  │
-                  ▼
-            营销文案Agent → LLM (MiniMax M2.7)
-                  │
-                  ▼
-            A/B测试引擎
-                  │
-                  ▼
-             API Response
+客户端
+  │
+  ▼
+api/              接口层：路由、依赖装配、错误映射、中间件
+  │
+  ▼
+application/      用例编排
+  ├── shopping/   购物 Agent：LangGraph 图 + 动作用例 + 事实读取
+  └── storefront/ 商品展厅只读投影
+  │
+  ▼
+modules/          业务模块：catalog pricing inventory cart checkout identity sessions events sale_facts
+  │
+  ▼
+kernel/  shared/  共享契约与纯规则 / 零业务依赖原语
+  │
+  ▼
+infra/            适配器：MySQL 引擎、Redis、LLM、宿主结账网关
 ```
 
-## 4. 并行策略分析
+`main.py` 是组合根：只有它可以构造 `infra` 的适配器并注入其余各层。
 
-### 延迟对比
+## 2. 分层与依赖规则
 
-```
-串行模式: 5s + 8s + 5s + 10s = 28s (不可接受)
+| 分组 | 职责 | 一句话判据 |
+| --- | --- | --- |
+| `api/` | HTTP 接口层 | 只有它认识 `Request`/`Response`/HTTP 状态码 |
+| `application/` | 用例编排 | 感知会话、轮次、确认门禁、多模块拼装 |
+| `modules/` | 限界上下文 | 不感知 HTTP，不承担对话意图判断 |
+| `kernel/` | 跨模块共享契约与纯规则 | 无 I/O；只引用 catalog/pricing/inventory 的 `schemas` |
+| `shared/` | 零业务依赖原语 | 不 import 本工程任何其他分组 |
+| `infra/` | 适配器 | 只被组合根构造 |
 
-并行模式:
-  Phase 1: max(5s, 8s) = 8s    (画像 || 召回)
-  Phase 2: max(8s, 5s) = 8s    (重排 || 库存)
-  Phase 3: 10s                   (文案, 依赖前两步)
-  合计: ≈ 8s + 8s + 10s = 26s  (仍然太慢, 因为LLM每次不需要这么久)
-  
-  实际: LLM平均响应~1-2s
-  实际总延迟: ≈ 2s + 2s + 2s = 6s (P99 < 8s)
-```
+依赖方向 `api → application → modules → shared`；`kernel` 与 `modules` 之间存在一条受控窄环
+（cart 需要 `kernel.quotes`，`kernel.quotes` 需要基础模块的 DTO），由契约钉死为「只准碰 `schemas.py`」。
 
-### 依赖关系
+跨模块只能引用对方的 `service.py` 公共方法、`schemas.py` 与公开的 `ports.py`/`types.py`；
+禁止直接 import 其他模块的 `models.py`。边界由 `.importlinter.stage.toml`（真实 CLI 检查）与
+`tests/test_layering_rules.py`（AST 白名单与正负例）双重强制。
 
-- Phase 1: 画像和召回互不依赖 → 并行
-- Phase 2: 重排需要画像(Phase 1) 但不需要库存 → 重排和库存并行
-- Phase 3: 文案需要最终商品列表(Phase 2) → 串行
-
-## 5. 稳定性设计
-
-### 5.1 重试策略
-- 指数退避: 500ms → 1000ms → 2000ms
-- 最大重试: 2次(避免雪崩)
-- 幂等性: 所有Agent操作都是幂等的
-
-### 5.2 降级策略
-| Agent | 降级方案 |
-|-------|---------|
-| 用户画像 | 返回默认画像(active用户) |
-| 商品推荐 | 返回热销商品列表 |
-| 营销文案 | 返回通用模板文案 |
-| 库存决策 | 标记所有商品为可用 |
-
-### 5.3 熔断规则
-- 窗口: 最近10次调用
-- 阈值: 错误率 > 50%
-- 恢复: 30s后半开状态,成功1次则恢复
-
-## 6. A/B测试架构
+## 3. 购物 Agent 的一次轮次
 
 ```
-用户请求
-    │
-    ▼
-┌─────────────────────────────┐
-│  流量分桶 (MD5 hash % 100)  │
-├─────────────────────────────┤
-│ bucket 0-49  │ bucket 50-99 │
-│   control    │  treatment   │
-├──────────────┼──────────────┤
-│ 规则重排      │ LLM重排      │
-│ 通用文案      │ 个性化文案    │
-└──────────────┴──────────────┘
-        │               │
-        ▼               ▼
-   指标收集(CTR/CVR/GMV)
-        │
-        ▼
-  Thompson Sampling
-  动态调整流量比例
+用户消息
+  │
+  ▼
+parse_intent      解析意图与约束（模型只能提软偏好，硬条件由代码解析）
+  │
+  ▼
+validate_route    路由校验；订单/售后暂不支持，缺关键输入转澄清
+  │
+  ├─ shop/selection ─► discover ─► quote_filter ─► rank_explain
+  ├─ compare        ─► compare
+  ├─ cart_read      ─► read_cart
+  ├─ cart_mutation  ─► propose_cart_action
+  └─ checkout       ─► preview_checkout
+  │
+  ▼
+finalize          组装 TurnResponse
 ```
 
-## 7. 扩展设计
+**关键约束**：
 
-### 可扩展点
-1. **新Agent**: 只需实现BaseAgent接口,注册到Supervisor
-2. **新实验**: ABTestEngine.register_experiment()
-3. **新召回策略**: 在ProductRecAgent._recall()中添加
-4. **新文案模板**: 在PROMPT_TEMPLATES字典中添加
+- 目录扫描（`discover`）只返回已核验可购买的 SKU；缺价、库存未知、非 CNY 一律不算可买。
+- 写操作（加购、改数量、移除、结账交接）**不由对话直接执行**：Agent 只生成待确认动作，
+  用户在可见摘要上确认后才在单个事务内写车。
+- 轮次通过租约（lease）串行化：同一会话的并发轮次会被拒绝，而不是并发写。
+- 幂等：`turn_id` 与请求哈希决定回放；确认动作带 `idempotency_key`。
 
-### 生产化路线
-1. Redis Cluster → 支持百万级用户特征
-2. Milvus分布式 → 支持亿级商品向量
-3. Kubernetes → Agent独立Pod,自动扩缩容
-4. Kafka → 行为事件异步处理
-5. Prometheus + Grafana → 实时监控面板
+## 4. 数据流与事务边界
+
+- **单模块 CRUD**：模块自管事务（`async with factory(), db.begin()`）。
+- **跨模块用例**（提案/确认/结账）：由 `application/shopping/actions.py` 建立事务，
+  被调用的模块公开 `*_in_transaction` 操作接收同一个 `AsyncSession`，不自行提交或回滚。
+- **结账交接**分两段事务 + 锁外宿主调用：第一段校验门禁、保存 `preparing` 并消费动作；
+  提交后调用宿主网关（同一 handoff ID 作幂等键）；第二段保存 `ready`/`failed`。
+  网络调用绝不持锁。
+- **锁顺序**：会话 → 购物车与动作 → 目录 → CNY 价格 → 库存。库存是钱，顺序不能改。
+
+## 5. 身份与主体
+
+`modules/identity/` 只回答「请求者是谁」。购物会话、购物车、交接记录的归属
+一律按 `Principal.principal_key` 校验，路由不得读取请求体里的 `user_id`。
+
+访问令牌为 RS256 Bearer；刷新令牌放在 `__Host-` + `Secure` + `HttpOnly` + `SameSite=Lax` 的 Cookie 中。
+身份依赖不可用时受保护端点返回 503，**绝不降级为匿名或固定主体**。
+
+## 6. 保留的旧栈（按 D1/D2）
+
+`legacy/` 保留旧推荐栈与实验/指标，**不是当前主线**：
+
+| 路径 | 内容 | 状态 |
+| --- | --- | --- |
+| `legacy/agents/` | 用户画像、商品推荐、营销文案、库存四个演示 Agent | 依赖硬编码样例商品，与真实目录无关 |
+| `legacy/orchestrator/` | 旧推荐管线（Supervisor 与 LangGraph 两份实现） | 两条路径都注册；已知存在实验实例分裂问题，未修 |
+| `legacy/models/` | 旧展示契约（浮点金额） | 仅为旧接口兼容 |
+| `legacy/services/` | A/B 引擎、指标、特征存储 | 进程内状态；`feature_store` 无生产调用方 |
+| `legacy/infrastructure/` | 旧的 MySQL/Redis/Milvus 连接封装 | 无生产调用方 |
+| `legacy/catalog_adapter.py` | 领域对象 → 旧展示模型的单向适配 | 旧接口过渡用 |
+
+对应的 `/api/v1/recommend`、`/api/v1/recommend/graph`、`/api/v1/experiments`、`/api/v1/metrics`
+路由保持注册且行为不变。新业务层不得依赖 `legacy`，只有组合根（`main.py`、`api/deps.py`）
+与三个过渡路由例外，由分层契约强制。
+
+## 7. 未验证的边界
+
+以下内容**不在本仓库的验证范围内**，不要在文档或对外说明中当作已具备的能力：
+
+- 云端 CI 未执行；本地三类门禁为验收依据。
+- 生产级 LLM、真实支付、真实物流、真实宿主结账系统均未接入。
+  结账只做「交接」，不创建订单、不扣款。
+- Milvus 向量召回、离线特征、订单与售后均未实现。

@@ -5,10 +5,10 @@ from typing import get_type_hints
 
 import pytest
 
-from cart import schemas
-from cart.service import CartService
+from modules.cart import schemas
+from modules.cart.service import CartService
+from modules.sessions.service import ShoppingSessionService
 from shared.hashing import JsonObject
-from shopping_session.service import ShoppingSessionService
 
 
 @pytest.mark.parametrize(

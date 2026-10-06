@@ -24,11 +24,11 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from api.runtime import build_identity_service  # noqa: E402
+from api.deps import build_identity_service  # noqa: E402
 from config import get_settings  # noqa: E402
-from db.session import create_session_factory  # noqa: E402
-from identity.passwords import PasswordPolicyError  # noqa: E402
-from identity.types import IdentityError  # noqa: E402
+from infra.db import create_session_factory  # noqa: E402
+from modules.identity.passwords import PasswordPolicyError  # noqa: E402
+from modules.identity.types import IdentityError  # noqa: E402
 
 PROMPT = "新密码（至少 15 个字符）："
 PROMPT_AGAIN = "再次输入新密码："

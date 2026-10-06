@@ -5,11 +5,11 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 
-from commerce_events.models import CommerceEvent
-from commerce_events.service import CommerceEventService
-from commerce_orchestrator.actions import CartActionService
-from db.base import new_id
-from shopping_session.service import CommerceError
+from application.shopping.actions import CartActionService
+from modules.events.models import CommerceEvent
+from modules.events.service import CommerceEventService
+from modules.sessions.service import CommerceError
+from shared.ids import new_id
 from tests.test_cart_confirmation_mysql import setup
 
 

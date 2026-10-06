@@ -1,10 +1,13 @@
 import asyncio
 from types import SimpleNamespace
+
 from fastapi import FastAPI
-from httpx import AsyncClient,ASGITransport
-from api.storefront import router
+from httpx import ASGITransport, AsyncClient
+
+from api.routes.storefront import router
+from tests.test_commerce_facts import Inventory, Prices
 from tests.test_storefront import Products
-from tests.test_commerce_facts import Prices,Inventory
+
 
 async def scenario():
     app=FastAPI();app.include_router(router)

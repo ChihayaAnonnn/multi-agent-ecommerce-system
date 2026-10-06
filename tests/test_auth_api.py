@@ -15,23 +15,24 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from httpx import ASGITransport, AsyncClient
 from redis.asyncio import Redis
 
-from api.auth import router as auth_router
-from api.catalog import router as catalog_router
-from api.commerce_read import router as commerce_read_router
-from api.health import router as health_router
+from api.deps import build_identity_service
 from api.http_config import IdentityHttpConfig, parse_http_list
-from api.identity import configure_identity_http, require_principal
-from api.recommendations import router as recommendations_router
-from api.runtime import build_identity_service
-from catalog.service import CatalogService, CatalogSKUReader
+from api.middleware import configure_identity_http
+from api.routes.auth import require_principal
+from api.routes.auth import router as auth_router
+from api.routes.catalog import quote_router
+from api.routes.catalog import router as catalog_router
+from api.routes.health import router as health_router
+from api.routes.legacy_recommendations import router as recommendations_router
 from config.settings import Settings
-from db.session import create_session_factory
-from identity.types import Principal, make_principal
-from inventory.service import InventoryService
-from models.schemas import Product, RecommendationResponse
-from pricing.service import PricingService
-from services.ab_test import ABTestEngine
-from services.metrics import MetricsCollector
+from infra.db import create_session_factory
+from legacy.models.schemas import Product, RecommendationResponse
+from legacy.services.ab_test import ABTestEngine
+from legacy.services.metrics import MetricsCollector
+from modules.catalog.service import CatalogService, CatalogSKUReader
+from modules.identity.types import Principal, make_principal
+from modules.inventory.service import InventoryService
+from modules.pricing.service import PricingService
 
 ISSUER = "https://identity.ecom.test"
 AUDIENCE = "ecom-api"
@@ -129,7 +130,7 @@ async def read_owned_resource(
 
 @protected_router.get("/api/v1/test/client-ip")
 async def echo_client_ip(request: Request):
-    from api.identity import client_ip_for
+    from api.middleware import client_ip_for
 
     return {"client_ip": client_ip_for(request)}
 
@@ -145,7 +146,7 @@ def build_app(runtime, settings: Settings) -> FastAPI:
         health_router,
         recommendations_router,
         catalog_router,
-        commerce_read_router,
+        quote_router,
         auth_router,
         protected_router,
     ):
@@ -192,7 +193,7 @@ def bearer(token: str) -> dict[str, str]:
 
 async def _disable_user(database_url: str, user_id: str) -> None:
     """把账号置为 disabled，模拟运维停用。"""
-    from identity.models import IdentityUser
+    from modules.identity.models import IdentityUser
 
     factory = create_session_factory(database_url)
     async with factory() as db:
@@ -204,7 +205,7 @@ async def _disable_user(database_url: str, user_id: str) -> None:
 
 async def _expire_auth_session(database_url: str, session_id: str) -> None:
     """把登录会话的绝对到期时间改到过去，模拟会话过期。"""
-    from identity.models import AuthSession
+    from modules.identity.models import AuthSession
 
     factory = create_session_factory(database_url)
     async with factory() as db:

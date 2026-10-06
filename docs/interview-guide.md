@@ -1,5 +1,10 @@
 # 多Agent电商推荐系统 — 面试完全指南
 
+> **适用版本**：本文描述的是按 D1/D2 保留在 `legacy/` 的旧推荐栈
+> （`legacy/agents/`、`legacy/orchestrator/`、`legacy/models/`、`legacy/services/`），
+> **不是当前主线**。现行架构见 [architecture.md](architecture.md)。
+> 旧栈的接口、注册与行为保持不变，代码路径已整体迁入 `legacy/`。
+
 > 本文档覆盖：八股文30题 + STAR法话术 + 面试追问应对 + 代码讲解要点
 
 ---

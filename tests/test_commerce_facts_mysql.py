@@ -3,17 +3,22 @@ import asyncio
 
 from sqlalchemy import delete, event, update
 
-from catalog.models import SKU, Product
-from catalog.schemas import AttributeInput, CategoryInput, ProductInput, SKUInput
-from catalog.service import CatalogService, CatalogSKUReader
-from commerce_orchestrator.facts import CommerceFactsReader
-from commerce_orchestrator.schemas import HardCondition, ShoppingIntent
-from db.session import create_session_factory
-from inventory.models import DEFAULT_LOCATION_ID
-from inventory.service import InventoryService
-from pricing.models import SKUPrice
-from pricing.service import PricingService
-from sale_facts.service import SaleFactsReader
+from application.shopping.facts import CommerceFactsReader
+from application.shopping.schemas import HardCondition, ShoppingIntent
+from infra.db import create_session_factory
+from modules.catalog.models import SKU, Product
+from modules.catalog.schemas import (
+    AttributeInput,
+    CategoryInput,
+    ProductInput,
+    SKUInput,
+)
+from modules.catalog.service import CatalogService, CatalogSKUReader
+from modules.inventory.models import DEFAULT_LOCATION_ID
+from modules.inventory.service import InventoryService
+from modules.pricing.models import SKUPrice
+from modules.pricing.service import PricingService
+from modules.sale_facts.service import SaleFactsReader
 
 
 async def seed(url):
@@ -90,7 +95,7 @@ def test_real_quote_statuses_and_two_categories(migrated_mysql_database):
             await db.execute(update(Product).where(Product.id == products[3].id).values(status='archived'))
             await db.execute(update(SKU).where(SKU.id == skus[4].id).values(status='inactive'))
             await db.execute(delete(SKUPrice).where(SKUPrice.sku_id == skus[5].id))
-            from inventory.models import InventoryBalance
+            from modules.inventory.models import InventoryBalance
             await db.execute(delete(InventoryBalance).where(InventoryBalance.sku_id == skus[6].id))
             await db.commit()
         await stock.adjust(skus[7].id, DEFAULT_LOCATION_ID, -5, 'empty', '清空')

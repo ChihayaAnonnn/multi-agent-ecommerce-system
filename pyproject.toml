@@ -13,5 +13,5 @@ target-version = "py312"
 select = ["E", "F", "I"]
 
 [tool.layering]
-layout = "original"
+layout = "grouped"
 require_complete_inventory = true

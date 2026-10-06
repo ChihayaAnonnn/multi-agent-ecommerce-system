@@ -3,11 +3,11 @@ import asyncio
 
 from sqlalchemy import delete
 
-from cart.models import Cart, CartLine
-from cart.service import CartService
-from identity.types import make_principal
-from pricing.models import SKUPrice
-from sale_facts.service import SaleFactsReader
+from modules.cart.models import CartLine
+from modules.cart.service import CartService
+from modules.identity.types import make_principal
+from modules.pricing.models import SKUPrice
+from modules.sale_facts.service import SaleFactsReader
 from tests.conftest import downgrade_to, read_schema, upgrade_to
 from tests.test_commerce_facts_mysql import seed
 

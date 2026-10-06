@@ -1,6 +1,6 @@
 # 分层设计方案
 
-> 状态：评审修订稿，待确认迁移范围；本文不是已经完成的实现。
+> 状态：第一阶段（实施计划Task1–13）已验收并提交；D5已确认，目录与包根搬迁待实施。D1已确认保留旧推荐栈为legacy，D2已确认保留实验与指标；本轮不执行退役，规则归一R仍需独立审批。
 > 范围：Python 后端（FastAPI + 领域模块 + 对话编排）。前端不重构；启动入口、迁移脚本、测试、工具和文档仅做必要的同步调整。
 > 前置阅读：[`architecture.md`](architecture.md)（旧推荐栈）、[`prd-ecommerce-agent.md`](prd-ecommerce-agent.md) 第 2 节（历史能力盘点）、[`../ecommerce-agent-references/README.md`](../ecommerce-agent-references/README.md)。现状以当前源码为准，不能用历史 PRD 代替退役审批。
 
@@ -21,7 +21,7 @@
 ### 1.2 约束
 
 - **结构迁移不改业务行为**。保留现有路由前缀、请求/响应、HTTP 状态码、错误体、幂等与锁定语义。P4 的规则差异修正单列为行为变更提交，逐项记录前后差异（§4.2、§4.3），不能用更新测试期望掩盖兼容性变化。
-- **旧栈退役不属于默认迁移范围**。删除推荐/实验接口、调整错误体均需独立确认、兼容性说明与验收；D1 未确认时保留现有调用链（§5.5、§9）。
+- **旧栈保留已确认**。按D1/D2保留现有推荐、实验、指标调用链及接口和测试；结构迁移不删除它们，也不调整错误体。未来改变保留决定须重新明确批准退役范围并完成兼容性说明与验收（§5.5、§9）。
 - **测试必须有真实执行证据**。缺 `ECOM_TEST_DATABASE_URL` / `ECOM_TEST_REDIS_URL` 时集成测试会跳过。迁移前后记录测试清单、执行结果、跳过原因与路径映射；关键集成任务要求零跳过，不能只比较 skip 总数（§6.2）。
 - **保持模块内聚**。8 个业务模块当前的 `models/schemas/service` 三段式形状统一、注释完整，不推倒重来。
 - **可增量落地**。每一阶段独立可验证、可回滚。
@@ -174,7 +174,7 @@ tools/        原 data/ + scripts/ 合并
 docs/
 ```
 
-`demo/` 与 `frontend/` 保持顶层（见 §9 决策 D3）。图中省略各包的 `__init__.py`。旧推荐栈默认保留；D1 未确认而已执行包根搬迁时，它放在 `ecom/legacy/`，现有路由仍注册。legacy 可以使用新模块公共入口，但 modules/application/kernel/shared/infra 不得依赖 legacy；仅组合根及指定的旧接口路由可引用它。保留的实验/指标暂随 legacy 放置，不新增未定义依赖方向的 `experiments/` 第七业务分组（§5.5）。
+`demo/` 与 `frontend/` 保持顶层（见 §9 决策 D3）。图中省略各包的 `__init__.py`。按已确认的D1保留旧推荐栈，包根搬迁时放在 `ecom/legacy/`，现有路由仍注册。legacy 可以使用新模块公共入口，但 modules/application/kernel/shared/infra 不得依赖 legacy；仅组合根及指定的旧接口路由可引用它。按D2保留实验/指标，沿用legacy归属，不新增未定义依赖方向的 `experiments/` 第七业务分组（§5.5）。
 
 ## 4. 层间契约
 
@@ -426,7 +426,7 @@ Runtime 可以有明确的不可用组件和原因，不能暴露“构造成功
 | 现状 | 目标 |
 | --- | --- |
 | `catalog/{__init__,models,schemas,service,seed}.py` | `ecom/modules/catalog/` |
-| `catalog/legacy_adapter.py` | 默认保留；包根搬迁时移 `ecom/legacy/catalog_adapter.py`，D1 确认后才删除 |
+| `catalog/legacy_adapter.py` | 按D1保留；包根搬迁时移 `ecom/legacy/catalog_adapter.py`，不得因D1已经确认就删除 |
 | `pricing/{__init__,models,schemas,service}.py` | `ecom/modules/pricing/` |
 | `inventory/{__init__,models,schemas,service,seed}.py` | `ecom/modules/inventory/` |
 | `cart/{__init__,models,schemas,service}.py` | `ecom/modules/cart/` |
@@ -480,13 +480,13 @@ Runtime 可以有明确的不可用组件和原因，不能暴露“构造成功
 | `db/session.py` | `ecom/infra/db.py` |
 | `config/settings.py` | `ecom/config.py` |
 | `main.py` | `ecom/main.py` |
-| `infrastructure/{__init__,mysql_client,redis_client,milvus_client}.py` | 默认保留；包根搬迁时移 `ecom/legacy/infrastructure/`，独立清理提交中删除（当前仅自身测试引用） |
+| `infrastructure/{__init__,mysql_client,redis_client,milvus_client}.py` | 保留；包根搬迁时移 `ecom/legacy/infrastructure/`（当前仅自身测试引用），未来清理须另行批准，本轮不删除 |
 
-### 5.5 条件退役清单与保留分支
+### 5.5 已确认保留的legacy及未来退役边界
 
-以下是待批准的清理候选，不是默认删除清单。D1 未确认时保留现有路由、响应和旧栈测试；包根搬迁仍可执行，按保留位置迁移旧代码并更新 import。
+用户已确认D1保留旧推荐栈为legacy、D2保留实验与指标。以下为本轮必须保留和迁移的清单，不是删除清单；保留现有路由、响应、注册、依赖和旧栈测试，仅按保留位置迁移代码并更新import。未来退役的核查依据留作历史设计参考，不代表当前授权。
 
-| 路径 | 包根搬迁时的保留位置 | 条件退役理由 |
+| 路径 | 包根搬迁时的保留位置 | 未来变更时的核查依据 |
 | --- | --- | --- |
 | `agents/` | `ecom/legacy/agents/` | 旧推荐样例；需按具体 Agent 核对真实依赖，不能笼统称全部依赖 MOCK_PRODUCTS |
 | `orchestrator/` | `ecom/legacy/orchestrator/` | 旧推荐管线与实例分裂问题，需独立决定退役或修复 |
@@ -496,9 +496,9 @@ Runtime 可以有明确的不可用组件和原因，不能暴露“构造成功
 | `catalog/legacy_adapter.py` | `ecom/legacy/catalog_adapter.py` | 旧推荐栈的过渡适配器 |
 | `api/recommendations.py`、`api/experiments.py` | `ecom/api/routes/legacy_recommendations.py`、`legacy_experiments.py` | 公共接口，只在 D1 明确确认退役且说明调用方影响后移除 |
 
-`services/ab_test.py`、`services/metrics.py` 默认迁入 `ecom/legacy/services/`；`api/routes/metrics.py` 保持当前输出，其 legacy 引用仅作为过渡例外。若 D1 同意退役，D2 必须同时决定实验/指标的消费者：仅删除推荐调用链不等于自动删除 metrics/experiments。需要新的购物指标能力时另行明确归属，不凭空新增 `ecom/experiments/`。本文不要求创建 Git 分支或提交旧代码。
+按已确认的D2，`services/ab_test.py`、`services/metrics.py` 保留并迁入 `ecom/legacy/services/`；experiments/metrics路由、注册、消费者和测试继续保留，`api/routes/metrics.py` 保持当前输出，其legacy引用按精确例外登记。选择保留可避免未知消费者断裂，代价是继续维护旧栈及其已知问题；不在结构迁移中顺带修复或新增购物指标能力。需要新的购物指标能力时另行评审归属，不凭空新增 `ecom/experiments/`。
 
-退役提交附被删除路由清单、调用方核查、文档/API 示例变化和对应测试退出清单；不得先删测试以获得绿灯。新业务层依赖 legacy 的禁止规则始终有效，组合根与三个过渡路由的直接引用例外单独登记，并在消费者退役时删除。
+本轮不执行退役步骤L或实施计划Task19，也不因“D1/D2已确认”而启动删除。未来重新批准退役时，提交须附被删除路由清单、调用方核查、文档/API示例变化和对应测试退出清单；不得先删测试以获得绿灯。新业务层依赖legacy的禁止规则始终有效，组合根与三个过渡路由的直接引用例外保留精确登记，仅在相应消费者未来获准退役后删除。
 
 ### 5.6 仓库级目录
 
@@ -628,7 +628,7 @@ forbidden_modules = ["ecom.api"]
 - 跨模块及 application/api/infra 访问业务模块时，只允许 §2.2 的公共入口；组合根可构造模块内部的适配实现，迁移模型注册不纳入应用包检查。service 的公共符号需显式导出，不得重导出 ORM 或通过 `_` 私有符号越界。
 - 确认 `ecom.modules` 下的每个模块都进入契约清单；漏掉新模块、目标包/文件不存在或相对路径无法解析均失败。源分组 `__init__.py` 不重导出业务实现，不允许借包级别导入绕过白名单。
 - shared 不导入任何本工程包；kernel 不含 SQLAlchemy 会话/Redis/LLM 调用；modules/application 不含 HTTP 状态码、FastAPI 类型或 api 导入。身份的 HTTP 专属配置类型另迁 api 配置边界，身份内部仅持令牌/会话所需配置。
-- D1 未确认时另外启用“内层不得依赖 legacy”的 forbidden 契约；直接 legacy 白名单仅为组合根与 §5.5 的三个过渡路由。D1/D2 决定全部移除 legacy 后才删除该契约，不配置不存在的 forbidden 目标。
+- 按D1/D2保留legacy时启用“内层不得依赖legacy”的forbidden契约；直接legacy白名单仅为组合根与§5.5的三个过渡路由。当前不得删除该契约或扩大白名单；只有未来另行批准并完全移除legacy后才删除该契约，不配置不存在的forbidden目标。
 
 边界检查必须有正/负例：允许跨模块公共服务调用及拥有者内部 ORM；拒绝直接模型访问、私有符号/ORM 重导出、kernel 服务引用、应用层 API DTO 引用、路由 infra 引用、TYPE_CHECKING/函数内/相对引用绕过，以及新模块遗漏。真实包额外做导入 smoke test 验证没有运行期循环。AST 检查不等于安全沙箱，动态导入/反射不允许用于绕过依赖规则，代码评审需核查。
 
@@ -729,7 +729,7 @@ CI 至少有三个独立门禁：
 | 6 | 包根重命名为 ecom，移除应用 sys.path 补丁；更新 Docker/Alembic/工具/静态定位与文档 | 切换 §6.1 目标配置；新启动入口和导入 smoke test、模型 metadata、全量合同/集成门禁通过，node ID 对照无丢失 |
 | 7 | tests 分类、data/scripts → tools；更新 fixture/辅助导入、离线 requirements 与 CLI 文档 | 更新前后 node ID 映射、工具 smoke test、JS 合同测试与三类 CI 门禁通过 |
 | R（独立） | 按 §4.2/§4.3 归一可购买性与条件规则，记录每项行为差异 | 负库存/币种/状态/优先级/预算/严格类型测试与三个调用路径一致性；只按批准的差异改变期望 |
-| L（条件） | D1/D2 明确确认后实施 §5.5 的退役与清理 | 逐项核对被移除路由、消费者和测试；在独立提交中验收，不用删测试给结构阶段“止血” |
+| L（本轮不执行） | D1/D2已确认保留，§5.5清单按保留分支迁移，不进行退役与清理 | 保留全部旧路由、消费者及测试；未来改变决定需重新批准逐项退役清单并独立验收 |
 
 第 1–4 步不依赖大范围目录搬迁，可先获得边界与装配收益；不能在第 2 步就宣称事务/规则风险全部消除。R 在规则抽取及兼容基线就绪后即可独立安排，不要求等待第 7 步；L 不阻塞结构迁移。第 5–6 步只做命名空间/目录与配套入口调整，不夹带功能、格式或退役变更。
 
@@ -750,15 +750,17 @@ CI 至少有三个独立门禁：
 
 第 5–6 步的回滚同时恢复导入、启动命令、Alembic 模型注册、静态位置与架构配置；因为数据库结构未改，无需数据回迁。R 的回滚只恢复先前规则并重跑记录的行为差异用例；L 的回滚恢复同一版本的旧代码、路由与测试，若已通知外部调用方退役则还需产品侧撤销通知，不能仅凭 Git 撤销宣称完全可回滚。
 
-## 9. 待确认决策
+## 9. 决策与确认状态
+
+确认记录：用户已明确确认D5，批准第5–6步的顶层分组与包根搬迁及实施计划Task14–16配套收尾；随后确认D1“保留为legacy”、D2“保留”。D3、D4沿用本修订的既定选择；只有独立规则变更R仍待批准。确认不代表搬迁已完成，也不授权删除旧接口、实验或指标；当前规则差异继续保留。
 
 | 编号 | 决策 | 建议 | 影响 |
 | --- | --- | --- | --- |
-| **D1** | 旧推荐栈是退役还是保留为 legacy？ | 长期倾向退役，但需先核查现有 API 消费者并明确批准；未确认时默认保留。旧栈问题不能当作未经审批删除接口的依据 | 仅控制独立步骤 L，不阻塞结构阶段；明确路由/测试/文档退出清单 |
-| **D2** | 实验与指标是否随推荐栈退役？ | 未确认时保持原行为，暂随 legacy 存放；分别核查 experiments/metrics 路由和消费者，不能因推荐退役自动删除 | 若继续服务购物栈，另行评审业务指标归属与契约，不默认新增 experiments 分组 |
+| **D1** | 旧推荐栈是退役还是保留为legacy？ | **已确认：保留为legacy**，迁移至 `ecom/legacy/`，维持现有API和行为 | 不执行L/Task19，保留路由、注册、依赖和测试；现代内层不得反向依赖legacy |
+| **D2** | 实验与指标是否保留？ | **已确认：保留实验与指标**，沿用legacy归属和现有行为 | 保留experiments/metrics接口、消费者及测试；不新增experiments分组或购物指标功能 |
 | **D3** | `demo/`（原生 HTML/CSS/JS 演示页）是否移入 `ecom/api/static/demo/`？ | **保持顶层**。它与 `frontend/` 同属交付产物，移到包内会让"Python 包"与"静态资源"混在一起 | 决定 `api/routes/demo.py` 的 `DEMO_DIR` 取值 |
 | **D4** | `application/` 是否允许直接 import `infra`？ | 本修订采用不允许、只接收注入；代价是 deps 装配代码变长，收益是用例可脱离具体适配器测试 | 若改变此决定，必须同时更新 §2.2、§6.1 的 forbidden/protected 与 AST 规则，不能只改一张表 |
-| **D5** | 是否现在执行第 5–6 步（顶层分组 + 包根重命名）？ | 先做 0–4 步，取得事务/合同/装配证据后再定；规则修正 R 与退役 L 独立确认 | 决定代码迁移范围；本次文档修订不等于授权执行这些步骤 |
+| **D5** | 是否现在执行第5–6步（顶层分组+包根重命名）？ | **用户已确认执行**；第一阶段事务/合同/装配证据已取得，规则修正R仍独立确认 | 批准实施计划Task14–16的目录、包根与配套收尾，按D1/D2保留旧栈，不包含规则变更 |
 
 ## 10. 附：目录角色速查
 
@@ -770,7 +772,7 @@ CI 至少有三个独立门禁：
 | `ecom/kernel/` | 共享词汇与纯规则；仅引用白名单 DTO，不做 I/O |
 | `ecom/shared/` | 原语与框架基类；不依赖本工程任何其他分组 |
 | `ecom/infra/` | 适配器；只被组合根构造 |
-| `ecom/legacy/` | D1/D2 未确认时保留旧调用链；新业务内层不依赖它 |
+| `ecom/legacy/` | 按已确认的D1/D2保留旧推荐、实验与指标调用链；新业务内层不依赖它 |
 | `tools/` | 离线导入与运维脚本；不属于应用包 |
 | `migrations/`、`frontend/`、`demo/`、`tests/`、`docs/` | 仓库级：迁移、前端产物、演示产物、测试、文档 |
 

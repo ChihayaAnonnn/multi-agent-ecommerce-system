@@ -11,16 +11,16 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event, func, select, update
 
-from api.commerce import router
-from api.identity import require_principal
-from cart.models import PendingAction
-from checkout.gateway import DemoHostCheckoutGateway
-from checkout.models import CheckoutHandoff
-from checkout.service import CheckoutService
-from commerce_orchestrator.actions import CartActionService
+from api.routes.auth import require_principal
+from api.routes.commerce import router
+from application.shopping.actions import CartActionService
+from infra.checkout_gateway import DemoHostCheckoutGateway
 from kernel.errors import CommerceError
+from modules.cart.models import PendingAction
+from modules.checkout.models import CheckoutHandoff
+from modules.checkout.service import CheckoutService
+from modules.sessions.models import CommerceSession
 from shared.time import utcnow
-from shopping_session.models import CommerceSession
 from tests.test_checkout_mysql import ready_cart
 
 

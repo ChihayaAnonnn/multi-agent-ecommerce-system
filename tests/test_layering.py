@@ -13,11 +13,18 @@ def write_stage_module_stubs(root: Path) -> None:
     import tomllib
 
     options = tomllib.loads(STAGE_CONFIG.read_text(encoding='utf-8'))
-    for module in options['tool']['layering']['inventory']:
-        if '.' not in module or module == 'migrations.versions':
+    inventory = options['tool']['layering']['inventory']
+    parents = {module.rpartition('.')[0] for module in inventory if '.' in module}
+    for module in inventory:
+        # 顶层目录由 root_packages 循环建好；父包目录下只有子模块文件。
+        if '.' not in module or module in parents:
             continue
         path = root.joinpath(*module.split('.')).with_suffix('.py')
         path.parent.mkdir(parents=True, exist_ok=True)
+        for directory in path.parents:
+            if directory == root:
+                break
+            (directory / '__init__.py').touch(exist_ok=True)
         path.touch(exist_ok=True)
     allowed = root / 'kernel' / 'allowed.py'
     if allowed.exists():
@@ -38,20 +45,8 @@ def run_stage_imports(config: Path = STAGE_CONFIG, root: Path = ROOT) -> str:
     return result.stdout
 
 
-def test_stage_import_contracts():
-    run_stage_imports()
-
-
-@pytest.mark.parametrize(('source', 'dependency'), [
-    ('checkout.service', 'checkout.gateway'),
-    ('commerce_orchestrator.ports', 'commerce_orchestrator.llm_adapter'),
-    ('commerce_orchestrator.guards', 'commerce_orchestrator.llm_adapter'),
-    ('commerce_orchestrator.service', 'commerce_orchestrator.graph'),
-    ('commerce_orchestrator.service', 'commerce_orchestrator.llm_adapter'),
-])
-def test_composition_contract_rejects_concrete_dependencies(
-    tmp_path, source, dependency,
-):
+def write_grouped_tree(tmp_path: Path, *, base_packages: tuple[str, ...] = ()) -> None:
+    """搭最小 grouped 临时包图：根包 + 四个基础 schemas/models + kernel 白名单。"""
     import tomllib
 
     options = tomllib.loads(STAGE_CONFIG.read_text(encoding='utf-8'))
@@ -59,17 +54,43 @@ def test_composition_contract_rejects_concrete_dependencies(
         directory = tmp_path / package
         directory.mkdir()
         (directory / '__init__.py').write_text('', encoding='utf-8')
-    for package in ('catalog', 'pricing', 'inventory', 'cart'):
+    for package in (*('modules.catalog', 'modules.pricing', 'modules.inventory'),
+                    *base_packages):
+        directory = tmp_path.joinpath(*package.split('.'))
+        directory.mkdir(exist_ok=True)
+        (directory / '__init__.py').write_text('', encoding='utf-8')
         for module in ('schemas', 'models'):
-            (tmp_path / package / f'{module}.py').write_text('', encoding='utf-8')
-    (tmp_path / 'models' / 'commerce.py').write_text('', encoding='utf-8')
+            (directory / f'{module}.py').write_text('', encoding='utf-8')
     (tmp_path / 'kernel' / 'allowed.py').write_text(
-        'import catalog.schemas\nimport pricing.schemas\nimport inventory.schemas\n',
+        'import modules.catalog.schemas\nimport modules.pricing.schemas\n'
+        'import modules.inventory.schemas\n',
         encoding='utf-8',
     )
     write_stage_module_stubs(tmp_path)
+
+
+def write_stage_config(tmp_path: Path) -> Path:
     config = tmp_path / '.importlinter.stage.toml'
     config.write_text(STAGE_CONFIG.read_text(encoding='utf-8'), encoding='utf-8')
+    return config
+
+
+def test_stage_import_contracts():
+    run_stage_imports()
+
+
+@pytest.mark.parametrize(('source', 'dependency'), [
+    ('modules.checkout.service', 'infra.checkout_gateway'),
+    ('application.shopping.ports', 'infra.llm'),
+    ('application.shopping.guards', 'infra.llm'),
+    ('application.shopping.orchestrator', 'application.shopping.graph'),
+    ('application.shopping.orchestrator', 'infra.llm'),
+])
+def test_composition_contract_rejects_concrete_dependencies(
+    tmp_path, source, dependency,
+):
+    write_grouped_tree(tmp_path, base_packages=('modules.cart',))
+    config = write_stage_config(tmp_path)
     run_stage_imports(config, tmp_path)
     tmp_path.joinpath(*source.split('.')).with_suffix('.py').write_text(
         f'import {dependency}\n', encoding='utf-8',
@@ -90,25 +111,11 @@ def test_stage_wrapper_rejects_missing_cli(monkeypatch):
 
 
 @pytest.mark.parametrize("indirect", [False, True])
-@pytest.mark.parametrize("dependency", ["config", "cart"])
+@pytest.mark.parametrize("dependency", ["config", "modules.cart"])
 def test_shared_contract_rejects_business_dependencies(
     tmp_path, indirect, dependency
 ):
-    import tomllib
-
-    options = tomllib.loads(STAGE_CONFIG.read_text(encoding="utf-8"))
-    for package in options["tool"]["importlinter"]["root_packages"]:
-        directory = tmp_path / package
-        directory.mkdir()
-        (directory / "__init__.py").write_text("", encoding="utf-8")
-    for package in ("catalog", "pricing", "inventory", "cart"):
-        for module in ("schemas", "models"):
-            (tmp_path / package / f"{module}.py").write_text("", encoding="utf-8")
-    (tmp_path / "models" / "commerce.py").write_text("", encoding="utf-8")
-    (tmp_path / "kernel" / "allowed.py").write_text(
-        "import catalog.schemas\nimport pricing.schemas\nimport inventory.schemas\n",
-        encoding="utf-8",
-    )
+    write_grouped_tree(tmp_path, base_packages=('modules.cart',))
     shared = tmp_path / "shared"
     (shared / "__init__.py").write_text(
         "from . import helper\n" if indirect else f"import {dependency}\n",
@@ -118,113 +125,70 @@ def test_shared_contract_rejects_business_dependencies(
         (shared / "helper.py").write_text(
             f"import {dependency}\n", encoding="utf-8"
         )
-    write_stage_module_stubs(tmp_path)
-    config = tmp_path / ".importlinter.stage.toml"
-    config.write_text(STAGE_CONFIG.read_text(encoding="utf-8"), encoding="utf-8")
+    config = write_stage_config(tmp_path)
     with pytest.raises(AssertionError, match="BROKEN"):
         run_stage_imports(config, tmp_path)
 
 
 @pytest.mark.parametrize('indirect', [False, True])
-@pytest.mark.parametrize('dependency', ['commerce_orchestrator', 'models.commerce'])
+@pytest.mark.parametrize('dependency', [
+    'application', 'application.shopping.contracts',
+])
 def test_sessions_contract_rejects_application_dependencies(
     tmp_path, indirect, dependency,
 ):
-    import tomllib
+    write_grouped_tree(tmp_path)
 
-    options = tomllib.loads(STAGE_CONFIG.read_text(encoding='utf-8'))
-    for package in options['tool']['importlinter']['root_packages']:
-        directory = tmp_path / package
-        directory.mkdir()
-        (directory / '__init__.py').write_text('', encoding='utf-8')
-    for package in ('catalog', 'pricing', 'inventory', 'cart'):
-        for module in ('schemas', 'models'):
-            (tmp_path / package / f'{module}.py').write_text('', encoding='utf-8')
-    (tmp_path / 'models' / 'commerce.py').write_text('', encoding='utf-8')
-    sessions = tmp_path / 'shopping_session'
-    (tmp_path / 'kernel' / 'allowed.py').write_text(
-        'import catalog.schemas\nimport pricing.schemas\nimport inventory.schemas\n',
-        encoding='utf-8',
-    )
-    (sessions / '__init__.py').write_text(
-        'from . import helper\n' if indirect else f'import {dependency}\n',
-        encoding='utf-8',
+    def write_sessions(source: str) -> None:
+        (tmp_path / 'modules' / 'sessions' / '__init__.py').write_text(
+            source, encoding='utf-8',
+        )
+
+    write_sessions(
+        'from . import helper\n' if indirect else f'import {dependency}\n'
     )
     if indirect:
-        (sessions / 'helper.py').write_text(
+        (tmp_path / 'modules' / 'sessions' / 'helper.py').write_text(
             f'import {dependency}\n', encoding='utf-8',
         )
-    write_stage_module_stubs(tmp_path)
-    config = tmp_path / '.importlinter.stage.toml'
-    config.write_text(STAGE_CONFIG.read_text(encoding='utf-8'), encoding='utf-8')
+    config = write_stage_config(tmp_path)
     with pytest.raises(AssertionError, match='BROKEN'):
         run_stage_imports(config, tmp_path)
 
 
 @pytest.mark.parametrize('indirect', [False, True])
-@pytest.mark.parametrize('source', ['cart', 'storefront', 'sale_facts'])
+@pytest.mark.parametrize('source', ['modules.cart', 'application.storefront',
+                                    'modules.sale_facts'])
 def test_business_facts_contract_rejects_application_dependencies(
     tmp_path, indirect, source,
 ):
-    import tomllib
-
-    options = tomllib.loads(STAGE_CONFIG.read_text(encoding='utf-8'))
-    packages = set(options['tool']['importlinter']['root_packages']) | {'sale_facts'}
-    for package in packages:
-        directory = tmp_path / package
-        directory.mkdir()
-        (directory / '__init__.py').write_text('', encoding='utf-8')
-    for package in ('catalog', 'pricing', 'inventory', 'cart'):
-        for module in ('schemas', 'models'):
-            (tmp_path / package / f'{module}.py').write_text('', encoding='utf-8')
-    (tmp_path / 'models' / 'commerce.py').write_text('', encoding='utf-8')
-    business = tmp_path / source
-    (tmp_path / 'kernel' / 'allowed.py').write_text(
-        'import catalog.schemas\nimport pricing.schemas\nimport inventory.schemas\n',
-        encoding='utf-8',
-    )
+    write_grouped_tree(tmp_path, base_packages=('modules.cart',))
+    business = tmp_path.joinpath(*source.split('.'))
+    business.mkdir(exist_ok=True)
     (business / '__init__.py').write_text(
-        'from . import helper\n' if indirect else 'import commerce_orchestrator\n',
+        'from . import helper\n' if indirect else 'import application.shopping\n',
         encoding='utf-8',
     )
     if indirect:
         (business / 'helper.py').write_text(
-            'import commerce_orchestrator\n', encoding='utf-8',
+            'import application.shopping\n', encoding='utf-8',
         )
-    write_stage_module_stubs(tmp_path)
-    config = tmp_path / '.importlinter.stage.toml'
-    config.write_text(STAGE_CONFIG.read_text(encoding='utf-8'), encoding='utf-8')
+    config = write_stage_config(tmp_path)
     with pytest.raises(AssertionError, match='BROKEN'):
         run_stage_imports(config, tmp_path)
 
 
 @pytest.mark.parametrize('indirect', [False, True])
 def test_checkout_contract_rejects_only_direct_cart_models(tmp_path, indirect):
-    import tomllib
-
-    options = tomllib.loads(STAGE_CONFIG.read_text(encoding='utf-8'))
-    for package in options['tool']['importlinter']['root_packages']:
-        directory = tmp_path / package
-        directory.mkdir()
-        (directory / '__init__.py').write_text('', encoding='utf-8')
-    for package in ('catalog', 'pricing', 'inventory', 'cart'):
-        for module in ('schemas', 'models'):
-            (tmp_path / package / f'{module}.py').write_text('', encoding='utf-8')
-    (tmp_path / 'models' / 'commerce.py').write_text('', encoding='utf-8')
-    (tmp_path / 'kernel' / 'allowed.py').write_text(
-        'import catalog.schemas\nimport pricing.schemas\nimport inventory.schemas\n',
+    write_grouped_tree(tmp_path, base_packages=('modules.cart',))
+    (tmp_path / 'modules' / 'checkout' / 'service.py').write_text(
+        'import modules.cart.service\n' if indirect else 'import modules.cart.models\n',
         encoding='utf-8',
     )
-    (tmp_path / 'checkout' / 'service.py').write_text(
-        'import cart.service\n' if indirect else 'import cart.models\n',
-        encoding='utf-8',
+    (tmp_path / 'modules' / 'cart' / 'service.py').write_text(
+        'import modules.cart.models\n', encoding='utf-8',
     )
-    (tmp_path / 'cart' / 'service.py').write_text(
-        'import cart.models\n', encoding='utf-8',
-    )
-    write_stage_module_stubs(tmp_path)
-    config = tmp_path / '.importlinter.stage.toml'
-    config.write_text(STAGE_CONFIG.read_text(encoding='utf-8'), encoding='utf-8')
+    config = write_stage_config(tmp_path)
     if indirect:
         run_stage_imports(config, tmp_path)
     else:
@@ -232,34 +196,20 @@ def test_checkout_contract_rejects_only_direct_cart_models(tmp_path, indirect):
             run_stage_imports(config, tmp_path)
 
 
-@pytest.mark.parametrize('dependency', ['shopping_session', 'commerce_orchestrator'])
+@pytest.mark.parametrize('dependency', ['modules.sessions', 'application'])
 @pytest.mark.parametrize('indirect', [False, True])
 def test_checkout_contract_rejects_session_or_application(
     tmp_path, dependency, indirect,
 ):
-    import tomllib
-
-    options = tomllib.loads(STAGE_CONFIG.read_text(encoding='utf-8'))
-    for package in options['tool']['importlinter']['root_packages']:
-        directory = tmp_path / package
-        directory.mkdir()
-        (directory / '__init__.py').write_text('', encoding='utf-8')
-    for package in ('catalog', 'pricing', 'inventory'):
-        (tmp_path / package / 'schemas.py').write_text('', encoding='utf-8')
-    (tmp_path / 'kernel' / 'allowed.py').write_text(
-        'import catalog.schemas\nimport pricing.schemas\nimport inventory.schemas\n',
-        encoding='utf-8',
-    )
-    (tmp_path / 'checkout' / '__init__.py').write_text(
+    write_grouped_tree(tmp_path)
+    (tmp_path / 'modules' / 'checkout' / '__init__.py').write_text(
         'from . import helper\n' if indirect else f'import {dependency}\n',
         encoding='utf-8',
     )
     if indirect:
-        (tmp_path / 'checkout' / 'helper.py').write_text(
+        (tmp_path / 'modules' / 'checkout' / 'helper.py').write_text(
             f'import {dependency}\n', encoding='utf-8',
         )
-    write_stage_module_stubs(tmp_path)
-    config = tmp_path / '.importlinter.stage.toml'
-    config.write_text(STAGE_CONFIG.read_text(encoding='utf-8'), encoding='utf-8')
+    config = write_stage_config(tmp_path)
     with pytest.raises(AssertionError, match='BROKEN'):
         run_stage_imports(config, tmp_path)

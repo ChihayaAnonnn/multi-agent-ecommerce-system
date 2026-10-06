@@ -4,11 +4,14 @@ import asyncio
 import pytest
 from sqlalchemy import select
 
-from checkout.gateway import DemoHostCheckoutGateway, UnavailableHostCheckoutGateway
-from checkout.models import CheckoutHandoff
-from checkout.service import CheckoutService
-from commerce_orchestrator.actions import CartActionService
-from shopping_session.service import CommerceError
+from application.shopping.actions import CartActionService
+from infra.checkout_gateway import (
+    DemoHostCheckoutGateway,
+    UnavailableHostCheckoutGateway,
+)
+from modules.checkout.models import CheckoutHandoff
+from modules.checkout.service import CheckoutService
+from modules.sessions.service import CommerceError
 from tests.test_cart_confirmation_mysql import setup
 
 
@@ -82,7 +85,7 @@ def test_no_host_is_503_in_production(migrated_mysql_database):
                 a,s.session_id,preview.action_id,True,'no-host'
             )
         assert error.value.code == 'checkout_unavailable'
-        from cart.models import PendingAction
+        from modules.cart.models import PendingAction
         async with factory() as db:
             action=await db.get(PendingAction,preview.action_id)
             assert action.status=='pending' and action.confirmation_key is None
@@ -91,9 +94,11 @@ def test_no_host_is_503_in_production(migrated_mysql_database):
 
 def test_preview_source_fence_reuses_only_pending_action(migrated_mysql_database):
     from datetime import timedelta
+
     from sqlalchemy import update
-    from shopping_session.models import CommerceSession
-    from db.base import utcnow
+
+    from modules.sessions.models import CommerceSession
+    from shared.time import utcnow
     async def scenario():
         (factory,sessions,cart,a,_,s,_,_,_,_),view=await ready_cart(migrated_mysql_database)
         service=CheckoutService(factory,cart,DemoHostCheckoutGateway())
@@ -115,7 +120,7 @@ def test_preview_source_fence_reuses_only_pending_action(migrated_mysql_database
 
 
 def test_invalid_destination_never_becomes_ready(migrated_mysql_database):
-    from checkout.schemas import Destination
+    from modules.checkout.schemas import Destination
     class Malicious(DemoHostCheckoutGateway):
         async def create_handoff(self,snapshot,request_id):
             return Destination(kind='https',ref='javascript:alert(1)',demo=True)
@@ -135,7 +140,7 @@ def test_invalid_destination_never_becomes_ready(migrated_mysql_database):
 
 
 def test_checkout_migration_roundtrip(migrated_mysql_database):
-    from tests.conftest import downgrade_to,upgrade_to,read_schema
+    from tests.conftest import downgrade_to, read_schema, upgrade_to
     downgrade_to(migrated_mysql_database,'0006_cart')
     upgrade_to(migrated_mysql_database,'0007_checkout')
     assert ('checkout_handoffs',('action_id',)) in read_schema(migrated_mysql_database)['uniques']

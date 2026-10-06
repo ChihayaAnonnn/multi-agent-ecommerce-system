@@ -1,13 +1,16 @@
 """展厅商品引用需核验主体、会话、商品与 SKU；不接受自报事实。"""
 import asyncio
 from types import SimpleNamespace
+
 from fastapi import FastAPI
-from httpx import ASGITransport,AsyncClient
-from api.commerce import router
-from api.identity import require_principal
+from httpx import ASGITransport, AsyncClient
+
+from api.routes.auth import require_principal
+from api.routes.commerce import router
+from modules.identity.types import make_principal
+from modules.sessions.service import ShoppingSessionService
 from tests.test_commerce_facts_mysql import seed
-from identity.types import make_principal
-from shopping_session.service import ShoppingSessionService
+
 
 def test_context_reads_authoritative_facts_and_is_scoped(migrated_mysql_database):
  async def scenario():

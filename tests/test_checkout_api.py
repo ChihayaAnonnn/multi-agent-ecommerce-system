@@ -1,8 +1,10 @@
 """预览和宿主交接均要求 Bearer。"""
 import asyncio
+
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from api.commerce import router
+
+from api.routes.commerce import router
 
 
 def test_checkout_routes_require_bearer():

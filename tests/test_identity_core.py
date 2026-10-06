@@ -14,8 +14,8 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from identity.csrf import CsrfSigner
-from identity.passwords import (
+from modules.identity.csrf import CsrfSigner
+from modules.identity.passwords import (
     MAX_PASSWORD_LENGTH,
     MIN_PASSWORD_LENGTH,
     PasswordPolicyError,
@@ -23,14 +23,14 @@ from identity.passwords import (
     validate_password,
     verify_password,
 )
-from identity.tokens import (
+from modules.identity.tokens import (
     ALGORITHM,
     DEFAULT_ACCESS_TTL_SECONDS,
     REQUIRED_CLAIMS,
     TokenCodec,
     load_token_codec,
 )
-from identity.types import (
+from modules.identity.types import (
     IdentityConfigurationError,
     InvalidAccessToken,
     make_principal,

@@ -5,15 +5,15 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import select, update
 
-from cart.models import PendingAction
-from cart.service import CartService
-from commerce_orchestrator.actions import CartActionService
-from db.base import utcnow
-from identity.types import make_principal
-from inventory.models import DEFAULT_LOCATION_ID
-from sale_facts.service import SaleFactsReader
-from shopping_session.models import CommerceSession
-from shopping_session.service import CommerceError, ShoppingSessionService
+from application.shopping.actions import CartActionService
+from modules.cart.models import PendingAction
+from modules.cart.service import CartService
+from modules.identity.types import make_principal
+from modules.inventory.models import DEFAULT_LOCATION_ID
+from modules.sale_facts.service import SaleFactsReader
+from modules.sessions.models import CommerceSession
+from modules.sessions.service import CommerceError, ShoppingSessionService
+from shared.time import utcnow
 from tests.test_commerce_facts_mysql import seed
 
 
@@ -206,8 +206,8 @@ def test_internal_stock_version_change_and_cart_conflict(migrated_mysql_database
 
 
 def test_confirmation_dependency_failure_rolls_back(migrated_mysql_database):
-    from commerce_orchestrator.facts import CommerceDependencyError
-    from pricing.service import PricingDependencyError
+    from application.shopping.facts import CommerceDependencyError
+    from modules.pricing.service import PricingDependencyError
     async def scenario():
         factory, sessions, service, a, _, s, cart, _, _, skus = await setup(
             migrated_mysql_database

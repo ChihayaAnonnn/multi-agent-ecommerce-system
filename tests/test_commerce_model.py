@@ -1,8 +1,10 @@
 """模型输出只可重排已有事实，不能扩展候选或硬条件。"""
 import asyncio
+
 import pytest
-from commerce_orchestrator.model import SafeCandidateReranker,SafeIntentModel
-from commerce_orchestrator.schemas import ShoppingIntent,IntentUpdate
+
+from application.shopping.guards import SafeCandidateReranker, SafeIntentModel
+from application.shopping.schemas import IntentUpdate, ShoppingIntent
 
 
 @pytest.mark.parametrize('output',[['fake','s1'],['s1','s1'],['s1','s2','s3','fake'],{'sku_id':'s1','price':1}])

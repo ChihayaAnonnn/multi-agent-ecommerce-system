@@ -12,13 +12,8 @@ from tests.test_layering_baseline import MODEL_MODULES
 def test_base_alias_has_single_metadata():
     import importlib
 
-    from db.base import Base as old_base
-    from db.base import TimestampMixin as old_mixin
-    from shared.db import Base, TimestampMixin
+    from shared.db import Base
 
-    assert old_base is Base
-    assert old_mixin is TimestampMixin
-    assert old_base.metadata is Base.metadata
     for name in MODEL_MODULES:
         module = importlib.import_module(f"{name}.models")
         models = [
@@ -42,7 +37,7 @@ def test_base_alias_has_single_metadata():
      "4e7c740c308df7eeae89e12635162c3caaf03c47118a0d682ce7319a660b13ca"),
 ])
 def test_principal_key_is_unchanged(issuer, subject, expected):
-    from identity import types as old
+    from modules.identity import types as old
     from shared.principal import Principal, make_principal, principal_key_for
 
     assert old.Principal is Principal
@@ -55,14 +50,12 @@ def test_principal_key_is_unchanged(issuer, subject, expected):
 
 
 def test_unicode_hash_and_order_are_unchanged():
-    from commerce_orchestrator.utils import request_hash as old_hash
     from shared.hashing import request_hash
 
     data = {
         "商品": "咖啡☕", "quantity": 2, "items": ["甲", "乙"],
         "price": 12.5, "optional": None, "approved": False,
     }
-    assert old_hash is request_hash
     assert request_hash({}) == (
         "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
     )
@@ -76,12 +69,8 @@ def test_unicode_hash_and_order_are_unchanged():
 
 
 def test_utc_round_trip_is_unchanged():
-    from db import base as old
     from shared.time import UtcDateTime, mark_utc, utcnow
 
-    assert old.UtcDateTime is UtcDateTime
-    assert old._mark_utc is mark_utc
-    assert old.utcnow is utcnow
     naive = datetime(2026, 10, 6, 1, 2, 3, 456789)
     aware = naive.replace(tzinfo=timezone(timedelta(hours=8)))
     adapter = TypeAdapter(UtcDateTime)
@@ -102,11 +91,9 @@ def test_utc_round_trip_is_unchanged():
     assert before <= now <= after
 
 
-def test_new_id_remains_uuid4_and_same_alias():
-    from db.base import new_id as old_id
+def test_new_id_remains_uuid4():
     from shared.ids import new_id
 
-    assert old_id is new_id
     generated = [new_id() for _ in range(2)]
     assert generated[0] != generated[1]
     assert all(UUID(value).version == 4 for value in generated)

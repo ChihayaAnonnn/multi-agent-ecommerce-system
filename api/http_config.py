@@ -4,7 +4,14 @@ import ipaddress
 from dataclasses import dataclass, field
 from functools import lru_cache
 
-from identity.types import IdentityConfigurationError
+from modules.identity.types import IdentityConfigurationError
+
+# 认证域共享的请求/响应头常量：中间件与路由都要用，集中在此避免两处重复定义。
+# 刷新 Cookie 名默认值见 IdentityHttpConfig：
+# `__Host-` 前缀要求 Secure、Path=/ 且不带 Domain。
+CSRF_HEADER_NAME = 'X-CSRF-Token'
+NO_STORE = {'Cache-Control': 'no-store'}
+UNAUTHORIZED_HEADERS = {'WWW-Authenticate': 'Bearer'}
 
 
 @dataclass(frozen=True)

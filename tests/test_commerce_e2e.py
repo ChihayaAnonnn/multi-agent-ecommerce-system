@@ -1,20 +1,22 @@
 """真实账号、两个类目、独立图与持久交接的购物准备闭环。"""
 import asyncio
 from datetime import timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 from sqlalchemy import func, select, update
 
-from api import runtime as runtime_module
-from api.commerce import router
-from api.commerce_demo import configure_commerce_demo
-from cart.models import PendingAction
-from checkout.gateway import DemoHostCheckoutGateway
-from commerce_orchestrator.graph import build_commerce_graph
-from commerce_orchestrator.utils import request_hash
-from db.base import new_id, utcnow
-from models.commerce import TurnRequest
-from shopping_session.models import CommerceSession
+from api import deps as runtime_module
+from api.routes.commerce import router
+from api.routes.demo import configure_commerce_demo
+from application.shopping.contracts import TurnRequest
+from application.shopping.graph import build_commerce_graph
+from infra.checkout_gateway import DemoHostCheckoutGateway
+from modules.cart.models import PendingAction
+from modules.sessions.models import CommerceSession
+from shared.hashing import request_hash
+from shared.ids import new_id
+from shared.time import utcnow
 from tests.conftest import downgrade_to, read_schema, upgrade_to
 from tests.test_auth_api import (
     _login,
@@ -26,6 +28,8 @@ from tests.test_auth_api import (
 )
 from tests.test_auth_api import identity_key_files as identity_key_files
 from tests.test_commerce_facts_mysql import seed
+
+DEMO_DIR = Path(__file__).resolve().parents[1] / 'demo'
 
 
 def test_commerce_migration_full_roundtrip(migrated_mysql_database):
@@ -44,7 +48,7 @@ def test_two_category_purchase_preparation(
 ):
     class Model:
         async def parse(self,*args):
-            from commerce_orchestrator.schemas import IntentUpdate
+            from application.shopping.schemas import IntentUpdate
             return IntentUpdate(soft_preferences=['便携'])
         async def rank(self,ids,facts,prefs):
             return ids
@@ -80,7 +84,9 @@ def test_two_category_purchase_preparation(
             settings, session_factory=factory, gateway=host, model=Model(),
         )
         observed, = graphs
-        app=build_app(runtime,settings);app.include_router(router);configure_commerce_demo(app,settings)
+        app = build_app(runtime, settings)
+        app.include_router(router)
+        configure_commerce_demo(app, settings, demo_dir=DEMO_DIR)
         try:
             async with http_client(app) as a,http_client(app) as b:
                 assert (await _register(a,'shopper-a@example.com')).status_code==201
@@ -148,9 +154,16 @@ def test_two_category_purchase_preparation(
 
 def test_demo_is_never_mounted_in_production():
     from fastapi import FastAPI
-    from httpx import ASGITransport,AsyncClient
+    from httpx import ASGITransport, AsyncClient
     async def scenario():
-        app=FastAPI();configure_commerce_demo(app,SimpleNamespace(identity_environment='production',commerce_demo_enabled=True))
+        app = FastAPI()
+        configure_commerce_demo(
+            app,
+            SimpleNamespace(
+                identity_environment='production', commerce_demo_enabled=True,
+            ),
+            demo_dir=DEMO_DIR,
+        )
         async with AsyncClient(transport=ASGITransport(app),base_url='https://test') as client:
             assert (await client.get('/demo/commerce')).status_code==404
     asyncio.run(scenario())

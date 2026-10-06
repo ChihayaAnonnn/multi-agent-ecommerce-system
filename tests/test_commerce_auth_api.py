@@ -1,8 +1,25 @@
 """交易路由必须先验证真实 Bearer 主体。"""
 import asyncio
+
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from api.commerce import router
+
+from api.routes.commerce import router
+from infra.db import create_session_factory
+from modules.sessions.service import ShoppingSessionService
+from tests.test_auth_api import (
+    _login,
+    _register,
+    bearer,
+    build_app,
+    build_runtime,
+    http_client,
+    identity_settings,
+)
+from tests.test_auth_api import (
+    # pytest 按模块命名空间解析 fixture；`as` 形式声明为显式再导出
+    identity_key_files as identity_key_files,
+)
 
 
 def test_sessions_require_bearer_and_reject_self_reported_seen():
@@ -13,9 +30,6 @@ def test_sessions_require_bearer_and_reject_self_reported_seen():
             assert (await client.post('/api/v1/commerce/sessions/x/seen', json={'product_ids':['p']})).status_code == 404
     asyncio.run(scenario())
 
-from tests.test_auth_api import identity_key_files, identity_settings, build_runtime, build_app, http_client, _register, _login, bearer
-from db.session import create_session_factory
-from shopping_session.service import ShoppingSessionService
 
 
 def test_real_accounts_are_isolated_after_refresh(migrated_mysql_database, clean_redis, identity_key_files):

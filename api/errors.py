@@ -2,8 +2,12 @@
 
 from fastapi import HTTPException
 
-from catalog.service import CatalogConflictError, CatalogError, CatalogNotFoundError
 from kernel.errors import CommerceDependencyError, CommerceError
+from modules.catalog.service import (
+    CatalogConflictError,
+    CatalogError,
+    CatalogNotFoundError,
+)
 from shared.errors import DomainError
 
 COMMERCE_HTTP_STATUSES = {

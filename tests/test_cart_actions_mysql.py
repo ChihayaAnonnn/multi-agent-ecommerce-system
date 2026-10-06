@@ -12,16 +12,16 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event, func, select, update
 
-from api.commerce import router
-from api.identity import require_principal
-from cart.models import PendingAction
-from cart.schemas import PendingActionView
-from cart.service import CartService
-from sale_facts.service import SaleFactsReader
+from api.routes.auth import require_principal
+from api.routes.commerce import router
+from modules.cart.models import PendingAction
+from modules.cart.schemas import PendingActionView
+from modules.cart.service import CartService
+from modules.sale_facts.service import SaleFactsReader
+from modules.sessions.models import CommerceSession, SeenSKU
+from modules.sessions.service import CommerceError, ShoppingSessionService
 from shared.principal import make_principal
 from shared.time import utcnow
-from shopping_session.models import CommerceSession, SeenSKU
-from shopping_session.service import CommerceError, ShoppingSessionService
 from tests.test_commerce_facts_mysql import seed
 
 
@@ -66,7 +66,7 @@ def cart_action_case(migrated_mysql_database):
     async def scenario():
         try:
             actions_type = import_module(
-                "commerce_orchestrator.actions"
+                "application.shopping.actions"
             ).CartActionService
         except ModuleNotFoundError:
             pytest.fail("application CartActionService is not implemented")

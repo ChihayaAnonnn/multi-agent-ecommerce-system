@@ -5,14 +5,14 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import update
 
-from commerce_orchestrator.facts import CommerceFactsReader
-from db.session import create_session_factory
-from identity.types import make_principal
-from models.commerce import TurnRequest
-from sale_facts.service import SaleFactsReader
+from application.shopping.contracts import TurnRequest
+from application.shopping.facts import CommerceFactsReader
+from infra.db import create_session_factory
+from modules.identity.types import make_principal
+from modules.sale_facts.service import SaleFactsReader
+from modules.sessions.models import CommerceTurn
+from modules.sessions.service import CommerceError, ShoppingSessionService
 from shared.hashing import request_hash
-from shopping_session.models import CommerceTurn
-from shopping_session.service import CommerceError, ShoppingSessionService
 from tests.commerce_helpers import build_orchestrator
 from tests.test_commerce_facts_mysql import seed
 

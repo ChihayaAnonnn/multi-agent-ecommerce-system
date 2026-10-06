@@ -1,8 +1,10 @@
 """读车必须先校验会话归属。"""
 import asyncio
+
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from api.commerce import router
+
+from api.routes.commerce import router
 
 
 def test_cart_requires_bearer():

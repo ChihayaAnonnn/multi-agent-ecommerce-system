@@ -4,11 +4,10 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from catalog.schemas import CategoryRefView
-from db.base import utcnow
+from application.storefront.service import StorefrontService
 from kernel.errors import CommerceDependencyError
-from sale_facts.service import SaleFactsReader
-from storefront.service import StorefrontService
+from modules.catalog.schemas import CategoryRefView
+from modules.sale_facts.service import SaleFactsReader
 from tests.test_commerce_facts import Catalog, Inventory, Prices
 
 
@@ -68,6 +67,7 @@ def test_dependency_failure_is_not_empty_results():
 
 def test_real_batch_queries_do_not_grow_with_product_count(migrated_mysql_database):
     from sqlalchemy import event
+
     from tests.test_commerce_facts_mysql import seed
     async def scenario():
         factory,catalog,prices,stock,cats,products,skus=await seed(migrated_mysql_database)

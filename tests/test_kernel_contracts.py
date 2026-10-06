@@ -12,9 +12,14 @@ from typing import get_type_hints
 import pytest
 from pydantic import ValidationError
 
-from catalog.schemas import AttributeView, ProductView, SaleFactView, SKUDetailView
-from inventory.schemas import AvailabilityView
-from pricing.schemas import PriceView
+from modules.catalog.schemas import (
+    AttributeView,
+    ProductView,
+    SaleFactView,
+    SKUDetailView,
+)
+from modules.inventory.schemas import AvailabilityView
+from modules.pricing.schemas import PriceView
 
 READ_AT = datetime(2026, 10, 6, 1, 2, 3)
 
@@ -52,10 +57,7 @@ def sale_view(sku=None, status='active'):
 
 
 def test_turn_contract_is_same_object_and_same_json():
-    contracts = importlib.import_module('commerce_orchestrator.contracts')
-    legacy = importlib.import_module('models.commerce')
-    assert legacy.TurnRequest is contracts.TurnRequest
-    assert legacy.TurnResponse is contracts.TurnResponse
+    contracts = importlib.import_module('application.shopping.contracts')
     request = contracts.TurnRequest(turn_id='turn')
     assert json.loads(request.model_dump_json()) == {
         'turn_id': 'turn', 'message': '', 'constraints': None,
@@ -86,11 +88,11 @@ def test_turn_contract_is_same_object_and_same_json():
 
 
 def test_graph_hints_resolve_real_contracts():
-    contracts = importlib.import_module('commerce_orchestrator.contracts')
-    state = importlib.import_module('commerce_orchestrator.state')
+    contracts = importlib.import_module('application.shopping.contracts')
+    state = importlib.import_module('application.shopping.state')
     intent = importlib.import_module('kernel.intent')
-    from commerce_orchestrator.schemas import CommerceGraphState
-    from shopping_session.schemas import TurnClaim
+    from application.shopping.schemas import CommerceGraphState
+    from modules.sessions.schemas import TurnClaim
 
     assert CommerceGraphState is state.CommerceGraphState
     hints = get_type_hints(state.CommerceGraphState)
@@ -131,8 +133,8 @@ def test_legacy_quote_paths_keep_existing_differences(
     currency, status, quantity, main, api, cart,
 ):
     quotes = importlib.import_module('kernel.quotes')
-    from api.commerce_read import _quote_reason
-    from cart.service import CartService
+    from api.routes.catalog import _quote_reason
+    from modules.cart.service import CartService
 
     sku, price, stock = sku_view(), price_view(currency), stock_view(status, quantity)
     assert quotes.evaluate_purchasability(sku, price, stock) == main
@@ -156,7 +158,7 @@ def test_legacy_quote_paths_keep_existing_differences(
         async def lock_availability(self, database, ids):
             return {'sku': stock}
 
-    from sale_facts.service import SaleFactsReader
+    from modules.sale_facts.service import SaleFactsReader
 
     facts = SaleFactsReader(Catalog(), Pricing(), Inventory())
     result, _ = asyncio.run(CartService(None, facts).lock_quotes(None, ['sku']))
@@ -214,8 +216,8 @@ def test_legacy_cart_uses_sale_product_status_when_sources_conflict(
     sku_status, product_status, api, cart,
 ):
     quotes = importlib.import_module('kernel.quotes')
-    from api.commerce_read import _quote_reason
-    from cart.service import _legacy_quote_reason
+    from api.routes.catalog import _quote_reason
+    from modules.cart.service import _legacy_quote_reason
 
     sku = sku_view(product_status=sku_status)
     sale, price, stock = sale_view(sku, product_status), price_view(), stock_view()
@@ -226,21 +228,21 @@ def test_legacy_cart_uses_sale_product_status_when_sources_conflict(
 
 
 def test_api_legacy_helper_delegates_to_shared_pure_evaluator(monkeypatch):
-    from api import commerce_read
+    from api.routes import catalog
     from kernel.quotes import evaluate_purchasability
 
     monkeypatch.setattr(
-        commerce_read, 'evaluate_legacy_api_purchasability',
+        catalog, 'evaluate_legacy_api_purchasability',
         evaluate_purchasability, raising=False,
     )
-    assert commerce_read._quote_reason(
+    assert catalog._quote_reason(
         sku_view(), price_view('USD'), stock_view(),
     ) == 'price_missing'
 
 
 def test_cart_legacy_helper_delegates_to_shared_pure_evaluator(monkeypatch):
-    from cart import service
     from kernel.quotes import evaluate_purchasability
+    from modules.cart import service
 
     def evaluate_sale(sale, price, stock):
         return evaluate_purchasability(sale.sku, price, stock)
@@ -310,7 +312,7 @@ def test_budget_equality_and_price_tolerance_match_baseline(budget, price, expec
 
 def test_amount_zero_and_utc_json_match_baseline():
     quotes = importlib.import_module('kernel.quotes')
-    from commerce_orchestrator.schemas import CandidatePage, SKUQuote
+    from application.shopping.schemas import CandidatePage, SKUQuote
 
     assert SKUQuote is quotes.SKUQuote
     assert CandidatePage is quotes.CandidatePage
@@ -327,13 +329,14 @@ def test_amount_zero_and_utc_json_match_baseline():
 
 
 @pytest.mark.parametrize('modules', [
-    ['commerce_orchestrator.contracts', 'commerce_orchestrator.state',
-     'cart.schemas', 'catalog.schemas'],
-    ['cart.schemas', 'catalog.schemas', 'commerce_orchestrator.state',
-     'commerce_orchestrator.contracts'],
-    ['catalog.schemas', 'commerce_orchestrator.contracts', 'cart.schemas',
-     'commerce_orchestrator.state'],
-    ['models.commerce', 'shopping_session.schemas', 'commerce_orchestrator.schemas'],
+    ['application.shopping.contracts', 'application.shopping.state',
+     'modules.cart.schemas', 'modules.catalog.schemas'],
+    ['modules.cart.schemas', 'modules.catalog.schemas',
+     'application.shopping.state', 'application.shopping.contracts'],
+    ['modules.catalog.schemas', 'application.shopping.contracts',
+     'modules.cart.schemas', 'application.shopping.state'],
+    ['api.contracts.commerce', 'modules.sessions.schemas',
+     'application.shopping.schemas'],
 ])
 def test_contract_import_orders_resolve_without_placeholders(modules):
     script = f"""
@@ -341,8 +344,8 @@ import importlib
 from typing import get_type_hints
 for name in {modules!r}:
     importlib.import_module(name)
-from commerce_orchestrator.contracts import TurnRequest, TurnResponse
-from commerce_orchestrator.state import CommerceGraphState
+from application.shopping.contracts import TurnRequest, TurnResponse
+from application.shopping.state import CommerceGraphState
 hints = get_type_hints(CommerceGraphState)
 assert hints['turn'] is TurnRequest
 assert hints['response'] is TurnResponse
@@ -354,31 +357,19 @@ assert hints['response'] is TurnResponse
 
 
 @pytest.mark.parametrize('indirect', [False, True])
-@pytest.mark.parametrize('dependency', ['config', 'cart', 'catalog.service'])
+@pytest.mark.parametrize('dependency', [
+    'config', 'modules.cart', 'modules.catalog.service',
+])
 def test_kernel_stage_rejects_dependencies_outside_schema_whitelist(
     tmp_path, indirect, dependency,
 ):
-    import tomllib
-
     from tests.test_layering import (
-        STAGE_CONFIG,
         run_stage_imports,
-        write_stage_module_stubs,
+        write_grouped_tree,
+        write_stage_config,
     )
 
-    options = tomllib.loads(STAGE_CONFIG.read_text(encoding='utf-8'))
-    for package in [*options['tool']['importlinter']['root_packages'], 'kernel']:
-        directory = tmp_path / package
-        directory.mkdir(exist_ok=True)
-        (directory / '__init__.py').write_text('', encoding='utf-8')
-    for package in ['catalog', 'pricing', 'inventory']:
-        for module in ['schemas', 'service', 'models']:
-            (tmp_path / package / f'{module}.py').write_text('', encoding='utf-8')
-    (tmp_path / 'models' / 'commerce.py').write_text('', encoding='utf-8')
-    (tmp_path / 'kernel' / 'allowed.py').write_text(
-        'import catalog.schemas\nimport pricing.schemas\nimport inventory.schemas\n',
-        encoding='utf-8',
-    )
+    write_grouped_tree(tmp_path, base_packages=('modules.cart',))
     (tmp_path / 'kernel' / '__init__.py').write_text(
         'from . import helper\n' if indirect else f'import {dependency}\n',
         encoding='utf-8',
@@ -387,40 +378,25 @@ def test_kernel_stage_rejects_dependencies_outside_schema_whitelist(
         (tmp_path / 'kernel' / 'helper.py').write_text(
             f'import {dependency}\n', encoding='utf-8',
         )
-    write_stage_module_stubs(tmp_path)
-    config = tmp_path / '.importlinter.stage.toml'
-    config.write_text(STAGE_CONFIG.read_text(encoding='utf-8'), encoding='utf-8')
+    config = write_stage_config(tmp_path)
     with pytest.raises(AssertionError, match='BROKEN'):
         run_stage_imports(config, tmp_path)
 
 
-@pytest.mark.parametrize('package', ['catalog', 'pricing', 'inventory'])
+@pytest.mark.parametrize('package', ['modules.catalog', 'modules.pricing',
+                                     'modules.inventory'])
 def test_base_schema_stage_rejects_reverse_kernel_dependency(tmp_path, package):
-    import tomllib
-
     from tests.test_layering import (
-        STAGE_CONFIG,
         run_stage_imports,
-        write_stage_module_stubs,
+        write_grouped_tree,
+        write_stage_config,
     )
 
-    options = tomllib.loads(STAGE_CONFIG.read_text(encoding='utf-8'))
-    for name in [*options['tool']['importlinter']['root_packages'], 'kernel']:
-        directory = tmp_path / name
-        directory.mkdir(exist_ok=True)
-        (directory / '__init__.py').write_text('', encoding='utf-8')
-    for name in ['catalog', 'pricing', 'inventory']:
-        (tmp_path / name / 'models.py').write_text('', encoding='utf-8')
-        (tmp_path / name / 'schemas.py').write_text(
+    write_grouped_tree(tmp_path)
+    for name in ('modules.catalog', 'modules.pricing', 'modules.inventory'):
+        (tmp_path.joinpath(*name.split('.')).joinpath('schemas.py')).write_text(
             'import kernel\n' if name == package else '', encoding='utf-8',
         )
-    (tmp_path / 'models' / 'commerce.py').write_text('', encoding='utf-8')
-    (tmp_path / 'kernel' / 'allowed.py').write_text(
-        'import catalog.schemas\nimport pricing.schemas\nimport inventory.schemas\n',
-        encoding='utf-8',
-    )
-    write_stage_module_stubs(tmp_path)
-    config = tmp_path / '.importlinter.stage.toml'
-    config.write_text(STAGE_CONFIG.read_text(encoding='utf-8'), encoding='utf-8')
+    config = write_stage_config(tmp_path)
     with pytest.raises(AssertionError, match='BROKEN'):
         run_stage_imports(config, tmp_path)

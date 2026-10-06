@@ -28,6 +28,11 @@ isProject: false
 
 # 多Agent电商推荐与营销系统 — 从零到面试全攻略
 
+> **适用版本**：本文描述的是按 D1/D2 保留在 `legacy/` 的旧推荐栈
+> （`legacy/agents/`、`legacy/orchestrator/`、`legacy/models/`、`legacy/services/`），
+> **不是当前主线**。现行架构见 [architecture.md](architecture.md)。
+> 旧栈的接口、注册与行为保持不变，代码路径已整体迁入 `legacy/`。
+
 ## 一、调研结论：企业级多Agent项目参考
 
 ### 1.1 GitHub 顶级参考项目

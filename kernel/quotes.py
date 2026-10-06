@@ -2,9 +2,9 @@
 
 from pydantic import BaseModel, Field
 
-from catalog.schemas import SaleFactView, SKUDetailView
-from inventory.schemas import AvailabilityView
-from pricing.schemas import PriceView
+from modules.catalog.schemas import SaleFactView, SKUDetailView
+from modules.inventory.schemas import AvailabilityView
+from modules.pricing.schemas import PriceView
 from shared.time import UtcDateTime
 
 __all__ = [
