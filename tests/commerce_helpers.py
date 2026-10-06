@@ -1,10 +1,13 @@
 """测试按显式依赖构造完整应用与单轮图。"""
 
-from application.shopping.compare import CompareService
-from application.shopping.discovery import DiscoveryService
-from application.shopping.graph import CommerceGraphDependencies, build_commerce_graph
-from application.shopping.guards import SafeCandidateReranker, SafeIntentModel
-from application.shopping.orchestrator import CommerceOrchestrator
+from ecom.application.shopping.compare import CompareService
+from ecom.application.shopping.discovery import DiscoveryService
+from ecom.application.shopping.graph import (
+    CommerceGraphDependencies,
+    build_commerce_graph,
+)
+from ecom.application.shopping.guards import SafeCandidateReranker, SafeIntentModel
+from ecom.application.shopping.orchestrator import CommerceOrchestrator
 
 
 def build_orchestrator(sessions, facts, catalog, cart=None, actions=None):

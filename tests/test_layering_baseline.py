@@ -17,16 +17,16 @@ from tests.layering_reports import CONTRACT_FILES
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "layering"
 MODEL_MODULES = (
-    "modules.catalog", "modules.pricing", "modules.inventory",
-    "modules.identity", "modules.sessions", "modules.cart",
-    "modules.checkout", "modules.events",
+    "ecom.modules.catalog", "ecom.modules.pricing", "ecom.modules.inventory",
+    "ecom.modules.identity", "ecom.modules.sessions", "ecom.modules.cart",
+    "ecom.modules.checkout", "ecom.modules.events",
 )
 
 
 def metadata_signature() -> dict:
     from sqlalchemy.dialects.mysql import dialect
 
-    from shared.db import Base
+    from ecom.shared.db import Base
 
     for module in MODEL_MODULES:
         importlib.import_module(f"{module}.models")
@@ -81,18 +81,19 @@ async def capture_application_contracts(directory: Path) -> None:
         if variable.startswith(("ECOM_", "OPENAI_")):
             del os.environ[variable]
 
-    import config
-    import config.settings as settings_module
+    import ecom.config as settings_module
 
     isolated_settings = settings_module.Settings(
         _env_file=None, database_url="", llm_api_key="test-only-not-a-secret",
         identity_environment="production", commerce_demo_enabled=False,
     )
-    config.get_settings = lambda: isolated_settings
+    # 组合根在 create_app() 调用时取配置；先打桩再导入即可隔离环境。
     settings_module.get_settings = lambda: isolated_settings
     from httpx import ASGITransport, AsyncClient
 
-    from main import app
+    from ecom.main import create_app
+
+    app = create_app()
 
     def effective_routes(routes):
         for route in routes:

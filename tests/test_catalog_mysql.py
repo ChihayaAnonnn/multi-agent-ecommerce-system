@@ -7,9 +7,9 @@ import asyncio
 import pytest
 from sqlalchemy import func, select
 
-from infra.db import create_session_factory
-from modules.catalog.models import SKU, Product
-from modules.catalog.schemas import (
+from ecom.infra.db import create_session_factory
+from ecom.modules.catalog.models import SKU, Product
+from ecom.modules.catalog.schemas import (
     AttributeInput,
     CategoryInput,
     MediaInput,
@@ -18,7 +18,7 @@ from modules.catalog.schemas import (
     ProductInput,
     SKUInput,
 )
-from modules.catalog.service import (
+from ecom.modules.catalog.service import (
     CatalogConflictError,
     CatalogNotFoundError,
     CatalogService,

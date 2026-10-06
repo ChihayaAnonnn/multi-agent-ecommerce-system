@@ -424,19 +424,61 @@ def test_generated_contracts_execute_real_cli(layout_case):
     assert 'BROKEN' in result.stdout
 
 
-def test_original_repository_passes_ast_and_has_current_generated_contracts():
+def test_packaged_repository_passes_ast_and_has_current_generated_contracts():
     import tomllib
 
     root = Path(__file__).resolve().parents[1]
     options = tomllib.loads((root / 'pyproject.toml').read_text(encoding='utf-8'))
-    layout = options['tool']['layering']['layout']
-    assert rules().check_import_boundaries(root, layout) == []
-    assert (root / '.importlinter.stage.toml').read_text(encoding='utf-8') == (
-        rules().generate_import_contracts(root, layout)
+    assert options['tool']['layering']['layout'] == 'packaged'
+    assert rules().check_import_boundaries(root, 'packaged') == []
+    generated = tomllib.loads(rules().generate_import_contracts(root, 'packaged'))
+    assert options['tool']['importlinter'] == generated['tool']['importlinter']
+    assert options['tool']['layering']['inventory'] == (
+        generated['tool']['layering']['inventory']
     )
 
 
-@pytest.mark.parametrize('layout', ['packaged', 'unknown', ''])
+@pytest.fixture
+def packaged_case(tmp_path):
+    """唯一包根布局的最小源文件图：分组包 + 外部命名空间包 + 适配器。"""
+    for name, source in {
+        'ecom.config': '',
+        'ecom.shared.time': '',
+        'ecom.kernel.quotes': '',
+        'ecom.modules.catalog.models': 'class Product: pass\n',
+        'ecom.modules.catalog.schemas':
+            '__all__ = ["ProductView"]\nclass ProductView: pass\n',
+        'ecom.modules.catalog.service':
+            '__all__ = ["CatalogService"]\nclass CatalogService: pass\n',
+        'ecom.modules.inventory.service':
+            'from ecom.modules.catalog.service import CatalogService\n',
+        'ecom.api.deps': 'import ecom.infra.checkout_gateway as gateway\n',
+        'ecom.api.routes.health': '',
+        'ecom.infra.checkout_gateway': '',
+        'ecom.infra.db': '',
+        'ecom.legacy.infrastructure.redis_client': '',
+        'ecom.application.shopping.orchestrator': '',
+        'data.download_amazon_metadata': '',
+    }.items():
+        write_module(tmp_path, name, source)
+    return tmp_path
+
+
+def test_packaged_layout_enforces_external_and_adapter_boundaries(packaged_case):
+    checker = rules().check_import_boundaries
+    assert checker(packaged_case, 'packaged') == []
+    write_module(packaged_case, 'ecom.shared.time',
+                 'import data.download_amazon_metadata\n')
+    assert any('data.download_amazon_metadata' in issue
+               for issue in checker(packaged_case, 'packaged'))
+    write_module(packaged_case, 'ecom.shared.time', '')
+    write_module(packaged_case, 'ecom.api.routes.health',
+                 'from ecom.legacy.infrastructure import redis_client\n')
+    assert any('redis_client' in issue
+               for issue in checker(packaged_case, 'packaged'))
+
+
+@pytest.mark.parametrize('layout', ['unknown', ''])
 def test_absent_or_unknown_layout_fails_closed(layout_case, layout):
     with pytest.raises(ValueError):
         rules().generate_import_contracts(layout_case, layout)

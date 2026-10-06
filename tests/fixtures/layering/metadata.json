@@ -1,13 +1,13 @@
 {
   "modules": [
-    "modules.catalog",
-    "modules.pricing",
-    "modules.inventory",
-    "modules.identity",
-    "modules.sessions",
-    "modules.cart",
-    "modules.checkout",
-    "modules.events"
+    "ecom.modules.catalog",
+    "ecom.modules.pricing",
+    "ecom.modules.inventory",
+    "ecom.modules.identity",
+    "ecom.modules.sessions",
+    "ecom.modules.cart",
+    "ecom.modules.checkout",
+    "ecom.modules.events"
   ],
   "tables": {
     "cart_lines": {

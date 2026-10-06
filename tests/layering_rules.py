@@ -1,4 +1,4 @@
-"""迁移前角色清单、静态公共入口检查与真实 import-linter 契约生成。"""
+"""三种布局（original/grouped/packaged）的角色清单、静态公共入口检查与契约生成。"""
 
 from __future__ import annotations
 
@@ -48,6 +48,12 @@ class LayoutTables:
     model_adapter: str
     orchestrator: str
     orchestrator_graph: str
+    # packaged 布局：所有分组都在唯一包根之内，forbidden 目标要展开为分组根包。
+    package_root: str | None = None
+    layer_roots: frozenset[str] = frozenset()
+    main_module: str = 'main'
+    # None 表示沿用 `composition - {'main'}`（顶层 `main` 不是根包，grimp 看不到）。
+    protected_importers: frozenset[str] | None = None
 
     @property
     def roots(self) -> frozenset[str]:
@@ -56,10 +62,33 @@ class LayoutTables:
 
     @property
     def registered(self) -> frozenset[str]:
-        return frozenset({'main'} | set(self.modules) | {
+        return frozenset({self.main_module} | set(self.modules) | {
             f'{package}.{name}'
             for package, names in self.modules.items() for name in names.split()
         })
+
+    @property
+    def allowed_importers(self) -> frozenset[str]:
+        """protected 契约里允许直接导入具体适配器的模块（组合根）。"""
+        if self.protected_importers is not None:
+            return self.protected_importers
+        return self.composition - {'main'}
+
+    def group_root(self, role: str) -> str:
+        """某个分组在 forbidden 契约里使用的根包名（packaged 下带包根前缀）。"""
+        return next((prefix for prefix, prefix_role in self.prefix_roles
+                     if prefix_role == role), role)
+
+    def forbidden_roots(self, roots: set[str]) -> set[str]:
+        """把实际顶层根包换算为 forbidden 契约可引用的目标包名。
+
+        packaged 布局下所有分组都在唯一包根之内，裸 `ecom` 不能作为 forbidden
+        目标（那会连 `ecom.shared` 一起禁掉），必须展开为各分组根包；包根之外的
+        顶层命名空间包（data/scripts/migrations）保持原样。
+        """
+        if self.package_root is None:
+            return set(roots)
+        return (set(roots) - {self.package_root}) | set(self.layer_roots)
 
     @property
     def kernel_packages(self) -> frozenset[str]:
@@ -316,15 +345,147 @@ GROUPED_TABLES = LayoutTables(
     orchestrator_graph='application.shopping.graph',
 )
 
-_LAYOUTS = {'original': ORIGINAL_TABLES, 'grouped': GROUPED_TABLES}
+PACKAGED_BUSINESS = {
+    'ecom.modules.cart', 'ecom.modules.catalog', 'ecom.modules.checkout',
+    'ecom.modules.events', 'ecom.modules.identity', 'ecom.modules.inventory',
+    'ecom.modules.pricing', 'ecom.modules.sale_facts', 'ecom.modules.sessions',
+}
+PACKAGED_LEGACY = {'ecom.legacy'}
+PACKAGED_APPLICATION = {'ecom.application'}
+PACKAGED_ADAPTERS = {'ecom.infra.checkout_gateway', 'ecom.infra.db', 'ecom.infra.llm'}
+# package_root 之外仍受契约约束的顶层命名空间包；`ecom` 本身不能作为
+# forbidden 目标，分组根包由 layer_roots 展开。
+PACKAGED_LAYER_ROOTS = frozenset({
+    'ecom.api', 'ecom.application', 'ecom.config', 'ecom.infra',
+    'ecom.kernel', 'ecom.legacy', 'ecom.modules', 'ecom.shared',
+})
+PACKAGED_MODULES = {
+    'ecom': 'api application config infra kernel legacy main modules shared',
+    'ecom.api': 'contracts deps errors http_config middleware routes',
+    'ecom.api.contracts': 'auth commerce',
+    'ecom.api.routes': 'auth catalog commerce demo health legacy_experiments '
+                       'legacy_recommendations metrics storefront',
+    'ecom.application': 'shopping storefront',
+    'ecom.application.shopping': 'actions compare contracts discovery facts graph '
+                                 'guards intent nodes orchestrator ports schemas state',
+    'ecom.application.storefront': 'schemas service',
+    'ecom.infra': 'checkout_gateway db llm',
+    'ecom.kernel': 'constraints errors intent quotes',
+    'ecom.legacy': 'agents catalog_adapter infrastructure models orchestrator services',
+    'ecom.legacy.agents': 'base_agent inventory_agent marketing_copy_agent '
+                          'product_rec_agent user_profile_agent',
+    'ecom.legacy.infrastructure': 'milvus_client mysql_client redis_client',
+    'ecom.legacy.models': 'schemas',
+    'ecom.legacy.orchestrator': 'graph supervisor',
+    'ecom.legacy.services': 'ab_test feature_store metrics',
+    'ecom.modules': 'cart catalog checkout events identity inventory pricing '
+                    'sale_facts sessions',
+    'ecom.modules.cart': 'models schemas service',
+    'ecom.modules.catalog': 'models ports schemas seed service',
+    'ecom.modules.checkout': 'models ports schemas service',
+    'ecom.modules.events': 'models schemas service',
+    'ecom.modules.identity': 'csrf models passwords rate_limit service tokens types',
+    'ecom.modules.inventory': 'models schemas seed service',
+    'ecom.modules.pricing': 'models schemas seed service',
+    'ecom.modules.sale_facts': 'service',
+    'ecom.modules.sessions': 'models schemas service',
+    'ecom.shared': 'db errors hashing ids principal time',
+    'data': 'download_amazon_metadata import_amazon_metadata',
+    'migrations': 'env versions versions.0001_catalog versions.0002_pricing '
+                  'versions.0003_inventory versions.0004_identity '
+                  'versions.0005_commerce_sessions versions.0006_cart '
+                  'versions.0007_checkout versions.0008_commerce_events',
+    'scripts': 'reset_demo_password',
+}
+PACKAGED_EXACT_EDGES = {
+    ('ecom.legacy.catalog_adapter', 'ecom.legacy.models.schemas'),
+    ('ecom.api.routes.commerce', 'ecom.api.contracts.commerce'),
+    ('ecom.api.routes.legacy_recommendations', 'ecom.legacy.models.schemas'),
+    ('scripts.reset_demo_password', 'ecom.infra.db'),
+    ('scripts.reset_demo_password', 'ecom.modules.identity.passwords'),
+    ('data.import_amazon_metadata', 'ecom.modules.catalog.models'),
+    ('data.import_amazon_metadata', 'ecom.modules.catalog.seed'),
+    ('data.import_amazon_metadata', 'ecom.modules.inventory.models'),
+    ('data.import_amazon_metadata', 'ecom.modules.inventory.seed'),
+    ('data.import_amazon_metadata', 'ecom.modules.pricing.seed'),
+    ('data.import_amazon_metadata', 'ecom.infra.db'),
+} | {('migrations.env', f'{module}.models') for module in PACKAGED_BUSINESS}
+PACKAGED_KERNEL_SCHEMAS = {
+    'ecom.modules.catalog.schemas', 'ecom.modules.inventory.schemas',
+    'ecom.modules.pricing.schemas',
+}
+PACKAGED_KERNEL_EDGES = {
+    ('ecom.kernel.constraints', 'ecom.modules.catalog.schemas'),
+    ('ecom.kernel.constraints', 'ecom.modules.pricing.schemas'),
+    ('ecom.kernel.quotes', 'ecom.modules.catalog.schemas'),
+    ('ecom.kernel.quotes', 'ecom.modules.pricing.schemas'),
+    ('ecom.kernel.quotes', 'ecom.modules.inventory.schemas'),
+}
+
+PACKAGED_TABLES = LayoutTables(
+    label='packaged',
+    business=frozenset(PACKAGED_BUSINESS),
+    legacy=frozenset(PACKAGED_LEGACY),
+    application=frozenset(PACKAGED_APPLICATION),
+    application_facts=frozenset({'ecom.application.shopping'}),
+    sessions=frozenset({'ecom.modules.sessions'}),
+    facts=frozenset({'ecom.modules.cart', 'ecom.application.storefront',
+                     'ecom.modules.sale_facts'}),
+    http_contracts=frozenset({'ecom.api.contracts.commerce'}),
+    composition=frozenset({'ecom.main', 'ecom.api.deps'}),
+    adapters=frozenset(PACKAGED_ADAPTERS),
+    # 旧栈的 MySQL/Redis/Milvus 连接封装仍在 ecom/legacy/infrastructure/，
+    # 继续受 protected 契约约束：只有组合根可以直接导入。
+    adapter_prefixes=frozenset({'ecom.legacy.infrastructure'}),
+    stack_targets=frozenset(PACKAGED_ADAPTERS | {'ecom.config', 'ecom.legacy'}),
+    prefix_roles=(
+        ('ecom.modules', 'business'),
+        ('ecom.application', 'application'),
+        ('ecom.kernel', 'kernel'),
+        ('ecom.shared', 'shared'),
+        ('ecom.infra', 'infra'),
+        ('ecom.legacy', 'legacy'),
+        ('ecom.api', 'api'),
+        ('ecom.config', 'config'),
+        ('data', 'tool'),
+        ('scripts', 'tool'),
+        ('migrations', 'tool'),
+        ('ecom', 'package'),
+    ),
+    aliases=frozenset(),
+    api_modules=frozenset(),
+    modules=PACKAGED_MODULES,
+    exact_edges=frozenset(PACKAGED_EXACT_EDGES),
+    private_aliases=frozenset({
+        ('ecom.modules.identity.types', 'ecom.shared.principal', '_length_prefixed'),
+    }),
+    kernel_schemas=frozenset(PACKAGED_KERNEL_SCHEMAS),
+    kernel_edges=frozenset(PACKAGED_KERNEL_EDGES),
+    cart='ecom.modules.cart',
+    checkout='ecom.modules.checkout',
+    checkout_service='ecom.modules.checkout.service',
+    checkout_gateway='ecom.infra.checkout_gateway',
+    kernel_ports=(
+        'ecom.application.shopping.ports', 'ecom.application.shopping.guards',
+    ),
+    model_adapter='ecom.infra.llm',
+    orchestrator='ecom.application.shopping.orchestrator',
+    orchestrator_graph='ecom.application.shopping.graph',
+    package_root='ecom',
+    layer_roots=PACKAGED_LAYER_ROOTS,
+    main_module='ecom.main',
+    protected_importers=frozenset({'ecom.main', 'ecom.api.deps'}),
+)
+
+_LAYOUTS = {
+    'original': ORIGINAL_TABLES,
+    'grouped': GROUPED_TABLES,
+    'packaged': PACKAGED_TABLES,
+}
 
 
 def _layout_tables(layout: str) -> LayoutTables:
-    """取用布局常量；未启用的布局必须显式失败而不是静默降级。"""
-    if layout == 'packaged':
-        raise ValueError(
-            f'layout {layout!r} 尚未启用；Task 15 前仅支持 original 与 grouped'
-        )
+    """取用布局常量；未知布局必须显式失败而不是静默降级。"""
     try:
         return _LAYOUTS[layout]
     except KeyError:
@@ -342,8 +503,15 @@ def _owner(module: str, packages: frozenset[str]) -> str | None:
 
 
 def _boundary(module: str, tables: LayoutTables) -> str:
-    """跨边界判定用的归属名：业务模块归其业务包，其余归顶层包。"""
-    return _owner(module, tables.business) or module.split('.')[0]
+    """跨边界判定用的归属名：业务模块归其业务包，其余归顶层分组包。"""
+    owner = _owner(module, tables.business)
+    if owner:
+        return owner
+    root = tables.package_root
+    if root and (module == root or module.startswith(root + '.')):
+        rest = module[len(root):].lstrip('.')
+        return f'{root}.{rest.split(".")[0]}' if rest else root
+    return module.split('.')[0]
 
 
 def _graph_visible(module: str, modules: dict[str, Path | None]) -> bool:
@@ -516,6 +684,9 @@ def _contracts(modules: dict[str, Path | None],
     # 顶层命名空间包（data/scripts/migrations）本就没有 __init__.py，
     # 叠加后会把它们从 shared/kernel 的 forbidden 集合里静默剔除，削弱契约。
     visible = {module for module in modules if _graph_visible(module, modules)}
+    # packaged 下所有分组都在唯一包根内，forbidden 目标展开为分组根包；
+    # 包根之外的命名空间包（data/scripts/migrations）保持原样。
+    group_roots = tables.forbidden_roots(set(roots))
     contracts = []
 
     def add(name, sources, targets, **options):
@@ -526,14 +697,17 @@ def _contracts(modules: dict[str, Path | None],
                                        **options))
 
     add('业务与应用能力不得依赖 HTTP 层',
-        tables.business | tables.application, ['api'])
-    add('shared 不得依赖配置或业务包', ['shared'], set(roots) - {'shared'})
-    add('kernel 只允许基础 schemas 与 shared', ['kernel'],
-        set(roots) - {'kernel', 'shared'}, ignores=[
+        tables.business | tables.application, [tables.group_root('api')])
+    add('shared 不得依赖配置或业务包', [tables.group_root('shared')],
+        sorted(group_roots - {tables.group_root('shared')}))
+    add('kernel 只允许基础 schemas 与 shared', [tables.group_root('kernel')],
+        sorted(group_roots - {tables.group_root('kernel'),
+                              tables.group_root('shared')}), ignores=[
             f'{source} -> {target}' for source, target in sorted(tables.kernel_edges)
             if source in modules and target in modules
         ])
-    add('基础 schemas 不得反向依赖 kernel', tables.kernel_schemas, ['kernel'])
+    add('基础 schemas 不得反向依赖 kernel', tables.kernel_schemas,
+        [tables.group_root('kernel')])
     add('sessions 不得依赖应用响应契约', tables.sessions,
         sorted(tables.application | tables.http_contracts))
     add('业务事实能力不得依赖应用事实读取', tables.facts,
@@ -572,7 +746,7 @@ def _contracts(modules: dict[str, Path | None],
             'name': '具体适配器仅组合根与精确兼容入口可以直接导入',
             'type': 'protected', 'protected_modules': protected,
             'allowed_importers': sorted(
-                (tables.composition - {'main'}) & modules.keys()
+                tables.allowed_importers & modules.keys()
             ),
             'ignore_imports': [f'{source} -> {target}'
                                for source, target in sorted(tables.exact_edges)
@@ -599,10 +773,17 @@ def generate_import_contracts(root: Path, layout: str) -> str:
     if issues:
         raise ValueError('\n'.join(issues))
     options = {
-        'root_packages': sorted(module for module in modules
-                                if '.' not in module and module != 'main'),
+        'root_packages': (
+            [tables.package_root] if tables.package_root else
+            sorted(module for module in modules
+                   if '.' not in module and module != 'main')
+        ),
         'include_namespace_packages': True,
     }
+    if tables.package_root:
+        # 唯一包根之外仍有需要 forbidden 的命名空间包（data/scripts/migrations），
+        # 不打开外部包时 import-linter 会直接拒绝这类目标。
+        options['include_external_packages'] = True
     lines = ['[tool.importlinter]']
     for key, value in options.items():
         lines.append(f'{key} = {json.dumps(value, ensure_ascii=False)}')
@@ -801,7 +982,9 @@ def check_import_boundaries(root: Path, layout: str) -> list[str]:
                     'composition', 'infra', 'alias', 'api', 'legacy', 'config', 'tool',
                 }
                 if role == 'shared':
-                    forbidden = target_role != 'shared'
+                    # 唯一包根是所有分组的公共父包，导入任何模块都会执行它，
+                    # 但它本身不属于任何层，不构成对 shared 的越界依赖。
+                    forbidden = target_role not in {'shared', 'package'}
                 if source in tables.kernel_schemas and target_role == 'kernel':
                     forbidden = True
                 if role == 'kernel' and target_role == 'business':

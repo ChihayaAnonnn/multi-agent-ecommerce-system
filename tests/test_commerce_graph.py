@@ -4,14 +4,17 @@ from types import SimpleNamespace
 
 import pytest
 
-from application.shopping.contracts import TurnRequest
-from application.shopping.facts import CommerceDependencyError
-from application.shopping.graph import CommerceGraphDependencies, build_commerce_graph
-from application.shopping.guards import SafeCandidateReranker, SafeIntentModel
-from modules.cart.schemas import CartView
-from modules.identity.types import make_principal
-from modules.sessions.schemas import TurnClaim
-from shared.time import utcnow
+from ecom.application.shopping.contracts import TurnRequest
+from ecom.application.shopping.facts import CommerceDependencyError
+from ecom.application.shopping.graph import (
+    CommerceGraphDependencies,
+    build_commerce_graph,
+)
+from ecom.application.shopping.guards import SafeCandidateReranker, SafeIntentModel
+from ecom.modules.cart.schemas import CartView
+from ecom.modules.identity.types import make_principal
+from ecom.modules.sessions.schemas import TurnClaim
+from ecom.shared.time import utcnow
 
 
 @pytest.mark.parametrize('message,expected', [('买东西','shortlist'),('看购物车','cart_updated'),('加入购物车','confirm_action'),('结账','confirm_action'),('查订单','unsupported'),('售后退款','unsupported'),('比较','compare'),('','clarify')])
@@ -26,15 +29,15 @@ def test_graph_routes_only_to_intended_branch(message,expected):
             return CartView(cart_id='cart',version=1,current_subtotal=0,checkout_eligible=False,checked_at=utcnow())
         async def propose_action(self,principal,sid,kind,target,version,claim):
             assert claim.lease_token=='lease'
-            from modules.cart.schemas import PendingActionView
+            from ecom.modules.cart.schemas import PendingActionView
             return PendingActionView(action_id='action',kind=kind,status='pending',expected_cart_version=1,payload=target,summary={},expires_at=utcnow())
         async def preview_checkout(self,principal,sid,version,claim):
             assert claim.lease_token=='lease'
-            from modules.checkout.schemas import CheckoutPreview
+            from ecom.modules.checkout.schemas import CheckoutPreview
             return CheckoutPreview(action_id='action',checkout_eligible=True,current_subtotal=100,cart_version=1,checked_at=utcnow())
     class Comparison:
         async def compare(self,principal,sid,ids):
-            from application.shopping.compare import CompareResponse
+            from ecom.application.shopping.compare import CompareResponse
             return CompareResponse(products=[{'product_id':i} for i in ids])
     async def scenario():
         deps=CommerceGraphDependencies(discovery=Discover(),facts=SimpleNamespace(),comparison=Comparison(),
@@ -54,10 +57,10 @@ def test_graph_routes_only_to_intended_branch(message,expected):
 
 
 def test_graph_uses_only_requoted_facts_and_no_empty_fallback():
-    from application.shopping.schemas import SKUQuote
-    from modules.catalog.schemas import SKUDetailView
-    from modules.inventory.schemas import AvailabilityView
-    from modules.pricing.schemas import PriceView
+    from ecom.application.shopping.schemas import SKUQuote
+    from ecom.modules.catalog.schemas import SKUDetailView
+    from ecom.modules.inventory.schemas import AvailabilityView
+    from ecom.modules.pricing.schemas import PriceView
     class Discovery:
         async def discover(self,intent):
             return [{'sku_id':'sku','product_id':'product','name':'商品','price':{'amount_minor':1}}],False

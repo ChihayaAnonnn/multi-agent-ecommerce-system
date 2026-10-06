@@ -25,10 +25,12 @@ PATH=/tmp/commerce-node/bin:$PATH npm --prefix frontend run build
 
 当前进程由主目录忽略的 `.superpowers/storefront_preview.py` 装配，用于本机验收，使用既有本地 TLS 和身份演示密钥，日志在 `.superpowers/preview.log`。它不是生产启动方式。重复启动前先检查端口，不要删除数据库、清空 Redis 或覆盖用户密钥。
 
-正式本地装配沿用 `main.py` 和 `config/settings.py`：设置 `ECOM_COMMERCE_DEMO_ENABLED=true`、`ECOM_IDENTITY_DEMO_MODE=true`、非生产 `ECOM_IDENTITY_ENVIRONMENT`，以及所选数据库、Redis、身份签名密钥和可信来源。HTTPS 的示例启动如下，密钥文件必须自行准备：
+正式本地装配沿用 `ecom/main.py` 的 `create_app()` 工厂与 `ecom/config.py`：设置 `ECOM_COMMERCE_DEMO_ENABLED=true`、`ECOM_IDENTITY_DEMO_MODE=true`、非生产 `ECOM_IDENTITY_ENVIRONMENT`，以及所选数据库、Redis、身份签名密钥和可信来源。HTTPS 的示例启动如下，密钥文件必须自行准备：
+
+在仓库根目录执行：
 
 ```bash
-.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 18444 \
+.venv/bin/python -m uvicorn ecom.main:create_app --factory --host 127.0.0.1 --port 18444 \
   --ssl-certfile /private/tmp/commerce-demo-tls/cert.pem \
   --ssl-keyfile /private/tmp/commerce-demo-tls/key.pem
 ```

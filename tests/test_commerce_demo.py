@@ -6,10 +6,10 @@ from pathlib import Path
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from api.routes.commerce import router
-from api.routes.demo import configure_commerce_demo
-from infra.db import create_session_factory
-from modules.sessions.service import ShoppingSessionService
+from ecom.api.routes.commerce import router
+from ecom.api.routes.demo import configure_commerce_demo
+from ecom.infra.db import create_session_factory
+from ecom.modules.sessions.service import ShoppingSessionService
 from tests.test_auth_api import (
     bearer,
     build_app,

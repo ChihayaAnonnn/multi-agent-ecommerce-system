@@ -3,22 +3,22 @@ import asyncio
 
 from sqlalchemy import delete, event, update
 
-from application.shopping.facts import CommerceFactsReader
-from application.shopping.schemas import HardCondition, ShoppingIntent
-from infra.db import create_session_factory
-from modules.catalog.models import SKU, Product
-from modules.catalog.schemas import (
+from ecom.application.shopping.facts import CommerceFactsReader
+from ecom.application.shopping.schemas import HardCondition, ShoppingIntent
+from ecom.infra.db import create_session_factory
+from ecom.modules.catalog.models import SKU, Product
+from ecom.modules.catalog.schemas import (
     AttributeInput,
     CategoryInput,
     ProductInput,
     SKUInput,
 )
-from modules.catalog.service import CatalogService, CatalogSKUReader
-from modules.inventory.models import DEFAULT_LOCATION_ID
-from modules.inventory.service import InventoryService
-from modules.pricing.models import SKUPrice
-from modules.pricing.service import PricingService
-from modules.sale_facts.service import SaleFactsReader
+from ecom.modules.catalog.service import CatalogService, CatalogSKUReader
+from ecom.modules.inventory.models import DEFAULT_LOCATION_ID
+from ecom.modules.inventory.service import InventoryService
+from ecom.modules.pricing.models import SKUPrice
+from ecom.modules.pricing.service import PricingService
+from ecom.modules.sale_facts.service import SaleFactsReader
 
 
 async def seed(url):
@@ -95,7 +95,7 @@ def test_real_quote_statuses_and_two_categories(migrated_mysql_database):
             await db.execute(update(Product).where(Product.id == products[3].id).values(status='archived'))
             await db.execute(update(SKU).where(SKU.id == skus[4].id).values(status='inactive'))
             await db.execute(delete(SKUPrice).where(SKUPrice.sku_id == skus[5].id))
-            from modules.inventory.models import InventoryBalance
+            from ecom.modules.inventory.models import InventoryBalance
             await db.execute(delete(InventoryBalance).where(InventoryBalance.sku_id == skus[6].id))
             await db.commit()
         await stock.adjust(skus[7].id, DEFAULT_LOCATION_ID, -5, 'empty', '清空')

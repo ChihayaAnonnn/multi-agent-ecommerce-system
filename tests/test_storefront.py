@@ -4,10 +4,10 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from application.storefront.service import StorefrontService
-from kernel.errors import CommerceDependencyError
-from modules.catalog.schemas import CategoryRefView
-from modules.sale_facts.service import SaleFactsReader
+from ecom.application.storefront.service import StorefrontService
+from ecom.kernel.errors import CommerceDependencyError
+from ecom.modules.catalog.schemas import CategoryRefView
+from ecom.modules.sale_facts.service import SaleFactsReader
 from tests.test_commerce_facts import Catalog, Inventory, Prices
 
 

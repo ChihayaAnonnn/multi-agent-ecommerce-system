@@ -3,12 +3,12 @@ import asyncio
 
 import pytest
 
-from application.shopping.facts import CommerceDependencyError, CommerceFactsReader
-from modules.catalog.schemas import SKUDetailView
-from modules.inventory.schemas import AvailabilityView
-from modules.pricing.schemas import PriceView
-from modules.sale_facts.service import SaleFactsReader
-from shared.time import utcnow
+from ecom.application.shopping.facts import CommerceDependencyError, CommerceFactsReader
+from ecom.modules.catalog.schemas import SKUDetailView
+from ecom.modules.inventory.schemas import AvailabilityView
+from ecom.modules.pricing.schemas import PriceView
+from ecom.modules.sale_facts.service import SaleFactsReader
+from ecom.shared.time import utcnow
 
 
 class Catalog:

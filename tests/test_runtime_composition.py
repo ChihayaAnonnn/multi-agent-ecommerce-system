@@ -7,12 +7,12 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from api import deps as runtime_module
-from config.settings import Settings
-from kernel.intent import IntentUpdate
-from modules.checkout.schemas import Destination
-from modules.sessions.schemas import TurnClaim
-from shared.principal import make_principal
+from ecom.api import deps as runtime_module
+from ecom.config import Settings
+from ecom.kernel.intent import IntentUpdate
+from ecom.modules.checkout.schemas import Destination
+from ecom.modules.sessions.schemas import TurnClaim
+from ecom.shared.principal import make_principal
 
 
 class LocalModel:
@@ -61,7 +61,7 @@ def runtime_case(monkeypatch):
 
 
 def test_runtime_uses_one_actions_cart_checkout_and_model(runtime_case, monkeypatch):
-    from application.shopping.graph import build_commerce_graph
+    from ecom.application.shopping.graph import build_commerce_graph
 
     captured = []
 
@@ -101,7 +101,7 @@ def test_runtime_uses_one_actions_cart_checkout_and_model(runtime_case, monkeypa
 def test_graph_compiles_once_before_first_request(runtime_case, monkeypatch):
     from langgraph.graph import StateGraph
 
-    from application.shopping.contracts import TurnRequest
+    from ecom.application.shopping.contracts import TurnRequest
 
     compiled = []
     original = StateGraph.compile
@@ -260,9 +260,9 @@ def test_close_failure_still_disposes_engine_once(runtime_case, monkeypatch):
 
 
 def test_missing_database_preserves_health_and_503():
-    from api.routes.auth import router as auth_router
-    from api.routes.catalog import router as catalog_router
-    from api.routes.health import router as health_router
+    from ecom.api.routes.auth import router as auth_router
+    from ecom.api.routes.catalog import router as catalog_router
+    from ecom.api.routes.health import router as health_router
 
     async def scenario():
         runtime = await runtime_module.create_runtime(Settings(
@@ -289,7 +289,7 @@ def test_missing_database_preserves_health_and_503():
 
 
 def test_known_identity_configuration_error_keeps_commerce(runtime_case, monkeypatch):
-    from modules.identity.types import IdentityConfigurationError
+    from ecom.modules.identity.types import IdentityConfigurationError
 
     def fail(*args):
         raise IdentityConfigurationError('missing identity keys')
@@ -312,7 +312,7 @@ def test_known_identity_configuration_error_keeps_commerce(runtime_case, monkeyp
 def test_lifespan_awaits_runtime_and_closes_on_failure(
     runtime_case, monkeypatch, failure,
 ):
-    import main
+    from ecom import main
 
     app = FastAPI()
     closed = []
@@ -342,7 +342,7 @@ def test_lifespan_awaits_runtime_and_closes_on_failure(
 
 
 def test_database_resources_expose_engine_and_legacy_factory(monkeypatch):
-    from infra import db as session
+    from ecom.infra import db as session
 
     assert hasattr(session, 'create_database')
     created = []
@@ -383,9 +383,9 @@ def test_database_resources_expose_engine_and_legacy_factory(monkeypatch):
     ('https', 'https://shop.test/checkout/\\one', False, False),
 ])
 def test_destination_validation_is_business_owned(kind, ref, demo, valid):
-    from modules.checkout import service
+    from ecom.modules.checkout import service
 
-    assert service.validate_destination.__module__ == 'modules.checkout.service'
+    assert service.validate_destination.__module__ == 'ecom.modules.checkout.service'
     destination = Destination(kind=kind, ref=ref, demo=demo)
     if valid:
         assert service.validate_destination(destination, ('shop.test',)) is destination

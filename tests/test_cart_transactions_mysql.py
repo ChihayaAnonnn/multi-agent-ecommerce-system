@@ -10,17 +10,17 @@ from sqlalchemy import func, inspect, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
-from kernel.intent import ShoppingIntent
-from modules.cart import schemas
-from modules.cart.models import Cart, CartLine, PendingAction
-from modules.cart.service import CartService
-from modules.sale_facts.service import SaleFactsReader
-from modules.sessions.models import CommerceSession, SeenSKU
-from modules.sessions.service import CommerceError, ShoppingSessionService
-from shared.hashing import request_hash
-from shared.ids import new_id
-from shared.principal import Principal, make_principal
-from shared.time import mark_utc, utcnow
+from ecom.kernel.intent import ShoppingIntent
+from ecom.modules.cart import schemas
+from ecom.modules.cart.models import Cart, CartLine, PendingAction
+from ecom.modules.cart.service import CartService
+from ecom.modules.sale_facts.service import SaleFactsReader
+from ecom.modules.sessions.models import CommerceSession, SeenSKU
+from ecom.modules.sessions.service import CommerceError, ShoppingSessionService
+from ecom.shared.hashing import request_hash
+from ecom.shared.ids import new_id
+from ecom.shared.principal import Principal, make_principal
+from ecom.shared.time import mark_utc, utcnow
 from tests.test_commerce_facts_mysql import seed
 
 

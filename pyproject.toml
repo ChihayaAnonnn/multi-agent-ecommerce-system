@@ -13,5 +13,713 @@ target-version = "py312"
 select = ["E", "F", "I"]
 
 [tool.layering]
-layout = "grouped"
+layout = "packaged"
 require_complete_inventory = true
+
+[tool.importlinter]
+root_packages = ["ecom"]
+include_namespace_packages = true
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "业务与应用能力不得依赖 HTTP 层"
+type = "forbidden"
+source_modules = ["ecom.application", "ecom.modules.cart", "ecom.modules.catalog", "ecom.modules.checkout", "ecom.modules.events", "ecom.modules.identity", "ecom.modules.inventory", "ecom.modules.pricing", "ecom.modules.sale_facts", "ecom.modules.sessions"]
+forbidden_modules = ["ecom.api"]
+
+[[tool.importlinter.contracts]]
+name = "shared 不得依赖配置或业务包"
+type = "forbidden"
+source_modules = ["ecom.shared"]
+forbidden_modules = ["data", "ecom.api", "ecom.application", "ecom.config", "ecom.infra", "ecom.kernel", "ecom.legacy", "ecom.modules", "migrations", "scripts"]
+
+[[tool.importlinter.contracts]]
+name = "kernel 只允许基础 schemas 与 shared"
+type = "forbidden"
+source_modules = ["ecom.kernel"]
+forbidden_modules = ["data", "ecom.api", "ecom.application", "ecom.config", "ecom.infra", "ecom.legacy", "ecom.modules", "migrations", "scripts"]
+ignore_imports = ["ecom.kernel.constraints -> ecom.modules.catalog.schemas", "ecom.kernel.constraints -> ecom.modules.pricing.schemas", "ecom.kernel.quotes -> ecom.modules.catalog.schemas", "ecom.kernel.quotes -> ecom.modules.inventory.schemas", "ecom.kernel.quotes -> ecom.modules.pricing.schemas"]
+unmatched_ignore_imports_alerting = "none"
+
+[[tool.importlinter.contracts]]
+name = "基础 schemas 不得反向依赖 kernel"
+type = "forbidden"
+source_modules = ["ecom.modules.catalog.schemas", "ecom.modules.inventory.schemas", "ecom.modules.pricing.schemas"]
+forbidden_modules = ["ecom.kernel"]
+
+[[tool.importlinter.contracts]]
+name = "sessions 不得依赖应用响应契约"
+type = "forbidden"
+source_modules = ["ecom.modules.sessions"]
+forbidden_modules = ["ecom.api.contracts.commerce", "ecom.application"]
+
+[[tool.importlinter.contracts]]
+name = "业务事实能力不得依赖应用事实读取"
+type = "forbidden"
+source_modules = ["ecom.application.storefront", "ecom.modules.cart", "ecom.modules.sale_facts"]
+forbidden_modules = ["ecom.application.shopping"]
+
+[[tool.importlinter.contracts]]
+name = "cart 不得协调会话和应用层"
+type = "forbidden"
+source_modules = ["ecom.modules.cart"]
+forbidden_modules = ["ecom.application", "ecom.modules.sessions"]
+
+[[tool.importlinter.contracts]]
+name = "checkout 不得协调会话和应用层"
+type = "forbidden"
+source_modules = ["ecom.modules.checkout"]
+forbidden_modules = ["ecom.application", "ecom.modules.sessions"]
+
+[[tool.importlinter.contracts]]
+name = "checkout 业务服务不得依赖宿主适配器"
+type = "forbidden"
+source_modules = ["ecom.modules.checkout.service"]
+forbidden_modules = ["ecom.infra.checkout_gateway"]
+
+[[tool.importlinter.contracts]]
+name = "模型端口与 guards 不得依赖具体模型适配器"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.guards", "ecom.application.shopping.ports"]
+forbidden_modules = ["ecom.infra.llm"]
+
+[[tool.importlinter.contracts]]
+name = "orchestrator 不得构造具体图与模型适配器"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.orchestrator"]
+forbidden_modules = ["ecom.application.shopping.graph", "ecom.infra.llm"]
+
+[[tool.importlinter.contracts]]
+name = "模块与应用不得间接依赖具体基础设施或旧栈"
+type = "forbidden"
+source_modules = ["ecom.application", "ecom.application.shopping", "ecom.application.shopping.actions", "ecom.application.shopping.compare", "ecom.application.shopping.contracts", "ecom.application.shopping.discovery", "ecom.application.shopping.facts", "ecom.application.shopping.graph", "ecom.application.shopping.guards", "ecom.application.shopping.intent", "ecom.application.shopping.nodes", "ecom.application.shopping.orchestrator", "ecom.application.shopping.ports", "ecom.application.shopping.schemas", "ecom.application.shopping.state", "ecom.application.storefront", "ecom.application.storefront.schemas", "ecom.application.storefront.service", "ecom.modules", "ecom.modules.cart", "ecom.modules.cart.models", "ecom.modules.cart.schemas", "ecom.modules.cart.service", "ecom.modules.catalog", "ecom.modules.catalog.models", "ecom.modules.catalog.ports", "ecom.modules.catalog.schemas", "ecom.modules.catalog.seed", "ecom.modules.catalog.service", "ecom.modules.checkout", "ecom.modules.checkout.models", "ecom.modules.checkout.ports", "ecom.modules.checkout.schemas", "ecom.modules.checkout.service", "ecom.modules.events", "ecom.modules.events.models", "ecom.modules.events.schemas", "ecom.modules.events.service", "ecom.modules.identity", "ecom.modules.identity.csrf", "ecom.modules.identity.models", "ecom.modules.identity.passwords", "ecom.modules.identity.rate_limit", "ecom.modules.identity.service", "ecom.modules.identity.tokens", "ecom.modules.identity.types", "ecom.modules.inventory", "ecom.modules.inventory.models", "ecom.modules.inventory.schemas", "ecom.modules.inventory.seed", "ecom.modules.inventory.service", "ecom.modules.pricing", "ecom.modules.pricing.models", "ecom.modules.pricing.schemas", "ecom.modules.pricing.seed", "ecom.modules.pricing.service", "ecom.modules.sale_facts", "ecom.modules.sale_facts.service", "ecom.modules.sessions", "ecom.modules.sessions.models", "ecom.modules.sessions.schemas", "ecom.modules.sessions.service"]
+forbidden_modules = ["ecom.config", "ecom.infra.checkout_gateway", "ecom.infra.db", "ecom.infra.llm", "ecom.legacy"]
+
+[[tool.importlinter.contracts]]
+name = "ecom.modules.cart 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["ecom.modules.cart"]
+forbidden_modules = ["ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.modules.catalog 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["ecom.modules.catalog"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.modules.checkout 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["ecom.modules.checkout"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.modules.events 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["ecom.modules.events"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.modules.identity 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["ecom.modules.identity"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.modules.inventory 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["ecom.modules.inventory"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.modules.pricing 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["ecom.modules.pricing"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.modules.sale_facts 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["ecom.modules.sale_facts"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.modules.sessions 不得直接访问外部 ORM"
+type = "forbidden"
+source_modules = ["ecom.modules.sessions"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.contracts 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.contracts"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.contracts.auth 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.contracts.auth"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.contracts.commerce 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.contracts.commerce"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.errors 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.errors"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.http_config 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.http_config"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.middleware 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.middleware"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.routes 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.routes"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.routes.auth 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.routes.auth"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.routes.catalog 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.routes.catalog"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.routes.commerce 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.routes.commerce"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.routes.demo 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.routes.demo"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.routes.health 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.routes.health"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.routes.legacy_experiments 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.routes.legacy_experiments"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.routes.legacy_recommendations 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.routes.legacy_recommendations"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.routes.metrics 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.routes.metrics"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.api.routes.storefront 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.api.routes.storefront"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.actions 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.actions"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.compare 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.compare"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.contracts 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.contracts"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.discovery 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.discovery"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.facts 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.facts"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.graph 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.graph"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.guards 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.guards"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.intent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.intent"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.nodes 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.nodes"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.orchestrator 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.orchestrator"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.ports 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.ports"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.schemas 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.schemas"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.shopping.state 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.shopping.state"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.storefront 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.storefront"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.storefront.schemas 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.storefront.schemas"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.application.storefront.service 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.application.storefront.service"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.infra 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.infra"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.infra.checkout_gateway 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.infra.checkout_gateway"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.infra.db 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.infra.db"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.infra.llm 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.infra.llm"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.agents 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.agents"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.agents.base_agent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.agents.base_agent"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.agents.inventory_agent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.agents.inventory_agent"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.agents.marketing_copy_agent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.agents.marketing_copy_agent"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.agents.product_rec_agent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.agents.product_rec_agent"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.agents.user_profile_agent 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.agents.user_profile_agent"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.catalog_adapter 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.catalog_adapter"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.infrastructure 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.infrastructure"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.infrastructure.milvus_client 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.infrastructure.milvus_client"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.infrastructure.mysql_client 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.infrastructure.mysql_client"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.infrastructure.redis_client 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.infrastructure.redis_client"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.models 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.models"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.models.schemas 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.models.schemas"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.orchestrator 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.orchestrator"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.orchestrator.graph 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.orchestrator.graph"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.orchestrator.supervisor 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.orchestrator.supervisor"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.services 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.services"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.services.ab_test 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.services.ab_test"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.services.feature_store 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.services.feature_store"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ecom.legacy.services.metrics 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.legacy.services.metrics"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "具体适配器仅组合根与精确兼容入口可以直接导入"
+type = "protected"
+protected_modules = ["ecom.infra.checkout_gateway", "ecom.infra.db", "ecom.infra.llm", "ecom.legacy.infrastructure"]
+allowed_importers = ["ecom.api.deps", "ecom.main"]
+ignore_imports = ["data.import_amazon_metadata -> ecom.infra.db", "scripts.reset_demo_password -> ecom.infra.db"]
+unmatched_ignore_imports_alerting = "none"
+
+[tool.layering.inventory]
+"data" = "tool"
+"data.download_amazon_metadata" = "tool"
+"data.import_amazon_metadata" = "tool"
+"ecom" = "package"
+"ecom.api" = "api"
+"ecom.api.contracts" = "api"
+"ecom.api.contracts.auth" = "api"
+"ecom.api.contracts.commerce" = "api"
+"ecom.api.deps" = "composition"
+"ecom.api.errors" = "api"
+"ecom.api.http_config" = "api"
+"ecom.api.middleware" = "api"
+"ecom.api.routes" = "api"
+"ecom.api.routes.auth" = "api"
+"ecom.api.routes.catalog" = "api"
+"ecom.api.routes.commerce" = "api"
+"ecom.api.routes.demo" = "api"
+"ecom.api.routes.health" = "api"
+"ecom.api.routes.legacy_experiments" = "api"
+"ecom.api.routes.legacy_recommendations" = "api"
+"ecom.api.routes.metrics" = "api"
+"ecom.api.routes.storefront" = "api"
+"ecom.application" = "application"
+"ecom.application.shopping" = "application"
+"ecom.application.shopping.actions" = "application"
+"ecom.application.shopping.compare" = "application"
+"ecom.application.shopping.contracts" = "application"
+"ecom.application.shopping.discovery" = "application"
+"ecom.application.shopping.facts" = "application"
+"ecom.application.shopping.graph" = "application"
+"ecom.application.shopping.guards" = "application"
+"ecom.application.shopping.intent" = "application"
+"ecom.application.shopping.nodes" = "application"
+"ecom.application.shopping.orchestrator" = "application"
+"ecom.application.shopping.ports" = "application"
+"ecom.application.shopping.schemas" = "application"
+"ecom.application.shopping.state" = "application"
+"ecom.application.storefront" = "application"
+"ecom.application.storefront.schemas" = "application"
+"ecom.application.storefront.service" = "application"
+"ecom.config" = "config"
+"ecom.infra" = "infra"
+"ecom.infra.checkout_gateway" = "infra"
+"ecom.infra.db" = "infra"
+"ecom.infra.llm" = "infra"
+"ecom.kernel" = "kernel"
+"ecom.kernel.constraints" = "kernel"
+"ecom.kernel.errors" = "kernel"
+"ecom.kernel.intent" = "kernel"
+"ecom.kernel.quotes" = "kernel"
+"ecom.legacy" = "legacy"
+"ecom.legacy.agents" = "legacy"
+"ecom.legacy.agents.base_agent" = "legacy"
+"ecom.legacy.agents.inventory_agent" = "legacy"
+"ecom.legacy.agents.marketing_copy_agent" = "legacy"
+"ecom.legacy.agents.product_rec_agent" = "legacy"
+"ecom.legacy.agents.user_profile_agent" = "legacy"
+"ecom.legacy.catalog_adapter" = "legacy"
+"ecom.legacy.infrastructure" = "legacy"
+"ecom.legacy.infrastructure.milvus_client" = "legacy"
+"ecom.legacy.infrastructure.mysql_client" = "legacy"
+"ecom.legacy.infrastructure.redis_client" = "legacy"
+"ecom.legacy.models" = "legacy"
+"ecom.legacy.models.schemas" = "legacy"
+"ecom.legacy.orchestrator" = "legacy"
+"ecom.legacy.orchestrator.graph" = "legacy"
+"ecom.legacy.orchestrator.supervisor" = "legacy"
+"ecom.legacy.services" = "legacy"
+"ecom.legacy.services.ab_test" = "legacy"
+"ecom.legacy.services.feature_store" = "legacy"
+"ecom.legacy.services.metrics" = "legacy"
+"ecom.main" = "composition"
+"ecom.modules" = "business"
+"ecom.modules.cart" = "business"
+"ecom.modules.cart.models" = "business"
+"ecom.modules.cart.schemas" = "business"
+"ecom.modules.cart.service" = "business"
+"ecom.modules.catalog" = "business"
+"ecom.modules.catalog.models" = "business"
+"ecom.modules.catalog.ports" = "business"
+"ecom.modules.catalog.schemas" = "business"
+"ecom.modules.catalog.seed" = "business"
+"ecom.modules.catalog.service" = "business"
+"ecom.modules.checkout" = "business"
+"ecom.modules.checkout.models" = "business"
+"ecom.modules.checkout.ports" = "business"
+"ecom.modules.checkout.schemas" = "business"
+"ecom.modules.checkout.service" = "business"
+"ecom.modules.events" = "business"
+"ecom.modules.events.models" = "business"
+"ecom.modules.events.schemas" = "business"
+"ecom.modules.events.service" = "business"
+"ecom.modules.identity" = "business"
+"ecom.modules.identity.csrf" = "business"
+"ecom.modules.identity.models" = "business"
+"ecom.modules.identity.passwords" = "business"
+"ecom.modules.identity.rate_limit" = "business"
+"ecom.modules.identity.service" = "business"
+"ecom.modules.identity.tokens" = "business"
+"ecom.modules.identity.types" = "business"
+"ecom.modules.inventory" = "business"
+"ecom.modules.inventory.models" = "business"
+"ecom.modules.inventory.schemas" = "business"
+"ecom.modules.inventory.seed" = "business"
+"ecom.modules.inventory.service" = "business"
+"ecom.modules.pricing" = "business"
+"ecom.modules.pricing.models" = "business"
+"ecom.modules.pricing.schemas" = "business"
+"ecom.modules.pricing.seed" = "business"
+"ecom.modules.pricing.service" = "business"
+"ecom.modules.sale_facts" = "business"
+"ecom.modules.sale_facts.service" = "business"
+"ecom.modules.sessions" = "business"
+"ecom.modules.sessions.models" = "business"
+"ecom.modules.sessions.schemas" = "business"
+"ecom.modules.sessions.service" = "business"
+"ecom.shared" = "shared"
+"ecom.shared.db" = "shared"
+"ecom.shared.errors" = "shared"
+"ecom.shared.hashing" = "shared"
+"ecom.shared.ids" = "shared"
+"ecom.shared.principal" = "shared"
+"ecom.shared.time" = "shared"
+"migrations" = "tool"
+"migrations.env" = "tool"
+"migrations.versions" = "tool"
+"migrations.versions.0001_catalog" = "tool"
+"migrations.versions.0002_pricing" = "tool"
+"migrations.versions.0003_inventory" = "tool"
+"migrations.versions.0004_identity" = "tool"
+"migrations.versions.0005_commerce_sessions" = "tool"
+"migrations.versions.0006_cart" = "tool"
+"migrations.versions.0007_checkout" = "tool"
+"migrations.versions.0008_commerce_events" = "tool"
+"scripts" = "tool"
+"scripts.reset_demo_password" = "tool"

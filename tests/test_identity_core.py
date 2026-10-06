@@ -14,8 +14,8 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from modules.identity.csrf import CsrfSigner
-from modules.identity.passwords import (
+from ecom.modules.identity.csrf import CsrfSigner
+from ecom.modules.identity.passwords import (
     MAX_PASSWORD_LENGTH,
     MIN_PASSWORD_LENGTH,
     PasswordPolicyError,
@@ -23,14 +23,14 @@ from modules.identity.passwords import (
     validate_password,
     verify_password,
 )
-from modules.identity.tokens import (
+from ecom.modules.identity.tokens import (
     ALGORITHM,
     DEFAULT_ACCESS_TTL_SECONDS,
     REQUIRED_CLAIMS,
     TokenCodec,
     load_token_codec,
 )
-from modules.identity.types import (
+from ecom.modules.identity.types import (
     IdentityConfigurationError,
     InvalidAccessToken,
     make_principal,
@@ -319,7 +319,7 @@ def test_missing_key_config_fails_closed(tmp_path, keypair):
     keys_file = tmp_path / "identity-public-keys.json"
     keys_file.write_text(json.dumps({ACTIVE_KID: public_pem}), encoding="utf-8")
 
-    from config.settings import Settings
+    from ecom.config import Settings
 
     def settings(**overrides) -> Settings:
         base = {
@@ -439,7 +439,7 @@ def test_codec_rejects_broken_or_mismatched_keys(keypair, other_keypair):
 
 def test_load_token_codec_rejects_mismatched_key_files(tmp_path, keypair, other_keypair):
     """配置文件层面的不配对同样在装配时报错，而不是等到签发。"""
-    from config.settings import Settings
+    from ecom.config import Settings
 
     private_pem, public_pem = keypair
     other_private, _other_public = other_keypair

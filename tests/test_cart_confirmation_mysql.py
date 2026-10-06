@@ -5,15 +5,15 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import select, update
 
-from application.shopping.actions import CartActionService
-from modules.cart.models import PendingAction
-from modules.cart.service import CartService
-from modules.identity.types import make_principal
-from modules.inventory.models import DEFAULT_LOCATION_ID
-from modules.sale_facts.service import SaleFactsReader
-from modules.sessions.models import CommerceSession
-from modules.sessions.service import CommerceError, ShoppingSessionService
-from shared.time import utcnow
+from ecom.application.shopping.actions import CartActionService
+from ecom.modules.cart.models import PendingAction
+from ecom.modules.cart.service import CartService
+from ecom.modules.identity.types import make_principal
+from ecom.modules.inventory.models import DEFAULT_LOCATION_ID
+from ecom.modules.sale_facts.service import SaleFactsReader
+from ecom.modules.sessions.models import CommerceSession
+from ecom.modules.sessions.service import CommerceError, ShoppingSessionService
+from ecom.shared.time import utcnow
 from tests.test_commerce_facts_mysql import seed
 
 
@@ -206,8 +206,8 @@ def test_internal_stock_version_change_and_cart_conflict(migrated_mysql_database
 
 
 def test_confirmation_dependency_failure_rolls_back(migrated_mysql_database):
-    from application.shopping.facts import CommerceDependencyError
-    from modules.pricing.service import PricingDependencyError
+    from ecom.application.shopping.facts import CommerceDependencyError
+    from ecom.modules.pricing.service import PricingDependencyError
     async def scenario():
         factory, sessions, service, a, _, s, cart, _, _, skus = await setup(
             migrated_mysql_database

@@ -6,17 +6,17 @@ from types import SimpleNamespace
 
 from sqlalchemy import func, select, update
 
-from api import deps as runtime_module
-from api.routes.commerce import router
-from api.routes.demo import configure_commerce_demo
-from application.shopping.contracts import TurnRequest
-from application.shopping.graph import build_commerce_graph
-from infra.checkout_gateway import DemoHostCheckoutGateway
-from modules.cart.models import PendingAction
-from modules.sessions.models import CommerceSession
-from shared.hashing import request_hash
-from shared.ids import new_id
-from shared.time import utcnow
+from ecom.api import deps as runtime_module
+from ecom.api.routes.commerce import router
+from ecom.api.routes.demo import configure_commerce_demo
+from ecom.application.shopping.contracts import TurnRequest
+from ecom.application.shopping.graph import build_commerce_graph
+from ecom.infra.checkout_gateway import DemoHostCheckoutGateway
+from ecom.modules.cart.models import PendingAction
+from ecom.modules.sessions.models import CommerceSession
+from ecom.shared.hashing import request_hash
+from ecom.shared.ids import new_id
+from ecom.shared.time import utcnow
 from tests.conftest import downgrade_to, read_schema, upgrade_to
 from tests.test_auth_api import (
     _login,
@@ -48,7 +48,7 @@ def test_two_category_purchase_preparation(
 ):
     class Model:
         async def parse(self,*args):
-            from application.shopping.schemas import IntentUpdate
+            from ecom.application.shopping.schemas import IntentUpdate
             return IntentUpdate(soft_preferences=['便携'])
         async def rank(self,ids,facts,prefs):
             return ids

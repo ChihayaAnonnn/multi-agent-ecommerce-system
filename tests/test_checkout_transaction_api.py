@@ -10,18 +10,18 @@ from sqlalchemy import event, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
-from infra.checkout_gateway import DemoHostCheckoutGateway
-from kernel.intent import ShoppingIntent
-from modules.cart.models import PendingAction
-from modules.cart.schemas import ActionProposalCommand
-from modules.cart.service import CartService
-from modules.checkout import schemas
-from modules.checkout.models import CheckoutHandoff
-from modules.checkout.service import CheckoutService
-from modules.sale_facts.service import SaleFactsReader
-from modules.sessions.service import CommerceError, ShoppingSessionService
-from shared.principal import Principal, make_principal
-from shared.time import mark_utc, utcnow
+from ecom.infra.checkout_gateway import DemoHostCheckoutGateway
+from ecom.kernel.intent import ShoppingIntent
+from ecom.modules.cart.models import PendingAction
+from ecom.modules.cart.schemas import ActionProposalCommand
+from ecom.modules.cart.service import CartService
+from ecom.modules.checkout import schemas
+from ecom.modules.checkout.models import CheckoutHandoff
+from ecom.modules.checkout.service import CheckoutService
+from ecom.modules.sale_facts.service import SaleFactsReader
+from ecom.modules.sessions.service import CommerceError, ShoppingSessionService
+from ecom.shared.principal import Principal, make_principal
+from ecom.shared.time import mark_utc, utcnow
 from tests.test_cart_transactions_mysql import reject_orm
 from tests.test_commerce_facts_mysql import seed
 
@@ -468,7 +468,7 @@ def test_checkout_transaction_public_methods_are_typed(name):
 
 
 def test_gateway_port_preserves_alias_identity():
-    from infra import checkout_gateway as gateway
-    from modules.checkout import ports
+    from ecom.infra import checkout_gateway as gateway
+    from ecom.modules.checkout import ports
 
     assert gateway.HostCheckoutGateway is ports.HostCheckoutGateway

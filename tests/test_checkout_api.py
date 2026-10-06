@@ -4,7 +4,7 @@ import asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from api.routes.commerce import router
+from ecom.api.routes.commerce import router
 
 
 def test_checkout_routes_require_bearer():

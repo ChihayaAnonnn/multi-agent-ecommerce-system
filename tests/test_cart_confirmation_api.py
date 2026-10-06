@@ -5,10 +5,10 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from api.routes.auth import require_principal
-from api.routes.commerce import router
-from application.shopping.actions import CartActionService
-from application.shopping.facts import CommerceFactsReader
+from ecom.api.routes.auth import require_principal
+from ecom.api.routes.commerce import router
+from ecom.application.shopping.actions import CartActionService
+from ecom.application.shopping.facts import CommerceFactsReader
 from tests.commerce_helpers import build_orchestrator
 from tests.test_cart_confirmation_mysql import setup
 

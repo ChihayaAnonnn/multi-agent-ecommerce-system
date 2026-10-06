@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from api.routes.storefront import router
+from ecom.api.routes.storefront import router
 from tests.test_commerce_facts import Inventory, Prices
 from tests.test_storefront import Products
 

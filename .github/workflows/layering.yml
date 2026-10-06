@@ -22,7 +22,7 @@ jobs:
           node-version: '22'
       - run: python -m pip install -r requirements-dev.txt
       - name: 校验当前阶段架构边界
-        run: lint-imports --config .importlinter.stage.toml --no-cache
+        run: lint-imports --config pyproject.toml --no-cache
       - run: >-
           python -m pytest tests/ -q --tb=short -m 'not mysql and not redis'
           --require-integration-services

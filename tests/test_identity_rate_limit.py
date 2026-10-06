@@ -10,9 +10,9 @@ import asyncio
 import pytest
 from redis.asyncio import Redis
 
-from modules.identity.rate_limit import RedisRateLimiter
-from modules.identity.service import normalize_email
-from modules.identity.types import IdentityDependencyError, RateLimited
+from ecom.modules.identity.rate_limit import RedisRateLimiter
+from ecom.modules.identity.service import normalize_email
+from ecom.modules.identity.types import IdentityDependencyError, RateLimited
 
 LOGIN_EMAIL_LIMIT = 5
 LOGIN_IP_LIMIT = 30

@@ -14,15 +14,15 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-import modules.cart.models  # noqa: F401
-import modules.catalog.models  # noqa: F401  注册目录表到 metadata
-import modules.checkout.models  # noqa: F401
-import modules.events.models  # noqa: F401
-import modules.identity.models  # noqa: F401  注册身份表到 metadata
-import modules.inventory.models  # noqa: F401  注册库存表到 metadata
-import modules.pricing.models  # noqa: F401  注册价格表到 metadata
-import modules.sessions.models  # noqa: F401
-from shared.db import Base
+import ecom.modules.cart.models  # noqa: F401
+import ecom.modules.catalog.models  # noqa: F401  注册目录表到 metadata
+import ecom.modules.checkout.models  # noqa: F401
+import ecom.modules.events.models  # noqa: F401
+import ecom.modules.identity.models  # noqa: F401  注册身份表到 metadata
+import ecom.modules.inventory.models  # noqa: F401  注册库存表到 metadata
+import ecom.modules.pricing.models  # noqa: F401  注册价格表到 metadata
+import ecom.modules.sessions.models  # noqa: F401
+from ecom.shared.db import Base
 
 config = context.config
 
@@ -38,7 +38,7 @@ def database_url() -> str:
     if configured:
         return configured
 
-    from config.settings import get_settings
+    from ecom.config import get_settings
 
     url = get_settings().database_url
     if not url:

@@ -5,14 +5,14 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import update
 
-from application.shopping.contracts import TurnResponse
-from infra.db import create_session_factory
-from kernel.intent import ShoppingIntent
-from modules.identity.types import make_principal
-from modules.sessions.models import CommerceSession, CommerceTurn
-from modules.sessions.schemas import TurnCompletion, TurnReplay
-from modules.sessions.service import CommerceError, ShoppingSessionService
-from shared.time import utcnow
+from ecom.application.shopping.contracts import TurnResponse
+from ecom.infra.db import create_session_factory
+from ecom.kernel.intent import ShoppingIntent
+from ecom.modules.identity.types import make_principal
+from ecom.modules.sessions.models import CommerceSession, CommerceTurn
+from ecom.modules.sessions.schemas import TurnCompletion, TurnReplay
+from ecom.modules.sessions.service import CommerceError, ShoppingSessionService
+from ecom.shared.time import utcnow
 from tests.conftest import downgrade_to, read_schema, upgrade_to
 from tests.test_commerce_facts_mysql import seed
 
@@ -224,7 +224,7 @@ def test_concurrent_claims_have_one_effective_lease(migrated_mysql_database):
         a = make_principal('test', 'concurrent')
         s = await sessions.create(a)
         results = await asyncio.gather(*(sessions.claim_turn(s.session_id,a,'same','hash') for _ in range(5)), return_exceptions=True)
-        from modules.sessions.schemas import TurnClaim
+        from ecom.modules.sessions.schemas import TurnClaim
         assert sum(isinstance(r, TurnClaim) for r in results) == 1
         assert sum(isinstance(r, CommerceError) and r.code == 'turn_processing' for r in results) == 4
     asyncio.run(scenario())

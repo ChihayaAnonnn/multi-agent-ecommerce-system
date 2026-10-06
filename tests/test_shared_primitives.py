@@ -12,7 +12,7 @@ from tests.test_layering_baseline import MODEL_MODULES
 def test_base_alias_has_single_metadata():
     import importlib
 
-    from shared.db import Base
+    from ecom.shared.db import Base
 
     for name in MODEL_MODULES:
         module = importlib.import_module(f"{name}.models")
@@ -37,8 +37,8 @@ def test_base_alias_has_single_metadata():
      "4e7c740c308df7eeae89e12635162c3caaf03c47118a0d682ce7319a660b13ca"),
 ])
 def test_principal_key_is_unchanged(issuer, subject, expected):
-    from modules.identity import types as old
-    from shared.principal import Principal, make_principal, principal_key_for
+    from ecom.modules.identity import types as old
+    from ecom.shared.principal import Principal, make_principal, principal_key_for
 
     assert old.Principal is Principal
     assert old.make_principal is make_principal
@@ -50,7 +50,7 @@ def test_principal_key_is_unchanged(issuer, subject, expected):
 
 
 def test_unicode_hash_and_order_are_unchanged():
-    from shared.hashing import request_hash
+    from ecom.shared.hashing import request_hash
 
     data = {
         "商品": "咖啡☕", "quantity": 2, "items": ["甲", "乙"],
@@ -69,7 +69,7 @@ def test_unicode_hash_and_order_are_unchanged():
 
 
 def test_utc_round_trip_is_unchanged():
-    from shared.time import UtcDateTime, mark_utc, utcnow
+    from ecom.shared.time import UtcDateTime, mark_utc, utcnow
 
     naive = datetime(2026, 10, 6, 1, 2, 3, 456789)
     aware = naive.replace(tzinfo=timezone(timedelta(hours=8)))
@@ -92,7 +92,7 @@ def test_utc_round_trip_is_unchanged():
 
 
 def test_new_id_remains_uuid4():
-    from shared.ids import new_id
+    from ecom.shared.ids import new_id
 
     generated = [new_id() for _ in range(2)]
     assert generated[0] != generated[1]
@@ -100,7 +100,7 @@ def test_new_id_remains_uuid4():
 
 
 def test_domain_error_is_a_fieldless_exception_base():
-    from shared.errors import DomainError
+    from ecom.shared.errors import DomainError
 
     error = DomainError("示例错误")
     assert isinstance(error, Exception)

@@ -5,10 +5,10 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from api.routes.auth import require_principal
-from api.routes.commerce import router
-from modules.identity.types import make_principal
-from modules.sessions.service import ShoppingSessionService
+from ecom.api.routes.auth import require_principal
+from ecom.api.routes.commerce import router
+from ecom.modules.identity.types import make_principal
+from ecom.modules.sessions.service import ShoppingSessionService
 from tests.test_commerce_facts_mysql import seed
 
 

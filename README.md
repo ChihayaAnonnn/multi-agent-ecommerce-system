@@ -410,8 +410,8 @@ pip install -r requirements.txt
 cp .env.example .env
 # 用记事本/VS Code 打开 .env，填入你的 LLM_API_KEY
 
-# 5. 启动服务
-python main.py
+# 5. 启动服务（在仓库根目录执行）
+python -m uvicorn ecom.main:create_app --factory --host 0.0.0.0 --port 8000
 # 看到 "Uvicorn running on http://0.0.0.0:8000" 就成功了
 
 # 6. 测试推荐接口
@@ -516,12 +516,17 @@ Content-Type: application/json
 
 ```text
 multi-agent-ecommerce-system/
-├── main.py                 # FastAPI 入口
-├── agents/                 # 用户画像、推荐、库存、文案 Agent
-├── orchestrator/           # Supervisor 与 LangGraph 状态图
-├── services/               # A/B 实验、特征服务和指标
-├── models/                 # 数据模型
-├── config/                 # 配置
+├── ecom/                   # 唯一包根
+│   ├── main.py             # FastAPI 工厂入口（create_app）
+│   ├── config.py           # 配置
+│   ├── api/                # HTTP 接口层（路由、依赖装配、错误映射）
+│   ├── application/        # 用例编排（购物 Agent、只读投影）
+│   ├── modules/            # 业务模块（catalog/pricing/inventory/cart/checkout 等）
+│   ├── kernel/             # 跨模块共享契约与纯规则
+│   ├── shared/             # 零业务依赖原语
+│   ├── infra/              # 适配器（数据库、Redis、LLM、宿主结账网关）
+│   └── legacy/             # D1/D2 保留的旧推荐栈、实验与指标
+├── demo/                   # 内部演示页
 ├── tests/                  # 测试
 ├── docs/                   # 项目文档
 ├── requirements.txt        # Python 依赖

@@ -1,7 +1,7 @@
 # 系统架构
 
-> 适用版本：分层重构 Task 14 之后的 `grouped` 布局（`modules/ application/ infra/ legacy/`）。
-> 本文描述**当前源码**。旧推荐栈按 D1/D2 保留在 `legacy/`，见文末「保留的旧栈」。
+> 适用版本：分层重构 Task 15 之后的 `packaged` 布局（唯一包根 `ecom/`，源码 factory 入口）。
+> 本文描述**当前源码**。旧推荐栈按 D1/D2 保留在 `ecom/legacy/`，见文末「保留的旧栈」。
 > 分层设计与决策依据见 [`layering-design.md`](layering-design.md)。
 
 ## 1. 系统概览
@@ -14,41 +14,44 @@
 客户端
   │
   ▼
-api/              接口层：路由、依赖装配、错误映射、中间件
+ecom.api              接口层：路由、依赖装配、错误映射、中间件
   │
   ▼
-application/      用例编排
-  ├── shopping/   购物 Agent：LangGraph 图 + 动作用例 + 事实读取
-  └── storefront/ 商品展厅只读投影
+ecom.application      用例编排
+  ├── shopping/       购物 Agent：LangGraph 图 + 动作用例 + 事实读取
+  └── storefront/     商品展厅只读投影
   │
   ▼
-modules/          业务模块：catalog pricing inventory cart checkout identity sessions events sale_facts
+ecom.modules          业务模块：catalog pricing inventory cart checkout identity sessions events sale_facts
   │
   ▼
-kernel/  shared/  共享契约与纯规则 / 零业务依赖原语
+ecom.kernel  ecom.shared  共享契约与纯规则 / 零业务依赖原语
   │
   ▼
-infra/            适配器：MySQL 引擎、Redis、LLM、宿主结账网关
+ecom.infra            适配器：MySQL 引擎、Redis、LLM、宿主结账网关
 ```
 
-`main.py` 是组合根：只有它可以构造 `infra` 的适配器并注入其余各层。
+`ecom/main.py` 是组合根：只有它可以构造 `infra` 的适配器并注入其余各层；应用由
+`create_app() -> FastAPI` 工厂构造，运行时（Runtime）只在 lifespan 中创建并关闭。
+从仓库根启动：`python -m uvicorn ecom.main:create_app --factory --host 0.0.0.0 --port 8000`。
 
 ## 2. 分层与依赖规则
 
 | 分组 | 职责 | 一句话判据 |
 | --- | --- | --- |
-| `api/` | HTTP 接口层 | 只有它认识 `Request`/`Response`/HTTP 状态码 |
-| `application/` | 用例编排 | 感知会话、轮次、确认门禁、多模块拼装 |
-| `modules/` | 限界上下文 | 不感知 HTTP，不承担对话意图判断 |
-| `kernel/` | 跨模块共享契约与纯规则 | 无 I/O；只引用 catalog/pricing/inventory 的 `schemas` |
-| `shared/` | 零业务依赖原语 | 不 import 本工程任何其他分组 |
-| `infra/` | 适配器 | 只被组合根构造 |
+| `ecom.api` | HTTP 接口层 | 只有它认识 `Request`/`Response`/HTTP 状态码 |
+| `ecom.application` | 用例编排 | 感知会话、轮次、确认门禁、多模块拼装 |
+| `ecom.modules` | 限界上下文 | 不感知 HTTP，不承担对话意图判断 |
+| `ecom.kernel` | 跨模块共享契约与纯规则 | 无 I/O；只引用 catalog/pricing/inventory 的 `schemas` |
+| `ecom.shared` | 零业务依赖原语 | 不 import 本工程任何其他分组 |
+| `ecom.infra` | 适配器 | 只被组合根构造 |
 
 依赖方向 `api → application → modules → shared`；`kernel` 与 `modules` 之间存在一条受控窄环
 （cart 需要 `kernel.quotes`，`kernel.quotes` 需要基础模块的 DTO），由契约钉死为「只准碰 `schemas.py`」。
 
 跨模块只能引用对方的 `service.py` 公共方法、`schemas.py` 与公开的 `ports.py`/`types.py`；
-禁止直接 import 其他模块的 `models.py`。边界由 `.importlinter.stage.toml`（真实 CLI 检查）与
+禁止直接 import 其他模块的 `models.py`。边界由 `pyproject.toml` 的 `[tool.importlinter]`
+（真实 CLI 检查，`lint-imports --config pyproject.toml --no-cache`）与
 `tests/test_layering_rules.py`（AST 白名单与正负例）双重强制。
 
 ## 3. 购物 Agent 的一次轮次
@@ -83,7 +86,7 @@ finalize          组装 TurnResponse
 ## 4. 数据流与事务边界
 
 - **单模块 CRUD**：模块自管事务（`async with factory(), db.begin()`）。
-- **跨模块用例**（提案/确认/结账）：由 `application/shopping/actions.py` 建立事务，
+- **跨模块用例**（提案/确认/结账）：由 `ecom/application/shopping/actions.py` 建立事务，
   被调用的模块公开 `*_in_transaction` 操作接收同一个 `AsyncSession`，不自行提交或回滚。
 - **结账交接**分两段事务 + 锁外宿主调用：第一段校验门禁、保存 `preparing` 并消费动作；
   提交后调用宿主网关（同一 handoff ID 作幂等键）；第二段保存 `ready`/`failed`。
@@ -92,7 +95,7 @@ finalize          组装 TurnResponse
 
 ## 5. 身份与主体
 
-`modules/identity/` 只回答「请求者是谁」。购物会话、购物车、交接记录的归属
+`ecom/modules/identity/` 只回答「请求者是谁」。购物会话、购物车、交接记录的归属
 一律按 `Principal.principal_key` 校验，路由不得读取请求体里的 `user_id`。
 
 访问令牌为 RS256 Bearer；刷新令牌放在 `__Host-` + `Secure` + `HttpOnly` + `SameSite=Lax` 的 Cookie 中。
@@ -100,19 +103,19 @@ finalize          组装 TurnResponse
 
 ## 6. 保留的旧栈（按 D1/D2）
 
-`legacy/` 保留旧推荐栈与实验/指标，**不是当前主线**：
+`ecom/legacy/` 保留旧推荐栈与实验/指标，**不是当前主线**：
 
 | 路径 | 内容 | 状态 |
 | --- | --- | --- |
-| `legacy/agents/` | 用户画像、商品推荐、营销文案、库存四个演示 Agent | 依赖硬编码样例商品，与真实目录无关 |
-| `legacy/orchestrator/` | 旧推荐管线（Supervisor 与 LangGraph 两份实现） | 两条路径都注册；已知存在实验实例分裂问题，未修 |
-| `legacy/models/` | 旧展示契约（浮点金额） | 仅为旧接口兼容 |
-| `legacy/services/` | A/B 引擎、指标、特征存储 | 进程内状态；`feature_store` 无生产调用方 |
-| `legacy/infrastructure/` | 旧的 MySQL/Redis/Milvus 连接封装 | 无生产调用方 |
-| `legacy/catalog_adapter.py` | 领域对象 → 旧展示模型的单向适配 | 旧接口过渡用 |
+| `ecom/legacy/agents/` | 用户画像、商品推荐、营销文案、库存四个演示 Agent | 依赖硬编码样例商品，与真实目录无关 |
+| `ecom/legacy/orchestrator/` | 旧推荐管线（Supervisor 与 LangGraph 两份实现） | 两条路径都注册；已知存在实验实例分裂问题，未修 |
+| `ecom/legacy/models/` | 旧展示契约（浮点金额） | 仅为旧接口兼容 |
+| `ecom/legacy/services/` | A/B 引擎、指标、特征存储 | 进程内状态；`feature_store` 无生产调用方 |
+| `ecom/legacy/infrastructure/` | 旧的 MySQL/Redis/Milvus 连接封装 | 无生产调用方 |
+| `ecom/legacy/catalog_adapter.py` | 领域对象 → 旧展示模型的单向适配 | 旧接口过渡用 |
 
 对应的 `/api/v1/recommend`、`/api/v1/recommend/graph`、`/api/v1/experiments`、`/api/v1/metrics`
-路由保持注册且行为不变。新业务层不得依赖 `legacy`，只有组合根（`main.py`、`api/deps.py`）
+路由保持注册且行为不变。新业务层不得依赖 `ecom.legacy`，只有组合根（`ecom/main.py`、`ecom/api/deps.py`）
 与三个过渡路由例外，由分层契约强制。
 
 ## 7. 未验证的边界

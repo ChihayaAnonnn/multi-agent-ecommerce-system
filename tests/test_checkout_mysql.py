@@ -4,14 +4,14 @@ import asyncio
 import pytest
 from sqlalchemy import select
 
-from application.shopping.actions import CartActionService
-from infra.checkout_gateway import (
+from ecom.application.shopping.actions import CartActionService
+from ecom.infra.checkout_gateway import (
     DemoHostCheckoutGateway,
     UnavailableHostCheckoutGateway,
 )
-from modules.checkout.models import CheckoutHandoff
-from modules.checkout.service import CheckoutService
-from modules.sessions.service import CommerceError
+from ecom.modules.checkout.models import CheckoutHandoff
+from ecom.modules.checkout.service import CheckoutService
+from ecom.modules.sessions.service import CommerceError
 from tests.test_cart_confirmation_mysql import setup
 
 
@@ -85,7 +85,7 @@ def test_no_host_is_503_in_production(migrated_mysql_database):
                 a,s.session_id,preview.action_id,True,'no-host'
             )
         assert error.value.code == 'checkout_unavailable'
-        from modules.cart.models import PendingAction
+        from ecom.modules.cart.models import PendingAction
         async with factory() as db:
             action=await db.get(PendingAction,preview.action_id)
             assert action.status=='pending' and action.confirmation_key is None
@@ -97,8 +97,8 @@ def test_preview_source_fence_reuses_only_pending_action(migrated_mysql_database
 
     from sqlalchemy import update
 
-    from modules.sessions.models import CommerceSession
-    from shared.time import utcnow
+    from ecom.modules.sessions.models import CommerceSession
+    from ecom.shared.time import utcnow
     async def scenario():
         (factory,sessions,cart,a,_,s,_,_,_,_),view=await ready_cart(migrated_mysql_database)
         service=CheckoutService(factory,cart,DemoHostCheckoutGateway())
@@ -120,7 +120,7 @@ def test_preview_source_fence_reuses_only_pending_action(migrated_mysql_database
 
 
 def test_invalid_destination_never_becomes_ready(migrated_mysql_database):
-    from modules.checkout.schemas import Destination
+    from ecom.modules.checkout.schemas import Destination
     class Malicious(DemoHostCheckoutGateway):
         async def create_handoff(self,snapshot,request_id):
             return Destination(kind='https',ref='javascript:alert(1)',demo=True)

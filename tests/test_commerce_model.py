@@ -3,8 +3,8 @@ import asyncio
 
 import pytest
 
-from application.shopping.guards import SafeCandidateReranker, SafeIntentModel
-from application.shopping.schemas import IntentUpdate, ShoppingIntent
+from ecom.application.shopping.guards import SafeCandidateReranker, SafeIntentModel
+from ecom.application.shopping.schemas import IntentUpdate, ShoppingIntent
 
 
 @pytest.mark.parametrize('output',[['fake','s1'],['s1','s1'],['s1','s2','s3','fake'],{'sku_id':'s1','price':1}])

@@ -1,6 +1,6 @@
 """显式条件覆盖、模型推断不能成为硬条件。"""
-from application.shopping.intent import parse_intent
-from application.shopping.schemas import IntentUpdate, ShoppingIntent
+from ecom.application.shopping.intent import parse_intent
+from ecom.application.shopping.schemas import IntentUpdate, ShoppingIntent
 
 
 def test_explicit_budget_overrides_previous_constraint():

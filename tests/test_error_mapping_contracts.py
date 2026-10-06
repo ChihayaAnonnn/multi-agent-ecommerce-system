@@ -10,21 +10,21 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
 
-from api import http_config
-from api.routes.commerce import invoke
-from kernel.errors import CommerceDependencyError, CommerceError
-from modules.catalog.service import (
+from ecom.api import http_config
+from ecom.api.routes.commerce import invoke
+from ecom.kernel.errors import CommerceDependencyError, CommerceError
+from ecom.modules.catalog.service import (
     CatalogConflictError,
     CatalogError,
     CatalogNotFoundError,
     CatalogValidationError,
 )
-from modules.identity.passwords import PasswordPolicyError
-from modules.identity.types import IdentityError
-from modules.inventory.service import InventoryError
-from modules.pricing.service import PricingError
-from modules.sessions.service import CommerceError as SessionCommerceError
-from shared.errors import DomainError
+from ecom.modules.identity.passwords import PasswordPolicyError
+from ecom.modules.identity.types import IdentityError
+from ecom.modules.inventory.service import InventoryError
+from ecom.modules.pricing.service import PricingError
+from ecom.modules.sessions.service import CommerceError as SessionCommerceError
+from ecom.shared.errors import DomainError
 
 COMMERCE_STATUSES = {
     'not_found': 404,
@@ -59,7 +59,7 @@ COMMERCE_STATUSES = {
 def test_commerce_error_does_not_carry_http_status():
     error = CommerceError('cart_version_conflict', {'version': 2})
     assert not hasattr(error, 'status_code')
-    from api.errors import commerce_http_error
+    from ecom.api.errors import commerce_http_error
 
     response = commerce_http_error(error)
     assert response.status_code == 409
@@ -71,7 +71,7 @@ def test_commerce_error_does_not_carry_http_status():
 def test_registered_commerce_errors_preserve_status_and_detail(code, status):
     error = CommerceError(code)
     assert not hasattr(error, 'status_code')
-    from api.errors import commerce_http_error
+    from ecom.api.errors import commerce_http_error
 
     response = commerce_http_error(error)
     assert response.status_code == status
@@ -81,7 +81,7 @@ def test_registered_commerce_errors_preserve_status_and_detail(code, status):
 def test_turn_processing_keeps_retryable_detail():
     error = CommerceError('turn_processing', {'retryable': True})
     assert not hasattr(error, 'status_code')
-    from api.errors import commerce_http_error
+    from ecom.api.errors import commerce_http_error
 
     response = commerce_http_error(error)
     assert response.status_code == 409
@@ -89,14 +89,15 @@ def test_turn_processing_keeps_retryable_detail():
 
 
 def test_registered_codes_cover_raise_sites_and_dynamic_quote_reasons():
-    from api.errors import COMMERCE_HTTP_STATUSES
+    from ecom.api.errors import COMMERCE_HTTP_STATUSES
 
     root = Path(__file__).resolve().parents[1]
     codes = set()
     dynamic_codes = set()
     for directory in (
-        'modules/cart', 'modules/checkout', 'modules/sessions', 'modules/events',
-        'application/shopping', 'api', 'api/routes',
+        'ecom/modules/cart', 'ecom/modules/checkout', 'ecom/modules/sessions',
+        'ecom/modules/events', 'ecom/application/shopping', 'ecom/api',
+        'ecom/api/routes',
     ):
         for path in (root / directory).glob('*.py'):
             for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
@@ -113,7 +114,7 @@ def test_registered_codes_cover_raise_sites_and_dynamic_quote_reasons():
                 assert len(node.args) <= 2
                 assert len(node.args) == 1 or not isinstance(node.args[1], ast.Constant)
     assert dynamic_codes == {'quote.reason'}
-    quotes = ast.parse((root / 'kernel/quotes.py').read_text(encoding='utf-8'))
+    quotes = ast.parse((root / 'ecom/kernel/quotes.py').read_text(encoding='utf-8'))
     reasons = {
         node.value.value for node in ast.walk(quotes)
         if isinstance(node, ast.Return) and isinstance(node.value, ast.Constant)
@@ -162,15 +163,15 @@ def test_password_policy_error_preserves_value_error_compatibility():
 
 
 def test_password_policy_public_export_is_same_object():
-    from modules.identity import service
+    from ecom.modules.identity import service
 
     assert getattr(service, 'PasswordPolicyError', None) is PasswordPolicyError
     assert 'PasswordPolicyError' in service.__all__
 
 
 def test_auth_imports_password_policy_from_public_service():
-    from api.routes import auth
-    from modules.identity import service
+    from ecom.api.routes import auth
+    from ecom.modules.identity import service
 
     source = Path(auth.__file__).read_text(encoding='utf-8')
     imports = {
@@ -179,8 +180,8 @@ def test_auth_imports_password_policy_from_public_service():
         if isinstance(node, ast.ImportFrom)
         for alias in node.names
     }
-    assert ('modules.identity.passwords', 'PasswordPolicyError') not in imports
-    assert ('modules.identity.service', 'PasswordPolicyError') in imports
+    assert ('ecom.modules.identity.passwords', 'PasswordPolicyError') not in imports
+    assert ('ecom.modules.identity.service', 'PasswordPolicyError') in imports
     assert auth.PasswordPolicyError is service.PasswordPolicyError
 
 
@@ -190,7 +191,7 @@ def test_auth_imports_password_policy_from_public_service():
 ])
 def test_catalog_errors_keep_string_details(error_type, status):
     assert issubclass(error_type, DomainError)
-    from api.errors import catalog_http_error
+    from ecom.api.errors import catalog_http_error
 
     response = catalog_http_error(error_type('目录业务错误'))
     assert response.status_code == status
@@ -198,8 +199,8 @@ def test_catalog_errors_keep_string_details(error_type, status):
 
 
 def test_identity_http_configuration_belongs_to_api():
-    assert http_config.IdentityHttpConfig.__module__ == 'api.http_config'
-    assert http_config.parse_trusted_networks.__module__ == 'api.http_config'
+    assert http_config.IdentityHttpConfig.__module__ == 'ecom.api.http_config'
+    assert http_config.parse_trusted_networks.__module__ == 'ecom.api.http_config'
     config = http_config.IdentityHttpConfig()
     assert config.refresh_cookie_name == '__Host-ecom_refresh'
     assert config.session_ttl_seconds == 2592000
@@ -207,11 +208,11 @@ def test_identity_http_configuration_belongs_to_api():
 
 
 def test_http_list_parsing_is_not_settings_business_behavior():
-    from config.settings import Settings
+    from ecom.config import Settings
 
     assert not hasattr(Settings, 'allowed_origins')
     assert not hasattr(Settings, 'trusted_proxy_networks')
-    from api.http_config import parse_http_list
+    from ecom.api.http_config import parse_http_list
 
     assert parse_http_list(' https://one.test, ,https://two.test ') == (
         'https://one.test', 'https://two.test',
@@ -219,8 +220,8 @@ def test_http_list_parsing_is_not_settings_business_behavior():
 
 
 def test_trusted_network_validation_remains_fail_closed():
-    assert http_config.parse_trusted_networks.__module__ == 'api.http_config'
-    from modules.identity.types import IdentityConfigurationError
+    assert http_config.parse_trusted_networks.__module__ == 'ecom.api.http_config'
+    from ecom.modules.identity.types import IdentityConfigurationError
 
     parsed = http_config.parse_trusted_networks(('10.0.0.1/8', '2001:db8::/32'))
     assert tuple(str(network) for network in parsed) == (
@@ -276,8 +277,8 @@ def test_unknown_domain_error_keeps_internal_error_policy(error):
 
 
 def test_identity_error_response_side_effects_are_preserved():
-    from api.routes.auth import router
-    from modules.identity.types import RateLimited
+    from ecom.api.routes.auth import router
+    from ecom.modules.identity.types import RateLimited
 
     class IdentityStub:
         async def login(self, *args):

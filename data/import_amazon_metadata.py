@@ -28,11 +28,18 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
 from tqdm import tqdm  # noqa: E402
 
 from data.download_amazon_metadata import CATEGORIES, REPO_ID  # noqa: E402
-from modules.catalog.models import Category, CategoryAttribute, Product  # noqa: E402
-from modules.catalog.seed import insert_catalog_batch  # noqa: E402
-from modules.inventory.models import DEFAULT_LOCATION_ID, StockLocation  # noqa: E402
-from modules.inventory.seed import insert_seed_inventory  # noqa: E402
-from modules.pricing.seed import insert_seed_prices  # noqa: E402
+from ecom.modules.catalog.models import (  # noqa: E402
+    Category,
+    CategoryAttribute,
+    Product,
+)
+from ecom.modules.catalog.seed import insert_catalog_batch  # noqa: E402
+from ecom.modules.inventory.models import (  # noqa: E402
+    DEFAULT_LOCATION_ID,
+    StockLocation,
+)
+from ecom.modules.inventory.seed import insert_seed_inventory  # noqa: E402
+from ecom.modules.pricing.seed import insert_seed_prices  # noqa: E402
 
 NAMESPACE = UUID('699e5fb0-bf94-4c5a-92c7-e4a575ebf39a')
 RULE_VERSION = 'amazon-demo-v1'
@@ -292,8 +299,8 @@ async def run(args: argparse.Namespace) -> dict:
     if args.dry_run: return await import_files(args,None,'preview')
     if not args.database_name or not re.fullmatch(r'[a-zA-Z0-9_]+',args.database_name):
         raise ValueError('写入前须用 --database-name 明确指定目标库名')
-    from config import get_settings
-    from infra.db import create_session_factory
+    from ecom.config import get_settings
+    from ecom.infra.db import create_session_factory
     url = make_url(get_settings().database_url)
     if url.drivername != 'mysql+asyncmy' or url.host not in ['localhost','127.0.0.1','::1']:
         raise ValueError('此测试数据脚本仅支持配置中的本机 mysql+asyncmy 连接')

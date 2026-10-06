@@ -4,9 +4,9 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from legacy.models.schemas import AgentResult, Product, RecommendationResponse
-from legacy.services.ab_test import ABTestEngine
-from legacy.services.metrics import MetricsCollector
+from ecom.legacy.models.schemas import AgentResult, Product, RecommendationResponse
+from ecom.legacy.services.ab_test import ABTestEngine
+from ecom.legacy.services.metrics import MetricsCollector
 
 
 class StubSupervisor:
@@ -37,12 +37,12 @@ class StubGraph:
 
 
 def build_test_app():
-    from api.routes.catalog import quote_router
-    from api.routes.catalog import router as catalog_router
-    from api.routes.health import router as health_router
-    from api.routes.legacy_experiments import router as experiments_router
-    from api.routes.legacy_recommendations import router as recommendations_router
-    from api.routes.metrics import router as metrics_router
+    from ecom.api.routes.catalog import quote_router
+    from ecom.api.routes.catalog import router as catalog_router
+    from ecom.api.routes.health import router as health_router
+    from ecom.api.routes.legacy_experiments import router as experiments_router
+    from ecom.api.routes.legacy_recommendations import router as recommendations_router
+    from ecom.api.routes.metrics import router as metrics_router
 
     app = FastAPI()
     for router in (
@@ -121,8 +121,9 @@ def test_experiment_outcome_and_health_routes_keep_contract():
 
 
 def test_main_app_registers_all_existing_routes():
-    from main import app
+    from ecom.main import create_app
 
+    app = create_app()
     paths = app.openapi()["paths"]
     routes = {(path, method.upper()) for path, methods in paths.items() for method in methods}
     assert {

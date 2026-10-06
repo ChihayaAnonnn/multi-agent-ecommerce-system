@@ -12,14 +12,14 @@ from typing import get_type_hints
 import pytest
 from pydantic import ValidationError
 
-from modules.catalog.schemas import (
+from ecom.modules.catalog.schemas import (
     AttributeView,
     ProductView,
     SaleFactView,
     SKUDetailView,
 )
-from modules.inventory.schemas import AvailabilityView
-from modules.pricing.schemas import PriceView
+from ecom.modules.inventory.schemas import AvailabilityView
+from ecom.modules.pricing.schemas import PriceView
 
 READ_AT = datetime(2026, 10, 6, 1, 2, 3)
 
@@ -57,7 +57,7 @@ def sale_view(sku=None, status='active'):
 
 
 def test_turn_contract_is_same_object_and_same_json():
-    contracts = importlib.import_module('application.shopping.contracts')
+    contracts = importlib.import_module('ecom.application.shopping.contracts')
     request = contracts.TurnRequest(turn_id='turn')
     assert json.loads(request.model_dump_json()) == {
         'turn_id': 'turn', 'message': '', 'constraints': None,
@@ -88,11 +88,11 @@ def test_turn_contract_is_same_object_and_same_json():
 
 
 def test_graph_hints_resolve_real_contracts():
-    contracts = importlib.import_module('application.shopping.contracts')
-    state = importlib.import_module('application.shopping.state')
-    intent = importlib.import_module('kernel.intent')
-    from application.shopping.schemas import CommerceGraphState
-    from modules.sessions.schemas import TurnClaim
+    contracts = importlib.import_module('ecom.application.shopping.contracts')
+    state = importlib.import_module('ecom.application.shopping.state')
+    intent = importlib.import_module('ecom.kernel.intent')
+    from ecom.application.shopping.schemas import CommerceGraphState
+    from ecom.modules.sessions.schemas import TurnClaim
 
     assert CommerceGraphState is state.CommerceGraphState
     hints = get_type_hints(state.CommerceGraphState)
@@ -118,7 +118,7 @@ def test_graph_hints_resolve_real_contracts():
     (sku_view(), price_view(amount_minor=0), stock_view(), 'purchasable'),
 ])
 def test_reason_priority_includes_negative_stock(sku, price, stock, expected):
-    quotes = importlib.import_module('kernel.quotes')
+    quotes = importlib.import_module('ecom.kernel.quotes')
     assert quotes.evaluate_purchasability(sku, price, stock) == expected
 
 
@@ -132,9 +132,9 @@ def test_reason_priority_includes_negative_stock(sku, price, stock, expected):
 def test_legacy_quote_paths_keep_existing_differences(
     currency, status, quantity, main, api, cart,
 ):
-    quotes = importlib.import_module('kernel.quotes')
-    from api.routes.catalog import _quote_reason
-    from modules.cart.service import CartService
+    quotes = importlib.import_module('ecom.kernel.quotes')
+    from ecom.api.routes.catalog import _quote_reason
+    from ecom.modules.cart.service import CartService
 
     sku, price, stock = sku_view(), price_view(currency), stock_view(status, quantity)
     assert quotes.evaluate_purchasability(sku, price, stock) == main
@@ -158,7 +158,7 @@ def test_legacy_quote_paths_keep_existing_differences(
         async def lock_availability(self, database, ids):
             return {'sku': stock}
 
-    from modules.sale_facts.service import SaleFactsReader
+    from ecom.modules.sale_facts.service import SaleFactsReader
 
     facts = SaleFactsReader(Catalog(), Pricing(), Inventory())
     result, _ = asyncio.run(CartService(None, facts).lock_quotes(None, ['sku']))
@@ -168,7 +168,7 @@ def test_legacy_quote_paths_keep_existing_differences(
 
 def test_legacy_rule_public_imports_are_callable():
     exports = {}
-    exec('from kernel.quotes import *', exports)
+    exec('from ecom.kernel.quotes import *', exports)
     assert exports['evaluate_legacy_api_purchasability'](
         sku_view(), price_view('USD'), stock_view(quantity=-1),
     ) == 'purchasable'
@@ -187,7 +187,7 @@ def test_legacy_rule_public_imports_are_callable():
     (sku_view(), price_view(amount_minor=0), stock_view(), 'purchasable'),
 ])
 def test_public_legacy_api_rule_preserves_reason_priority(sku, price, stock, expected):
-    quotes = importlib.import_module('kernel.quotes')
+    quotes = importlib.import_module('ecom.kernel.quotes')
     assert quotes.evaluate_legacy_api_purchasability(sku, price, stock) == expected
 
 
@@ -204,7 +204,7 @@ def test_public_legacy_api_rule_preserves_reason_priority(sku, price, stock, exp
 def test_public_legacy_cart_rule_preserves_reason_priority(
     sale, price, stock, expected,
 ):
-    quotes = importlib.import_module('kernel.quotes')
+    quotes = importlib.import_module('ecom.kernel.quotes')
     assert quotes.evaluate_legacy_cart_purchasability(sale, price, stock) == expected
 
 
@@ -215,9 +215,9 @@ def test_public_legacy_cart_rule_preserves_reason_priority(
 def test_legacy_cart_uses_sale_product_status_when_sources_conflict(
     sku_status, product_status, api, cart,
 ):
-    quotes = importlib.import_module('kernel.quotes')
-    from api.routes.catalog import _quote_reason
-    from modules.cart.service import _legacy_quote_reason
+    quotes = importlib.import_module('ecom.kernel.quotes')
+    from ecom.api.routes.catalog import _quote_reason
+    from ecom.modules.cart.service import _legacy_quote_reason
 
     sku = sku_view(product_status=sku_status)
     sale, price, stock = sale_view(sku, product_status), price_view(), stock_view()
@@ -228,8 +228,8 @@ def test_legacy_cart_uses_sale_product_status_when_sources_conflict(
 
 
 def test_api_legacy_helper_delegates_to_shared_pure_evaluator(monkeypatch):
-    from api.routes import catalog
-    from kernel.quotes import evaluate_purchasability
+    from ecom.api.routes import catalog
+    from ecom.kernel.quotes import evaluate_purchasability
 
     monkeypatch.setattr(
         catalog, 'evaluate_legacy_api_purchasability',
@@ -241,8 +241,8 @@ def test_api_legacy_helper_delegates_to_shared_pure_evaluator(monkeypatch):
 
 
 def test_cart_legacy_helper_delegates_to_shared_pure_evaluator(monkeypatch):
-    from kernel.quotes import evaluate_purchasability
-    from modules.cart import service
+    from ecom.kernel.quotes import evaluate_purchasability
+    from ecom.modules.cart import service
 
     def evaluate_sale(sale, price, stock):
         return evaluate_purchasability(sale.sku, price, stock)
@@ -269,8 +269,8 @@ def test_cart_legacy_helper_delegates_to_shared_pure_evaluator(monkeypatch):
 def test_product_constraints_preserve_attribute_types(
     attribute_value, condition_value, source, filterable, expected,
 ):
-    intent = importlib.import_module('kernel.intent')
-    constraints = importlib.import_module('kernel.constraints')
+    intent = importlib.import_module('ecom.kernel.intent')
+    constraints = importlib.import_module('ecom.kernel.constraints')
     product = ProductView(
         id='product', category_id='category', product_code='code', name='商品',
         brand=None, description=None, attributes={'color': attribute_value},
@@ -303,16 +303,16 @@ def test_product_constraints_preserve_attribute_types(
     (100, price_view('USD', 100), True),
 ])
 def test_budget_equality_and_price_tolerance_match_baseline(budget, price, expected):
-    intent = importlib.import_module('kernel.intent')
-    constraints = importlib.import_module('kernel.constraints')
+    intent = importlib.import_module('ecom.kernel.intent')
+    constraints = importlib.import_module('ecom.kernel.constraints')
     assert constraints.matches_budget(
         intent.ShoppingIntent(budget_max_minor=budget), price,
     ) is expected
 
 
 def test_amount_zero_and_utc_json_match_baseline():
-    quotes = importlib.import_module('kernel.quotes')
-    from application.shopping.schemas import CandidatePage, SKUQuote
+    quotes = importlib.import_module('ecom.kernel.quotes')
+    from ecom.application.shopping.schemas import CandidatePage, SKUQuote
 
     assert SKUQuote is quotes.SKUQuote
     assert CandidatePage is quotes.CandidatePage
@@ -329,14 +329,14 @@ def test_amount_zero_and_utc_json_match_baseline():
 
 
 @pytest.mark.parametrize('modules', [
-    ['application.shopping.contracts', 'application.shopping.state',
-     'modules.cart.schemas', 'modules.catalog.schemas'],
-    ['modules.cart.schemas', 'modules.catalog.schemas',
-     'application.shopping.state', 'application.shopping.contracts'],
-    ['modules.catalog.schemas', 'application.shopping.contracts',
-     'modules.cart.schemas', 'application.shopping.state'],
-    ['api.contracts.commerce', 'modules.sessions.schemas',
-     'application.shopping.schemas'],
+    ['ecom.application.shopping.contracts', 'ecom.application.shopping.state',
+     'ecom.modules.cart.schemas', 'ecom.modules.catalog.schemas'],
+    ['ecom.modules.cart.schemas', 'ecom.modules.catalog.schemas',
+     'ecom.application.shopping.state', 'ecom.application.shopping.contracts'],
+    ['ecom.modules.catalog.schemas', 'ecom.application.shopping.contracts',
+     'ecom.modules.cart.schemas', 'ecom.application.shopping.state'],
+    ['ecom.api.contracts.commerce', 'ecom.modules.sessions.schemas',
+     'ecom.application.shopping.schemas'],
 ])
 def test_contract_import_orders_resolve_without_placeholders(modules):
     script = f"""
@@ -344,8 +344,8 @@ import importlib
 from typing import get_type_hints
 for name in {modules!r}:
     importlib.import_module(name)
-from application.shopping.contracts import TurnRequest, TurnResponse
-from application.shopping.state import CommerceGraphState
+from ecom.application.shopping.contracts import TurnRequest, TurnResponse
+from ecom.application.shopping.state import CommerceGraphState
 hints = get_type_hints(CommerceGraphState)
 assert hints['turn'] is TurnRequest
 assert hints['response'] is TurnResponse
@@ -358,45 +358,47 @@ assert hints['response'] is TurnResponse
 
 @pytest.mark.parametrize('indirect', [False, True])
 @pytest.mark.parametrize('dependency', [
-    'config', 'modules.cart', 'modules.catalog.service',
+    'ecom.config', 'ecom.modules.cart', 'ecom.modules.catalog.service',
 ])
 def test_kernel_stage_rejects_dependencies_outside_schema_whitelist(
     tmp_path, indirect, dependency,
 ):
     from tests.test_layering import (
-        run_stage_imports,
-        write_grouped_tree,
-        write_stage_config,
+        run_packaged_imports,
+        write_packaged_config,
+        write_packaged_tree,
     )
 
-    write_grouped_tree(tmp_path, base_packages=('modules.cart',))
-    (tmp_path / 'kernel' / '__init__.py').write_text(
+    write_packaged_tree(tmp_path, base_packages=('ecom.modules.cart',))
+    (tmp_path / 'ecom' / 'kernel' / '__init__.py').write_text(
         'from . import helper\n' if indirect else f'import {dependency}\n',
         encoding='utf-8',
     )
     if indirect:
-        (tmp_path / 'kernel' / 'helper.py').write_text(
+        (tmp_path / 'ecom' / 'kernel' / 'helper.py').write_text(
             f'import {dependency}\n', encoding='utf-8',
         )
-    config = write_stage_config(tmp_path)
+    config = write_packaged_config(tmp_path)
     with pytest.raises(AssertionError, match='BROKEN'):
-        run_stage_imports(config, tmp_path)
+        run_packaged_imports(config, tmp_path)
 
 
-@pytest.mark.parametrize('package', ['modules.catalog', 'modules.pricing',
-                                     'modules.inventory'])
+@pytest.mark.parametrize('package', ['ecom.modules.catalog', 'ecom.modules.pricing',
+                                     'ecom.modules.inventory'])
 def test_base_schema_stage_rejects_reverse_kernel_dependency(tmp_path, package):
     from tests.test_layering import (
-        run_stage_imports,
-        write_grouped_tree,
-        write_stage_config,
+        run_packaged_imports,
+        write_packaged_config,
+        write_packaged_tree,
     )
 
-    write_grouped_tree(tmp_path)
-    for name in ('modules.catalog', 'modules.pricing', 'modules.inventory'):
+    write_packaged_tree(tmp_path)
+    for name in (
+        'ecom.modules.catalog', 'ecom.modules.pricing', 'ecom.modules.inventory',
+    ):
         (tmp_path.joinpath(*name.split('.')).joinpath('schemas.py')).write_text(
-            'import kernel\n' if name == package else '', encoding='utf-8',
+            'import ecom.kernel\n' if name == package else '', encoding='utf-8',
         )
-    config = write_stage_config(tmp_path)
+    config = write_packaged_config(tmp_path)
     with pytest.raises(AssertionError, match='BROKEN'):
-        run_stage_imports(config, tmp_path)
+        run_packaged_imports(config, tmp_path)

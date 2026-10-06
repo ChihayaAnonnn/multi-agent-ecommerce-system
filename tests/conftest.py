@@ -19,7 +19,7 @@ from alembic.config import Config
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from config import get_settings
+from ecom.config import get_settings
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 ALEMBIC_INI = REPO_ROOT / "alembic.ini"

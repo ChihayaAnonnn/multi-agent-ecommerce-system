@@ -8,22 +8,22 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import func, select
 
-from infra.db import create_session_factory
-from modules.catalog.schemas import CategoryInput, ProductInput, SKUInput
-from modules.catalog.service import (
+from ecom.infra.db import create_session_factory
+from ecom.modules.catalog.schemas import CategoryInput, ProductInput, SKUInput
+from ecom.modules.catalog.service import (
     CatalogConflictError,
     CatalogService,
     CatalogSKUReader,
 )
-from modules.pricing.models import SKUPrice, SKUPriceChange
-from modules.pricing.service import (
+from ecom.modules.pricing.models import SKUPrice, SKUPriceChange
+from ecom.modules.pricing.service import (
     PricingConflictError,
     PricingNotFoundError,
     PricingService,
     PricingValidationError,
     to_minor_units,
 )
-from shared.time import utcnow
+from ecom.shared.time import utcnow
 from tests.conftest import downgrade_to, read_schema, upgrade_to
 
 PRICING_TABLES = {"sku_prices", "sku_price_changes"}

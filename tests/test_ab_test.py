@@ -5,7 +5,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from legacy.services.ab_test import ABTestEngine, Experiment, ExperimentGroup
+from ecom.legacy.services.ab_test import ABTestEngine, Experiment, ExperimentGroup
 
 
 def test_consistent_assignment():

@@ -10,28 +10,28 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from api.deps import ApiRuntime, create_runtime
-from config import Settings
-from infra.db import create_session_factory
-from legacy.catalog_adapter import to_legacy_product
-from legacy.services.ab_test import ABTestEngine
-from legacy.services.metrics import MetricsCollector
-from modules.catalog.schemas import (
+from ecom.api.deps import ApiRuntime, create_runtime
+from ecom.config import Settings
+from ecom.infra.db import create_session_factory
+from ecom.legacy.catalog_adapter import to_legacy_product
+from ecom.legacy.services.ab_test import ABTestEngine
+from ecom.legacy.services.metrics import MetricsCollector
+from ecom.modules.catalog.schemas import (
     CategoryInput,
     OptionInput,
     OptionValueInput,
     ProductInput,
     SKUInput,
 )
-from modules.catalog.service import CatalogService, CatalogSKUReader
-from modules.inventory.models import DEFAULT_LOCATION_ID
-from modules.inventory.service import InventoryDependencyError, InventoryService
-from modules.pricing.service import PricingDependencyError, PricingService
+from ecom.modules.catalog.service import CatalogService, CatalogSKUReader
+from ecom.modules.inventory.models import DEFAULT_LOCATION_ID
+from ecom.modules.inventory.service import InventoryDependencyError, InventoryService
+from ecom.modules.pricing.service import PricingDependencyError, PricingService
 
 
 def build_app(runtime) -> FastAPI:
-    from api.routes.catalog import quote_router
-    from api.routes.catalog import router as catalog_router
+    from ecom.api.routes.catalog import quote_router
+    from ecom.api.routes.catalog import router as catalog_router
 
     app = FastAPI()
     app.include_router(catalog_router)
@@ -122,7 +122,7 @@ def test_single_sku_quote_keeps_inventory_error_priority(migrated_mysql_database
 
 
 def test_single_sku_quote_keeps_independent_source_order():
-    from modules.catalog.schemas import SKUDetailView
+    from ecom.modules.catalog.schemas import SKUDetailView
     from tests.test_commerce_facts import Inventory, Prices
 
     calls = []
@@ -409,7 +409,7 @@ def test_quote_marks_inactive_sku_unpurchasable(migrated_mysql_database: str):
     """停用 SKU 即使有价格有库存也不可购买。"""
 
     async def scenario():
-        from modules.catalog.models import SKU
+        from ecom.modules.catalog.models import SKU
 
         runtime = mysql_runtime(migrated_mysql_database)
         _, _, sku = await _seed_catalog(migrated_mysql_database)

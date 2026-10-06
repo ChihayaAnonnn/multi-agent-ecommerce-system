@@ -7,13 +7,13 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy.exc import OperationalError
 
-from modules.catalog.schemas import ProductView, SaleFactView, SKUDetailView
-from modules.catalog.service import CatalogError
-from modules.inventory.schemas import AvailabilityView
-from modules.inventory.service import InventoryDependencyError
-from modules.pricing.schemas import PriceView
-from modules.pricing.service import PricingDependencyError
-from shared.time import utcnow
+from ecom.modules.catalog.schemas import ProductView, SaleFactView, SKUDetailView
+from ecom.modules.catalog.service import CatalogError
+from ecom.modules.inventory.schemas import AvailabilityView
+from ecom.modules.inventory.service import InventoryDependencyError
+from ecom.modules.pricing.schemas import PriceView
+from ecom.modules.pricing.service import PricingDependencyError
+from ecom.shared.time import utcnow
 
 
 @pytest.fixture
@@ -21,11 +21,11 @@ def reader_case():
     class ReaderCase(SimpleNamespace):
         @property
         def reader(self):
-            spec = importlib.util.find_spec('modules.sale_facts')
+            spec = importlib.util.find_spec('ecom.modules.sale_facts')
             assert spec is not None, (
                 'SaleFactsReader 尚未实现'
             )
-            from modules.sale_facts.service import SaleFactsReader
+            from ecom.modules.sale_facts.service import SaleFactsReader
 
             return SaleFactsReader(self.catalog, self.pricing, self.inventory)
 
@@ -135,8 +135,8 @@ def test_explicit_dependency_errors_are_translated(
     reader_case, locked, source, error_type,
 ):
     reader = reader_case.reader
-    from kernel.errors import CommerceDependencyError
-    from shared.errors import DomainError
+    from ecom.kernel.errors import CommerceDependencyError
+    from ecom.shared.errors import DomainError
 
     error = (error_type('query', {}, Exception('offline'))
         if error_type is OperationalError else error_type('offline'))
@@ -189,7 +189,7 @@ def test_locked_quotes_use_sale_product_status_authority(reader_case):
 
 
 def test_application_reader_delegates_quotes(reader_case):
-    from application.shopping.facts import CommerceFactsReader
+    from ecom.application.shopping.facts import CommerceFactsReader
 
     reader = CommerceFactsReader(reader_case.catalog, reader_case.reader)
     quotes = asyncio.run(reader.quote_many(['sku-1']))
@@ -198,7 +198,7 @@ def test_application_reader_delegates_quotes(reader_case):
 
 
 def test_cart_locking_delegates_without_source_access(reader_case):
-    from modules.cart.service import CartService
+    from ecom.modules.cart.service import CartService
 
     class Facts:
         async def lock_quotes(self, db, ids):
@@ -211,8 +211,8 @@ def test_cart_locking_delegates_without_source_access(reader_case):
 
 def test_dependency_error_compatibility_alias_is_same_object(reader_case):
     assert reader_case.reader is not None
-    from application.shopping.facts import CommerceDependencyError as OldError
-    from kernel.errors import CommerceDependencyError
+    from ecom.application.shopping.facts import CommerceDependencyError as OldError
+    from ecom.kernel.errors import CommerceDependencyError
 
     assert OldError is CommerceDependencyError
 
@@ -220,8 +220,8 @@ def test_dependency_error_compatibility_alias_is_same_object(reader_case):
 def test_locked_reader_keeps_real_mysql_transaction(migrated_mysql_database):
     from sqlalchemy import update
 
-    from modules.pricing.models import SKUPrice
-    from modules.sale_facts.service import SaleFactsReader
+    from ecom.modules.pricing.models import SKUPrice
+    from ecom.modules.sale_facts.service import SaleFactsReader
     from tests.test_commerce_facts_mysql import seed
 
     async def scenario():

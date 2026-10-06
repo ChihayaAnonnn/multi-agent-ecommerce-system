@@ -6,24 +6,24 @@ from contextlib import asynccontextmanager
 import pytest
 from sqlalchemy import delete, event
 
-from infra.db import create_session_factory
-from modules.catalog.models import SKU
-from modules.catalog.ports import PriceReader, SKUExistenceReader
-from modules.catalog.schemas import CategoryInput, ProductInput, SKUInput
-from modules.catalog.service import (
+from ecom.infra.db import create_session_factory
+from ecom.modules.catalog.models import SKU
+from ecom.modules.catalog.ports import PriceReader, SKUExistenceReader
+from ecom.modules.catalog.schemas import CategoryInput, ProductInput, SKUInput
+from ecom.modules.catalog.service import (
     CatalogNotFoundError,
     CatalogService,
     CatalogSKUReader,
 )
-from modules.catalog.service import (
+from ecom.modules.catalog.service import (
     PriceReader as LegacyPriceReader,
 )
-from modules.inventory.service import InventoryNotFoundError, InventoryService
-from modules.pricing.service import PricingNotFoundError, PricingService
+from ecom.modules.inventory.service import InventoryNotFoundError, InventoryService
+from ecom.modules.pricing.service import PricingNotFoundError, PricingService
 from tests.test_layering import (
-    run_stage_imports,
-    write_grouped_tree,
-    write_stage_config,
+    run_packaged_imports,
+    write_packaged_config,
+    write_packaged_tree,
 )
 
 
@@ -167,23 +167,23 @@ def test_catalog_reader_observes_uncommitted_caller_transaction(
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("consumer", ["modules.pricing", "modules.inventory"])
+@pytest.mark.parametrize("consumer", ["ecom.modules.pricing", "ecom.modules.inventory"])
 @pytest.mark.parametrize("via_catalog_service", [False, True])
 def test_stage_enforces_catalog_model_ownership(
     tmp_path, consumer, via_catalog_service,
 ):
-    write_grouped_tree(tmp_path)
-    (tmp_path / "modules" / "catalog" / "service.py").write_text(
-        "import modules.catalog.models\n", encoding="utf-8",
+    write_packaged_tree(tmp_path)
+    (tmp_path / "ecom" / "modules" / "catalog" / "service.py").write_text(
+        "import ecom.modules.catalog.models\n", encoding="utf-8",
     )
-    dependency = ("modules.catalog.service" if via_catalog_service
-                  else "modules.catalog.models")
+    dependency = ("ecom.modules.catalog.service" if via_catalog_service
+                  else "ecom.modules.catalog.models")
     (tmp_path.joinpath(*consumer.split(".")) / "service.py").write_text(
         f"import {dependency}\n", encoding="utf-8",
     )
-    config = write_stage_config(tmp_path)
+    config = write_packaged_config(tmp_path)
     if via_catalog_service:
-        run_stage_imports(config, tmp_path)
+        run_packaged_imports(config, tmp_path)
     else:
         with pytest.raises(AssertionError, match="BROKEN"):
-            run_stage_imports(config, tmp_path)
+            run_packaged_imports(config, tmp_path)

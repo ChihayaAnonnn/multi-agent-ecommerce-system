@@ -7,17 +7,17 @@ from pathlib import Path
 import pytest
 from sqlalchemy import func, select
 
-from infra.db import create_session_factory
-from modules.catalog.models import SKU, Product, ProductMedia
-from modules.catalog.service import CatalogSKUReader
-from modules.inventory.models import (
+from ecom.infra.db import create_session_factory
+from ecom.modules.catalog.models import SKU, Product, ProductMedia
+from ecom.modules.catalog.service import CatalogSKUReader
+from ecom.modules.inventory.models import (
     DEFAULT_LOCATION_ID,
     InventoryBalance,
     InventoryMovement,
 )
-from modules.inventory.service import InventoryService
-from modules.pricing.models import SKUPrice, SKUPriceChange
-from modules.pricing.service import PricingService
+from ecom.modules.inventory.service import InventoryService
+from ecom.modules.pricing.models import SKUPrice, SKUPriceChange
+from ecom.modules.pricing.service import PricingService
 
 
 def importer():

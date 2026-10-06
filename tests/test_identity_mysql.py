@@ -19,23 +19,23 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from infra.db import create_session_factory
-from modules.identity.csrf import CsrfSigner
-from modules.identity.models import AuthSession, IdentityUser, RefreshToken
-from modules.identity.passwords import (
+from ecom.infra.db import create_session_factory
+from ecom.modules.identity.csrf import CsrfSigner
+from ecom.modules.identity.models import AuthSession, IdentityUser, RefreshToken
+from ecom.modules.identity.passwords import (
     PasswordPolicyError,
     hash_password,
     verify_password,
 )
-from modules.identity.rate_limit import RedisRateLimiter
-from modules.identity.service import (
+from ecom.modules.identity.rate_limit import RedisRateLimiter
+from ecom.modules.identity.service import (
     DEFAULT_SESSION_TTL_SECONDS,
     IdentityService,
     hash_refresh_token,
     normalize_email,
 )
-from modules.identity.tokens import TokenCodec
-from modules.identity.types import (
+from ecom.modules.identity.tokens import TokenCodec
+from ecom.modules.identity.types import (
     AuthIssue,
     DemoModeDisabled,
     EmailAlreadyRegistered,
@@ -48,7 +48,7 @@ from modules.identity.types import (
     UnknownAccount,
     UserView,
 )
-from shared.time import utcnow
+from ecom.shared.time import utcnow
 from tests.conftest import downgrade_to, read_schema, upgrade_to
 
 IDENTITY_TABLES = {"identity_users", "identity_auth_sessions", "identity_refresh_tokens"}
