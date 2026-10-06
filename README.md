@@ -528,6 +528,13 @@ multi-agent-ecommerce-system/
 │   └── legacy/             # D1/D2 保留的旧推荐栈、实验与指标
 ├── demo/                   # 内部演示页
 ├── tests/                  # 测试
+│   ├── conftest.py         # 根夹具：真实 MySQL/Redis 库与 mysql/redis 标记
+│   ├── unit/               # 不依赖真实 MySQL/Redis 的用例
+│   ├── integration/        # 需要真实 MySQL/Redis 的用例
+│   ├── support/            # 可复用的测试辅助（夹具构造、架构/报告工具）
+│   └── fixtures/           # 冻结的路由/OpenAPI/错误/metadata 基线
+├── tools/                  # 离线数据工具（tools/amazon/ 下载与导入脚本）
+├── data/                   # 下载数据与缓存（amazon_reviews_2023/、.hf_cache/、import_state/）
 ├── docs/                   # 项目文档
 ├── requirements.txt        # Python 依赖
 ├── Dockerfile

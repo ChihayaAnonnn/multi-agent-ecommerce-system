@@ -31,13 +31,13 @@ forbidden_modules = ["ecom.api"]
 name = "shared 不得依赖配置或业务包"
 type = "forbidden"
 source_modules = ["ecom.shared"]
-forbidden_modules = ["data", "ecom.api", "ecom.application", "ecom.config", "ecom.infra", "ecom.kernel", "ecom.legacy", "ecom.modules", "migrations", "scripts"]
+forbidden_modules = ["ecom.api", "ecom.application", "ecom.config", "ecom.infra", "ecom.kernel", "ecom.legacy", "ecom.modules", "migrations", "tools"]
 
 [[tool.importlinter.contracts]]
 name = "kernel 只允许基础 schemas 与 shared"
 type = "forbidden"
 source_modules = ["ecom.kernel"]
-forbidden_modules = ["data", "ecom.api", "ecom.application", "ecom.config", "ecom.infra", "ecom.legacy", "ecom.modules", "migrations", "scripts"]
+forbidden_modules = ["ecom.api", "ecom.application", "ecom.config", "ecom.infra", "ecom.legacy", "ecom.modules", "migrations", "tools"]
 ignore_imports = ["ecom.kernel.constraints -> ecom.modules.catalog.schemas", "ecom.kernel.constraints -> ecom.modules.pricing.schemas", "ecom.kernel.quotes -> ecom.modules.catalog.schemas", "ecom.kernel.quotes -> ecom.modules.inventory.schemas", "ecom.kernel.quotes -> ecom.modules.pricing.schemas"]
 unmatched_ignore_imports_alerting = "none"
 
@@ -583,13 +583,10 @@ name = "具体适配器仅组合根与精确兼容入口可以直接导入"
 type = "protected"
 protected_modules = ["ecom.infra.checkout_gateway", "ecom.infra.db", "ecom.infra.llm", "ecom.legacy.infrastructure"]
 allowed_importers = ["ecom.api.deps", "ecom.main"]
-ignore_imports = ["data.import_amazon_metadata -> ecom.infra.db", "scripts.reset_demo_password -> ecom.infra.db"]
+ignore_imports = ["tools.amazon.import_amazon_metadata -> ecom.infra.db", "tools.reset_demo_password -> ecom.infra.db"]
 unmatched_ignore_imports_alerting = "none"
 
 [tool.layering.inventory]
-"data" = "tool"
-"data.download_amazon_metadata" = "tool"
-"data.import_amazon_metadata" = "tool"
 "ecom" = "package"
 "ecom.api" = "api"
 "ecom.api.contracts" = "api"
@@ -721,5 +718,8 @@ unmatched_ignore_imports_alerting = "none"
 "migrations.versions.0006_cart" = "tool"
 "migrations.versions.0007_checkout" = "tool"
 "migrations.versions.0008_commerce_events" = "tool"
-"scripts" = "tool"
-"scripts.reset_demo_password" = "tool"
+"tools" = "tool"
+"tools.amazon" = "tool"
+"tools.amazon.download_amazon_metadata" = "tool"
+"tools.amazon.import_amazon_metadata" = "tool"
+"tools.reset_demo_password" = "tool"

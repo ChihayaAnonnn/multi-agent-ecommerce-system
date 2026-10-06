@@ -1,5 +1,5 @@
 -r requirements.txt
--r data/import-requirements.txt
+-r tools/amazon/import-requirements.txt
 pytest==9.1.1
 ruff==0.16.10
 import-linter==2.15

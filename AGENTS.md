@@ -19,14 +19,14 @@ Use Simplified Chinese for user-facing explanations, questions, progress updates
 
 `ecom/legacy/` 按 D1/D2 保留旧推荐栈、实验与指标，**新业务层不得依赖它**，只有组合根与三个过渡路由例外。
 
-跨模块只能引用对方的 `service.py` 公共方法、`schemas.py` 与声明为公开的 `ports.py`/`types.py`；禁止直接 import 其他模块的 `models.py`，也禁止通过返回值透传 ORM 对象。分层边界由 `pyproject.toml` 的 `[tool.importlinter]`（由 `[tool.layering]` 生成）与 `tests/test_layering.py`、`tests/test_layering_rules.py` 强制，改动后必须跑：
+跨模块只能引用对方的 `service.py` 公共方法、`schemas.py` 与声明为公开的 `ports.py`/`types.py`；禁止直接 import 其他模块的 `models.py`，也禁止通过返回值透传 ORM 对象。分层边界由 `pyproject.toml` 的 `[tool.importlinter]`（由 `[tool.layering]` 生成）与 `tests/unit/test_layering.py`、`tests/unit/test_layering_rules.py` 强制，改动后必须跑：
 
 ```
 lint-imports --config pyproject.toml --no-cache
-python -m pytest tests/test_layering.py tests/test_layering_rules.py tests/test_kernel_contracts.py -q
+python -m pytest tests/unit/test_layering.py tests/unit/test_layering_rules.py tests/unit/test_kernel_contracts.py -q
 ```
 
-配置在 `ecom/config.py`，测试在 `tests/` 并与被测模块同构。架构与项目说明在 `docs/`（`docs/layering-design.md` 是分层设计稿）；`plan.md` 记录最初的计划。
+配置在 `ecom/config.py`。测试按**真实依赖**分为 `tests/unit/`（不依赖真实 MySQL/Redis）、`tests/integration/`（需要真实 MySQL/Redis）、`tests/support/`（可复用辅助），`tests/conftest.py` 固定留在根并提供标记与夹具。离线数据工具在 `tools/`（`tools/amazon/` 是下载/导入脚本，下载数据仍留在 `data/`）。架构与项目说明在 `docs/`（`docs/layering-design.md` 是分层设计稿）；`plan.md` 记录最初的计划。
 
 ## E-commerce Reference Repositories
 
@@ -52,7 +52,8 @@ Before settling on an architecture or technology, identify the requirements and 
 - `pip install -r requirements.txt`: install Python dependencies.
 - `cp .env.example .env`: create local configuration; set `ECOM_LLM_API_KEY` before calling LLM-backed endpoints.
 - `python -m uvicorn ecom.main:create_app --factory --host 0.0.0.0 --port 8000`: run the API locally from the repository root on port 8000. Check `GET /health` for a basic startup check.
-- `python -m pytest tests/`: run the test suite (install `pytest` separately if needed; it is not listed in `requirements.txt`).
+- `python -m pytest tests/`: run the test suite (install `pytest` separately if needed; it is not listed in `requirements.txt`). 只跑纯桩用例用 `python -m pytest tests/unit`，需要真实 MySQL/Redis 的用例在 `tests/integration`，三类分片由 `-m 'not mysql and not redis'`、`-m 'mysql and not redis'`、`-m redis` 选择，MySQL 套件必须串行执行。
+- `python -m tools.amazon.download_amazon_metadata --help`（以及 `python -m tools.amazon.import_amazon_metadata`、`python -m tools.reset_demo_password`）：离线工具入口，不访问网络或数据库。
 - `docker-compose up -d`: start the container stack; `docker-compose ps` shows service status.
 
 There is no separate build step for the Python application; the `Dockerfile` builds its deployment image.
@@ -71,7 +72,7 @@ Agent 开发时应避免大规模一次性重构，按模块拆分任务并逐�
 
 ## Testing Guidelines
 
-Tests use `pytest`-style `test_*` functions in `tests/test_*.py`. Add focused tests for changed behavior, especially experiment assignment, orchestration decisions, and API response shapes. Keep tests deterministic and avoid depending on live LLM, Redis, or Milvus services where a local stub suffices. No coverage threshold is configured.
+Tests use `pytest`-style `test_*` functions in `tests/unit/test_*.py` and `tests/integration/test_*.py`；共享辅助放 `tests/support/`。分类依据是夹具闭包推断出的真实依赖，不是文件名后缀：混合文件要按用例拆分，同一辅助只有一份。Add focused tests for changed behavior, especially experiment assignment, orchestration decisions, and API response shapes. Keep tests deterministic and avoid depending on live LLM, Redis, or Milvus services where a local stub suffices. No coverage threshold is configured. 布局合同由 `tests/unit/test_test_layout_contract.py` 固定：原 node 一一映射到新位置、三类标记互斥且并集为全集、离线工具 `--help` 无副作用。
 
 ## Commit & Pull Request Guidelines
 
