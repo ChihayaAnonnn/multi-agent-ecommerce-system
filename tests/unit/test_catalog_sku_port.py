@@ -16,7 +16,7 @@ from ecom.modules.catalog.service import (
 )
 from ecom.modules.inventory.service import InventoryNotFoundError, InventoryService
 from ecom.modules.pricing.service import PricingNotFoundError, PricingService
-from tests.unit.test_layering import (
+from tests.support.layering_fixtures import (
     run_packaged_imports,
     write_packaged_config,
     write_packaged_tree,

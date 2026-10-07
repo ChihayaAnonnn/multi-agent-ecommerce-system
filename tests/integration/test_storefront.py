@@ -3,7 +3,7 @@ import asyncio
 
 from ecom.application.storefront.service import StorefrontService
 from ecom.modules.sale_facts.service import SaleFactsReader
-from tests.integration.test_commerce_facts_mysql import seed
+from tests.support.commerce_fixtures import seed
 
 
 def test_real_batch_queries_do_not_grow_with_product_count(migrated_mysql_database):

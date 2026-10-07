@@ -9,7 +9,7 @@ from ecom.api.routes.auth import require_principal
 from ecom.api.routes.commerce import router
 from ecom.application.shopping.actions import CartActionService
 from ecom.application.shopping.facts import CommerceFactsReader
-from tests.integration.test_cart_confirmation_mysql import setup
+from tests.support.commerce_fixtures import setup
 from tests.support.commerce_helpers import build_orchestrator
 
 

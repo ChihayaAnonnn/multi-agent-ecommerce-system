@@ -17,14 +17,14 @@ from ecom.shared.hashing import request_hash
 from ecom.shared.ids import new_id
 from ecom.shared.time import utcnow
 from tests.conftest import downgrade_to, read_schema, upgrade_to
-from tests.integration.test_auth_api import (
-    _login,
-    _register,
+from tests.support.auth_api_helpers import (
     bearer,
     build_app,
     http_client,
+    login,
+    register,
 )
-from tests.integration.test_commerce_facts_mysql import seed
+from tests.support.commerce_fixtures import seed
 from tests.support.identity_helpers import identity_key_files as identity_key_files
 from tests.support.identity_helpers import identity_settings
 
@@ -88,9 +88,10 @@ def test_two_category_purchase_preparation(
         configure_commerce_demo(app, settings, demo_dir=DEMO_DIR)
         try:
             async with http_client(app) as a,http_client(app) as b:
-                assert (await _register(a,'shopper-a@example.com')).status_code==201
-                assert (await _register(b,'shopper-b@example.com')).status_code==201
-                auth_a=(await _login(a,'shopper-a@example.com')).json();auth_b=(await _login(b,'shopper-b@example.com')).json()
+                assert (await register(a,'shopper-a@example.com')).status_code==201
+                assert (await register(b,'shopper-b@example.com')).status_code==201
+                auth_a=(await login(a,'shopper-a@example.com')).json()
+                auth_b=(await login(b,'shopper-b@example.com')).json()
                 ha,hb=bearer(auth_a['access_token']),bearer(auth_b['access_token'])
                 sid=(await a.post('/api/v1/commerce/sessions',headers=ha)).json()['session_id']
                 other=(await b.post('/api/v1/commerce/sessions',headers=hb)).json()['session_id']

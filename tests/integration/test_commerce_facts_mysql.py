@@ -5,45 +5,11 @@ from sqlalchemy import delete, event, update
 
 from ecom.application.shopping.facts import CommerceFactsReader
 from ecom.application.shopping.schemas import HardCondition, ShoppingIntent
-from ecom.infra.db import create_session_factory
 from ecom.modules.catalog.models import SKU, Product
-from ecom.modules.catalog.schemas import (
-    AttributeInput,
-    CategoryInput,
-    ProductInput,
-    SKUInput,
-)
-from ecom.modules.catalog.service import CatalogService, CatalogSKUReader
 from ecom.modules.inventory.models import DEFAULT_LOCATION_ID
-from ecom.modules.inventory.service import InventoryService
 from ecom.modules.pricing.models import SKUPrice
-from ecom.modules.pricing.service import PricingService
 from ecom.modules.sale_facts.service import SaleFactsReader
-
-
-async def seed(url):
-    factory = create_session_factory(url)
-    sku_reader = CatalogSKUReader(factory)
-    prices = PricingService(factory, sku_reader)
-    stock = InventoryService(factory, sku_reader)
-    catalog = CatalogService(factory, prices)
-    cats = []
-    for code in ['phone', 'headphone']:
-        c = await catalog.create_category(CategoryInput(code=code, name=code))
-        await catalog.add_category_attribute(c.id, AttributeInput(code='wireless',
-            name='无线', value_type='boolean', is_filterable=True, is_comparable=True))
-        cats.append(c)
-    products, skus = [], []
-    for n in range(8):
-        p = await catalog.create_product(ProductInput(category_id=cats[n % 2].id,
-            product_code=f'p{n}', name=f'商品{n}', attributes={'wireless': n < 4}))
-        s = await catalog.create_sku(p.id, SKUInput(sku_code=f's{n}'))
-        await prices.set_price(s.id, 100 + n * 100, None, '初始化')
-        await stock.create_balance(s.id)
-        await stock.adjust(s.id, DEFAULT_LOCATION_ID, 5, f'stock{n}', '初始化')
-        await catalog.activate_product(p.id, p.version)
-        products.append(p); skus.append(s)
-    return factory, catalog, prices, stock, cats, products, skus
+from tests.support.commerce_fixtures import seed
 
 
 def test_batch_details_have_constant_sql_count(migrated_mysql_database):

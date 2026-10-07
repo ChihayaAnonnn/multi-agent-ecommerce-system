@@ -10,7 +10,7 @@ from ecom.modules.events.models import CommerceEvent
 from ecom.modules.events.service import CommerceEventService
 from ecom.modules.sessions.service import CommerceError
 from ecom.shared.ids import new_id
-from tests.integration.test_cart_confirmation_mysql import setup
+from tests.support.commerce_fixtures import setup
 
 
 def test_event_dedupe_and_failure_is_non_blocking(migrated_mysql_database):

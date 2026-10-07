@@ -20,8 +20,7 @@ from ecom.modules.sale_facts.service import SaleFactsReader
 from ecom.modules.sessions.service import CommerceError, ShoppingSessionService
 from ecom.shared.principal import Principal, make_principal
 from ecom.shared.time import mark_utc, utcnow
-from tests.integration.test_cart_transactions_mysql import reject_orm
-from tests.integration.test_commerce_facts_mysql import seed
+from tests.support.commerce_fixtures import reject_orm, seed
 
 
 class TransactionProbeGateway(DemoHostCheckoutGateway):

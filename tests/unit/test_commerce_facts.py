@@ -4,33 +4,8 @@ import asyncio
 import pytest
 
 from ecom.application.shopping.facts import CommerceDependencyError, CommerceFactsReader
-from ecom.modules.catalog.schemas import SKUDetailView
-from ecom.modules.inventory.schemas import AvailabilityView
-from ecom.modules.pricing.schemas import PriceView
 from ecom.modules.sale_facts.service import SaleFactsReader
-from ecom.shared.time import utcnow
-
-
-class Catalog:
-    async def get_skus(self, ids):
-        return {i: SKUDetailView(id=i, product_id='p', sku_code=i,
-                    option_signature='default', status='active', version=1,
-                    product_status='active') for i in ids if i != 'missing'}
-
-
-class Prices:
-    async def get_prices(self, ids):
-        return {i: PriceView(sku_id=i, currency='CNY', amount_minor=100,
-                    version=1, effective_at=utcnow(), read_at=utcnow())
-                for i in ids if i != 'no-price'}
-
-
-class Inventory:
-    async def get_availability(self, ids):
-        return {i: AvailabilityView(sku_id=i,
-                status='unknown' if i == 'unknown' else 'out_of_stock' if i == 'zero' else 'available',
-                available_quantity=None if i == 'unknown' else 0 if i == 'zero' else 3,
-                read_at=utcnow()) for i in ids}
+from tests.support.commerce_stubs import Catalog, Inventory, Prices
 
 
 def test_quote_many_never_promotes_unknown_to_purchasable():

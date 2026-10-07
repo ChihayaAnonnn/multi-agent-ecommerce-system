@@ -9,7 +9,7 @@ from ecom.modules.identity.types import make_principal
 from ecom.modules.pricing.models import SKUPrice
 from ecom.modules.sale_facts.service import SaleFactsReader
 from tests.conftest import downgrade_to, read_schema, upgrade_to
-from tests.integration.test_commerce_facts_mysql import seed
+from tests.support.commerce_fixtures import seed
 
 
 def test_cart_migration_and_unique_owner(migrated_mysql_database):

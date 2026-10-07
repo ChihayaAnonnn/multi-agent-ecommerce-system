@@ -9,7 +9,7 @@ from ecom.api.routes.auth import require_principal
 from ecom.api.routes.commerce import router
 from ecom.modules.identity.types import make_principal
 from ecom.modules.sessions.service import ShoppingSessionService
-from tests.integration.test_commerce_facts_mysql import seed
+from tests.support.commerce_fixtures import seed
 
 
 def test_context_reads_authoritative_facts_and_is_scoped(migrated_mysql_database):

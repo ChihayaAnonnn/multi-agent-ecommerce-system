@@ -316,7 +316,7 @@ def test_demo_path_is_independent_of_route_depth(monkeypatch):
 
 def test_registered_metadata_matches_pre_move():
     """ORM 注册结果与搬迁前冻结值逐字一致；只有模块名随包根重命名。"""
-    from tests.unit.test_layering_baseline import metadata_signature
+    from tests.support.layering_fixtures import metadata_signature
 
     recorded = json.loads((FIXTURES / "metadata.json").read_text(encoding="utf-8"))
     current = metadata_signature()

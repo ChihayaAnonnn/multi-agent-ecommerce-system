@@ -6,7 +6,7 @@ from ecom.application.shopping.compare import CompareService
 from ecom.application.shopping.contracts import TurnRequest
 from ecom.application.shopping.facts import CommerceFactsReader
 from ecom.application.shopping.orchestrator import CommerceOrchestrator
-from tests.integration.test_cart_confirmation_mysql import setup
+from tests.support.commerce_fixtures import setup
 from tests.support.commerce_helpers import build_orchestrator
 
 

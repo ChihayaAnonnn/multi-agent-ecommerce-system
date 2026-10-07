@@ -133,6 +133,25 @@ def test_phase_one_nodes_survive_with_recorded_evidence():
     assert len(targets) == len(manifest)
 
 
+CROSS_TEST_IMPORT = re.compile(
+    r"\b(?:from|import)\s+tests\.(?:unit|integration)\.test_"
+)
+
+
+def test_cross_test_helpers_live_in_support():
+    """跨文件复用的测试辅助只允许放 tests/support，测试模块不得互相导入。"""
+    offenders = []
+    for path in sorted((ROOT / "tests").rglob("*.py")):
+        if path.parent.name == "support":
+            continue
+        for number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), 1
+        ):
+            if CROSS_TEST_IMPORT.search(line.strip()):
+                offenders.append(f"{path.relative_to(ROOT)}:{number}")
+    assert offenders == [], f"测试模块之间不得互相导入：{offenders}"
+
+
 def test_marker_shards_stay_mutually_exclusive_and_complete():
     shards_by_name = shards()
     for name, node_ids in shards_by_name.items():

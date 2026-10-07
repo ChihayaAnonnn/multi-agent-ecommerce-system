@@ -12,18 +12,7 @@ from ecom.infra.checkout_gateway import (
 from ecom.modules.checkout.models import CheckoutHandoff
 from ecom.modules.checkout.service import CheckoutService
 from ecom.modules.sessions.service import CommerceError
-from tests.integration.test_cart_confirmation_mysql import setup
-
-
-async def ready_cart(url):
-    state=await setup(url)
-    factory,sessions,cart,a,b,s,view,prices,stock,skus=state
-    actions = CartActionService(factory, sessions, cart, None)
-    action = await actions.propose_action(
-        a, s.session_id, "add", {"sku_id": skus[0].id, "quantity": 1}, view.version
-    )
-    result=await actions.confirm(a,s.session_id,action.action_id,True,'add')
-    return state,result.cart
+from tests.support.commerce_fixtures import ready_cart, setup
 
 
 def test_preview_rejects_empty_or_unbuyable_cart(migrated_mysql_database):

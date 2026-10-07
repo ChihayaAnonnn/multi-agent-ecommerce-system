@@ -363,7 +363,7 @@ assert hints['response'] is TurnResponse
 def test_kernel_stage_rejects_dependencies_outside_schema_whitelist(
     tmp_path, indirect, dependency,
 ):
-    from tests.unit.test_layering import (
+    from tests.support.layering_fixtures import (
         run_packaged_imports,
         write_packaged_config,
         write_packaged_tree,
@@ -386,7 +386,7 @@ def test_kernel_stage_rejects_dependencies_outside_schema_whitelist(
 @pytest.mark.parametrize('package', ['ecom.modules.catalog', 'ecom.modules.pricing',
                                      'ecom.modules.inventory'])
 def test_base_schema_stage_rejects_reverse_kernel_dependency(tmp_path, package):
-    from tests.unit.test_layering import (
+    from tests.support.layering_fixtures import (
         run_packaged_imports,
         write_packaged_config,
         write_packaged_tree,

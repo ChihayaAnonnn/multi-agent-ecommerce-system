@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import importlib
 import json
 import os
 import subprocess
@@ -12,68 +11,11 @@ from pathlib import Path
 
 import pytest
 
+from tests.support.layering_fixtures import metadata_signature
 from tests.support.layering_reports import CONTRACT_FILES
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures" / "layering"
-MODEL_MODULES = (
-    "ecom.modules.catalog", "ecom.modules.pricing", "ecom.modules.inventory",
-    "ecom.modules.identity", "ecom.modules.sessions", "ecom.modules.cart",
-    "ecom.modules.checkout", "ecom.modules.events",
-)
-
-
-def metadata_signature() -> dict:
-    from sqlalchemy.dialects.mysql import dialect
-
-    from ecom.shared.db import Base
-
-    for module in MODEL_MODULES:
-        importlib.import_module(f"{module}.models")
-
-    def default_signature(default):
-        if default is None:
-            return None
-        if hasattr(default, "sqltext"):
-            return {"computed": str(default.sqltext), "persisted": default.persisted}
-        value = default.arg
-        return {"callable": value.__name__} if callable(value) else str(value)
-
-    tables = {}
-    for name, table in sorted(Base.metadata.tables.items()):
-        constraints = []
-        for constraint in table.constraints:
-            entry = {
-                "kind": type(constraint).__name__, "name": constraint.name,
-                "columns": [column.name for column in constraint.columns],
-            }
-            if hasattr(constraint, "elements"):
-                entry["references"] = [
-                    element.target_fullname for element in constraint.elements
-                ]
-                entry["ondelete"] = constraint.ondelete
-                entry["onupdate"] = constraint.onupdate
-            if hasattr(constraint, "sqltext"):
-                entry["sqltext"] = str(constraint.sqltext)
-            constraints.append(entry)
-        tables[name] = {
-            "columns": [{
-                "name": column.name, "type": column.type.compile(dialect=dialect()),
-                "nullable": column.nullable, "primary_key": column.primary_key,
-                "autoincrement": column.autoincrement,
-                "default": default_signature(column.default),
-                "server_default": default_signature(column.server_default),
-                "onupdate": default_signature(column.onupdate),
-                "server_onupdate": default_signature(column.server_onupdate),
-            } for column in table.columns],
-            "constraints": sorted(constraints, key=lambda value: json.dumps(value)),
-            "indexes": sorted([{
-                "name": index.name, "unique": index.unique,
-                "expressions": [str(expression) for expression in index.expressions],
-            } for index in table.indexes], key=lambda value: value["name"]),
-            "options": dict(table.dialect_kwargs),
-        }
-    return {"modules": list(MODEL_MODULES), "tables": tables}
 
 
 async def capture_application_contracts(directory: Path) -> None:

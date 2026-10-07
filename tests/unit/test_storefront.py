@@ -6,26 +6,8 @@ import pytest
 
 from ecom.application.storefront.service import StorefrontService
 from ecom.kernel.errors import CommerceDependencyError
-from ecom.modules.catalog.schemas import CategoryRefView
 from ecom.modules.sale_facts.service import SaleFactsReader
-from tests.unit.test_commerce_facts import Catalog, Inventory, Prices
-
-
-class Products(Catalog):
-    def __init__(self, count=3):
-        self.calls=0
-        self.products={str(i): NS(id=str(i),name='商品'+str(i),brand=None,
-            status='archived' if i==2 else 'active',
-            category=CategoryRefView(id='c',code='test',name='测试'),
-            attributes={'simulation_price':True},media=[],skus=[
-                NS(id='zero',sku_code='B',status='active'),
-                NS(id='unknown',sku_code='A',status='active'),
-                NS(id='ok',sku_code='0',status='inactive')]) for i in range(count)}
-    async def get_products(self, ids):
-        self.calls+=1
-        return {i:self.products[i] for i in ids if i in self.products}
-    async def search(self, **kwargs):
-        return NS(items=[NS(id=i) for i in self.products][:kwargs['limit']],next_cursor='next')
+from tests.support.commerce_stubs import Inventory, Prices, Products
 
 
 def reader(c):return SaleFactsReader(c,Prices(),Inventory())

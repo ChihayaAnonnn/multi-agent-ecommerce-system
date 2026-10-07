@@ -22,7 +22,7 @@ from ecom.modules.sessions.models import CommerceSession, SeenSKU
 from ecom.modules.sessions.service import CommerceError, ShoppingSessionService
 from ecom.shared.principal import make_principal
 from ecom.shared.time import utcnow
-from tests.integration.test_commerce_facts_mysql import seed
+from tests.support.commerce_fixtures import seed
 
 
 @dataclass

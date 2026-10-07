@@ -20,7 +20,7 @@ from ecom.modules.checkout.models import CheckoutHandoff
 from ecom.modules.checkout.service import CheckoutService
 from ecom.modules.sessions.models import CommerceSession
 from ecom.shared.time import utcnow
-from tests.integration.test_checkout_mysql import ready_cart
+from tests.support.commerce_fixtures import ready_cart
 
 
 @pytest.fixture

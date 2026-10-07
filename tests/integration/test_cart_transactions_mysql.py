@@ -5,8 +5,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 import pytest
-from pydantic import BaseModel
-from sqlalchemy import func, inspect, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -21,7 +20,7 @@ from ecom.shared.hashing import request_hash
 from ecom.shared.ids import new_id
 from ecom.shared.principal import Principal, make_principal
 from ecom.shared.time import mark_utc, utcnow
-from tests.integration.test_commerce_facts_mysql import seed
+from tests.support.commerce_fixtures import reject_orm, seed
 
 
 @dataclass
@@ -96,21 +95,6 @@ def transaction_case(migrated_mysql_database):
         return case
 
     return asyncio.run(setup())
-
-
-def reject_orm(value):
-    assert not getattr(inspect(value, raiseerr=False), 'mapper', None), (
-        'ORM escaped snapshot'
-    )
-    if isinstance(value, BaseModel):
-        for nested in dict(value).values():
-            reject_orm(nested)
-    elif isinstance(value, dict):
-        for nested in value.values():
-            reject_orm(nested)
-    elif isinstance(value, (list, tuple)):
-        for nested in value:
-            reject_orm(nested)
 
 
 def test_public_snapshot_contains_no_orm(transaction_case):

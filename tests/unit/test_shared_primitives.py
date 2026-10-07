@@ -6,7 +6,7 @@ from uuid import UUID
 import pytest
 from pydantic import TypeAdapter
 
-from tests.unit.test_layering_baseline import MODEL_MODULES
+from tests.support.layering_fixtures import MODEL_MODULES
 
 
 def test_base_alias_has_single_metadata():

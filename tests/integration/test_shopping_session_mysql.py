@@ -14,7 +14,7 @@ from ecom.modules.sessions.schemas import TurnCompletion, TurnReplay
 from ecom.modules.sessions.service import CommerceError, ShoppingSessionService
 from ecom.shared.time import utcnow
 from tests.conftest import downgrade_to, read_schema, upgrade_to
-from tests.integration.test_commerce_facts_mysql import seed
+from tests.support.commerce_fixtures import seed
 
 
 def test_session_migration_and_ownership(migrated_mysql_database):

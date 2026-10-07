@@ -3,29 +3,15 @@ import asyncio
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import update
 
 from ecom.application.shopping.actions import CartActionService
 from ecom.modules.cart.models import PendingAction
-from ecom.modules.cart.service import CartService
-from ecom.modules.identity.types import make_principal
 from ecom.modules.inventory.models import DEFAULT_LOCATION_ID
-from ecom.modules.sale_facts.service import SaleFactsReader
 from ecom.modules.sessions.models import CommerceSession
-from ecom.modules.sessions.service import CommerceError, ShoppingSessionService
+from ecom.modules.sessions.service import CommerceError
 from ecom.shared.time import utcnow
-from tests.integration.test_commerce_facts_mysql import seed
-
-
-async def setup(url):
-    factory,catalog,prices,stock,cats,products,skus=await seed(url)
-    sessions=ShoppingSessionService(factory)
-    a,b=make_principal('test','a'),make_principal('test','b')
-    session=await sessions.create(a)
-    cart_service=CartService(factory,SaleFactsReader(catalog,prices,stock))
-    cart=await cart_service.get_cart(a)
-    await sessions.record_seen(session.session_id,a,[products[0].id],[skus[0].id])
-    return factory,sessions,cart_service,a,b,session,cart,prices,stock,skus
+from tests.support.commerce_fixtures import setup
 
 
 def test_propose_requires_seen_sku_and_explicit_confirmation(migrated_mysql_database):

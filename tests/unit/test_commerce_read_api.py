@@ -12,7 +12,7 @@ from tests.support.catalog_api_helpers import arequest, build_app, request
 
 def test_single_sku_quote_keeps_independent_source_order():
     from ecom.modules.catalog.schemas import SKUDetailView
-    from tests.unit.test_commerce_facts import Inventory, Prices
+    from tests.support.commerce_stubs import Inventory, Prices
 
     calls = []
 

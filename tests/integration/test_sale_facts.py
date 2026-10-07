@@ -3,7 +3,7 @@
 import asyncio
 
 from ecom.modules.catalog.schemas import SaleFactView
-from tests.integration.test_commerce_facts_mysql import seed
+from tests.support.commerce_fixtures import seed
 
 
 def test_locked_reader_keeps_real_mysql_transaction(migrated_mysql_database):

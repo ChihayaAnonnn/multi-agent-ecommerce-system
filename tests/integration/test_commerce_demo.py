@@ -6,7 +6,7 @@ from ecom.api.routes.commerce import router
 from ecom.api.routes.demo import configure_commerce_demo
 from ecom.infra.db import create_session_factory
 from ecom.modules.sessions.service import ShoppingSessionService
-from tests.integration.test_auth_api import (
+from tests.support.auth_api_helpers import (
     bearer,
     build_app,
     build_runtime,

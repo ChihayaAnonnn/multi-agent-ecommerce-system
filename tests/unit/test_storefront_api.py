@@ -5,8 +5,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from ecom.api.routes.storefront import router
-from tests.unit.test_commerce_facts import Inventory, Prices
-from tests.unit.test_storefront import Products
+from tests.support.commerce_stubs import Inventory, Prices, Products
 
 
 async def scenario():

@@ -13,7 +13,7 @@ from ecom.modules.sale_facts.service import SaleFactsReader
 from ecom.modules.sessions.models import CommerceTurn
 from ecom.modules.sessions.service import CommerceError, ShoppingSessionService
 from ecom.shared.hashing import request_hash
-from tests.integration.test_commerce_facts_mysql import seed
+from tests.support.commerce_fixtures import seed
 from tests.support.commerce_helpers import build_orchestrator
 
 
