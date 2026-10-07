@@ -50,7 +50,7 @@ def runtime_case(monkeypatch):
     monkeypatch.setattr(runtime_module, 'create_database', lambda url: SimpleNamespace(
         engine=engine, session_factory=factory,
     ), raising=False)
-    monkeypatch.setattr(runtime_module.Redis, 'from_url', lambda *args, **kwargs: redis)
+    monkeypatch.setattr(runtime_module, 'create_redis', lambda url: redis)
     monkeypatch.setattr(
         runtime_module, 'build_identity_service', lambda *args: object(),
     )
@@ -245,8 +245,8 @@ def test_close_failure_still_disposes_engine_once(runtime_case, monkeypatch):
         raise RuntimeError('redis close failed')
 
     original_redis = runtime_case.redis
-    monkeypatch.setattr(runtime_module.Redis, 'from_url', lambda *args, **kwargs:
-        SimpleNamespace(aclose=fail))
+    monkeypatch.setattr(runtime_module, 'create_redis',
+        lambda url: SimpleNamespace(aclose=fail))
 
     async def scenario():
         runtime = await runtime_module.create_runtime(runtime_case.settings)
@@ -398,3 +398,12 @@ def test_destination_validation_is_business_owned(kind, ref, demo, valid):
         message = '非法内部交接路由' if kind == 'internal' else '非法宿主交接目的地'
         with pytest.raises(ValueError, match=message):
             service.validate_destination(destination, ('shop.test',))
+
+
+def test_redis_adapter_keeps_decode_responses():
+    """组合根经 `ecom.infra.redis` 构造客户端，解码语义与迁移前一致。"""
+    from ecom.infra.redis import create_redis
+
+    client = create_redis('redis://127.0.0.1:1/0')
+    assert client.connection_pool.connection_kwargs['decode_responses'] is True
+    asyncio.run(client.aclose())

@@ -33,6 +33,7 @@ from ecom.infra.checkout_gateway import (
 )
 from ecom.infra.db import DatabaseConfigurationError, create_database
 from ecom.infra.llm import LLMCommerceModel
+from ecom.infra.redis import create_redis
 from ecom.legacy.orchestrator.supervisor import SupervisorOrchestrator
 from ecom.legacy.services.ab_test import ABTestEngine
 from ecom.legacy.services.metrics import MetricsCollector
@@ -209,7 +210,7 @@ async def create_runtime(
         commerce = CommerceOrchestrator(sessions, graph, actions, comparison)
 
         if redis_client is None:
-            redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
+            redis_client = create_redis(settings.redis_url)
             owned_redis = redis_client
             resources.push_async_callback(owned_redis.aclose)
         identity = None

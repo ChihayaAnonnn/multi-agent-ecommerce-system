@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.support.app_routes import effective_routes
 from tests.support.layering_fixtures import metadata_signature
 from tests.support.layering_reports import CONTRACT_FILES
 
@@ -36,13 +37,6 @@ async def capture_application_contracts(directory: Path) -> None:
     from ecom.main import create_app
 
     app = create_app()
-
-    def effective_routes(routes):
-        for route in routes:
-            if hasattr(route, "effective_candidates"):
-                yield from effective_routes(route.effective_candidates())
-            else:
-                yield route
 
     contracts = {
         "routes.json": [{

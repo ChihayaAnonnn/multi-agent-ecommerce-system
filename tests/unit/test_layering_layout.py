@@ -66,10 +66,20 @@ def test_application_has_no_api_or_infra_dependency():
 
 
 def test_legacy_routes_are_still_registered():
-    """按 D1/D2 保留的旧接口必须仍在路由表中，且与冻结契约一致。"""
-    contract = ROOT / 'tests' / 'fixtures' / 'layering' / 'routes.json'
-    recorded = json.loads(contract.read_text(encoding='utf-8'))
-    registered = {entry['path'] for entry in recorded}
+    """按 D1/D2 保留的旧接口必须仍在**当前应用的**路由表中。
+
+    只读冻结契约会掩盖真实回归（把注册从组合根摘掉时 fixture 不会变），
+    因此这里对 `create_app()` 的注册结果断言，并用冻结契约核对全集。
+    """
+    from ecom.config import Settings
+    from ecom.main import create_app
+    from tests.support.app_routes import route_paths
+
+    app = create_app(settings=Settings(
+        _env_file=None, database_url='', llm_api_key='test-only-not-a-secret',
+        identity_environment='production', commerce_demo_enabled=False,
+    ))
+    registered = route_paths(app.routes)
     for path in (
         '/api/v1/recommend',
         '/api/v1/recommend/graph',
@@ -77,6 +87,13 @@ def test_legacy_routes_are_still_registered():
         '/api/v1/metrics',
     ):
         assert path in registered, f'保留的旧路由 {path} 未注册'
+    contract = ROOT / 'tests' / 'fixtures' / 'layering' / 'routes.json'
+    recorded = {entry['path'] for entry in
+                json.loads(contract.read_text(encoding='utf-8'))}
+    assert {path for path in recorded if path in registered} >= {
+        '/api/v1/recommend', '/api/v1/recommend/graph', '/api/v1/experiments',
+        '/api/v1/metrics',
+    }
 
 
 def test_packaged_top_level_layout_is_complete():

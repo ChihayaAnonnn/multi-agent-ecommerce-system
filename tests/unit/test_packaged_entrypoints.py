@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from ecom.config import Settings
+from tests.support.app_routes import effective_routes
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures" / "layering"
@@ -28,15 +29,6 @@ def isolated_settings() -> Settings:
         _env_file=None, database_url="", llm_api_key="test-only-not-a-secret",
         identity_environment="production", commerce_demo_enabled=False,
     )
-
-
-def effective_routes(routes):
-    """展开演示路由等动态容器，得到冻结契约同样粒度的路由序列。"""
-    for route in routes:
-        if hasattr(route, "effective_candidates"):
-            yield from effective_routes(route.effective_candidates())
-        else:
-            yield route
 
 
 def test_factory_routes_match_original_contract():

@@ -397,7 +397,7 @@ PACKAGED_MODULES = {
     'ecom.application.shopping': 'actions compare contracts discovery facts graph '
                                  'guards intent nodes orchestrator ports schemas state',
     'ecom.application.storefront': 'schemas service',
-    'ecom.infra': 'checkout_gateway db llm',
+    'ecom.infra': 'checkout_gateway db llm redis',
     'ecom.kernel': 'constraints errors intent quotes',
     'ecom.legacy': 'agents catalog_adapter infrastructure models orchestrator services',
     'ecom.legacy.agents': 'base_agent inventory_agent marketing_copy_agent '

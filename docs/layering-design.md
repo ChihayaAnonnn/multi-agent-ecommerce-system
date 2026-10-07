@@ -1,6 +1,6 @@
 # 分层设计方案
 
-> 状态：第一阶段（实施计划Task1–13）已验收并提交；D5已确认，目录与包根搬迁待实施。D1已确认保留旧推荐栈为legacy，D2已确认保留实验与指标；本轮不执行退役，规则归一R仍需独立审批。
+> 状态：第一阶段（实施计划Task1–13）已验收并提交为8779cf5；D5已确认，目录与包根搬迁（Task14–16）已实施、验收并提交。D1已确认保留旧推荐栈为legacy，D2已确认保留实验与指标；本轮不执行退役，规则归一R仍需独立审批。
 > 范围：Python 后端（FastAPI + 领域模块 + 对话编排）。前端不重构；启动入口、迁移脚本、测试、工具和文档仅做必要的同步调整。
 > 前置阅读：[`architecture.md`](architecture.md)（旧推荐栈）、[`prd-ecommerce-agent.md`](prd-ecommerce-agent.md) 第 2 节（历史能力盘点）、[`../ecommerce-agent-references/README.md`](../ecommerce-agent-references/README.md)。现状以当前源码为准，不能用历史 PRD 代替退役审批。
 

@@ -49,7 +49,7 @@
 | Ruff 增量 | — | **0** | 未刷新 lint 基线 |
 | 冻结契约 | — | `routes`/`openapi`/`errors` 逐字未改；`metadata` 的 25 张表签名逐字未改 | |
 | `alembic heads` | `0008_commerce_events` | **同一单头** | 无 schema 变化 |
-| 入口 | `python main.py` | `create_app()` 产出 **29 条路由** | 与基线路径集合一致 |
+| 入口 | `python main.py` | `create_app()` 产出 **33 条路由记录**（其中 29 条出现在 OpenAPI paths） | 与基线路径集合一致；两个口径不同，不能简写成「29 条路由」 |
 
 **测试用例 714 → 729，只增不减；逐 `--collect-only` 比对，原有用例零丢失。**
 

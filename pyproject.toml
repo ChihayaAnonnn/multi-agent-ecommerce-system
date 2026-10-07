@@ -444,6 +444,13 @@ forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", 
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
+name = "ecom.infra.redis 不得直接访问业务 ORM"
+type = "forbidden"
+source_modules = ["ecom.infra.redis"]
+forbidden_modules = ["ecom.modules.cart.models", "ecom.modules.catalog.models", "ecom.modules.checkout.models", "ecom.modules.events.models", "ecom.modules.identity.models", "ecom.modules.inventory.models", "ecom.modules.pricing.models", "ecom.modules.sessions.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
 name = "ecom.legacy 不得直接访问业务 ORM"
 type = "forbidden"
 source_modules = ["ecom.legacy"]
@@ -641,6 +648,7 @@ unmatched_ignore_imports_alerting = "none"
 "ecom.infra.checkout_gateway" = "infra"
 "ecom.infra.db" = "infra"
 "ecom.infra.llm" = "infra"
+"ecom.infra.redis" = "infra"
 "ecom.kernel" = "kernel"
 "ecom.kernel.constraints" = "kernel"
 "ecom.kernel.errors" = "kernel"
