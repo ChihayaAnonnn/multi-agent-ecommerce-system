@@ -43,6 +43,6 @@
 | commerce-agents | `fd4d59224ab9` |
 | ecommerce-ai-agent | `3d38d5ab7fa0` |
 | HelpPilot | `3767824fb90b` |
-| tau2-bench | `b7ea9074c1cb` |
+| tau2-bench | `5bfa7e37b366` |
 
 在某个仓库中执行 `git pull --ff-only` 可更新其当前分支。若需要完整历史，在对应仓库执行 `git fetch --unshallow`。这些参考仓库尚未安装依赖或运行服务；这里的标注基于已下载的源码和仓库说明。
